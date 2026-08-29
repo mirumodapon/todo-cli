@@ -12,20 +12,20 @@ func TestProjectPickerFiltersByProject(t *testing.T) {
 		t.Fatal("P should open the menu")
 	}
 	v := m.View()
-	for _, want := range []string{"All", "(uncategorized)", "work"} {
+	for _, want := range []string{"All projects", "(uncategorized)", "work"} {
 		if !strings.Contains(v, want) {
 			t.Errorf("the menu is missing %q:\n%s", want, v)
 		}
 	}
-	// Row 0 is the clear-filter entry, row 1 is uncategorized, row 2 is work.
+	// Row 0 is all projects, row 1 is uncategorized, row 2 is work.
 	m = press(t, m, "j")
 	m = press(t, m, "j")
 	m = press(t, m, "enter")
 	if m.mode != modeList {
 		t.Fatal("enter should return to the list")
 	}
-	if len(m.tasks) != 1 || m.tasks[0].Title != "second" {
-		t.Errorf("picking work should leave only second, got %d", len(m.tasks))
+	if len(m.tasks) != 1 || m.tasks[0].Title != "work one" {
+		t.Errorf("picking work should leave only work one, got %d", len(m.tasks))
 	}
 }
 
@@ -34,8 +34,8 @@ func TestProjectPickerUncategorized(t *testing.T) {
 	m = press(t, m, "P")
 	m = press(t, m, "j")
 	m = press(t, m, "enter")
-	if len(m.tasks) != 2 {
-		t.Errorf("(uncategorized) should leave 2, got %d", len(m.tasks))
+	if len(m.tasks) != 3 {
+		t.Errorf("(uncategorized) should leave 3, got %d", len(m.tasks))
 	}
 	if m.filter.Project == nil || *m.filter.Project != "" {
 		t.Errorf("filter.Project = %v, want a pointer to an empty string", m.filter.Project)
@@ -48,12 +48,12 @@ func TestProjectPickerAllClearsFilter(t *testing.T) {
 	m = press(t, m, "j")
 	m = press(t, m, "enter")
 	m = press(t, m, "P")
-	m = press(t, m, "enter") // row 0 clears the filter
+	m = press(t, m, "enter") // row 0 spans every project
 	if m.filter.Project != nil {
-		t.Errorf("picking All should clear the project filter, got %v", m.filter.Project)
+		t.Errorf("picking All projects should clear the project filter, got %v", m.filter.Project)
 	}
-	if len(m.tasks) != 3 {
-		t.Errorf("got %d, want 3", len(m.tasks))
+	if len(m.tasks) != 4 {
+		t.Errorf("got %d, want 4", len(m.tasks))
 	}
 }
 
@@ -66,6 +66,8 @@ func TestTagPicker(t *testing.T) {
 	if !strings.Contains(m.View(), "@urgent") {
 		t.Errorf("the tag menu should list @urgent:\n%s", m.View())
 	}
+	// Tags sort by name: row 1 is @misc, row 2 is @urgent.
+	m = press(t, m, "j")
 	m = press(t, m, "j")
 	m = press(t, m, "enter")
 	if len(m.tasks) != 1 || m.tasks[0].Title != "first" {
@@ -75,12 +77,38 @@ func TestTagPicker(t *testing.T) {
 
 func TestPickerEscCancels(t *testing.T) {
 	m, _ := newModel(t)
+	before := m.scope()
 	m = press(t, m, "P")
 	m = press(t, m, "esc")
 	if m.mode != modeList {
 		t.Error("esc should close the menu")
 	}
-	if m.filter.Project != nil {
-		t.Error("esc must not apply any filter")
+	if m.scope() != before {
+		t.Errorf("esc must leave the scope alone, %q became %q", before, m.scope())
+	}
+}
+
+func TestProjectPickerShowsOpenCounts(t *testing.T) {
+	m, _ := newModel(t)
+	m = press(t, m, "P")
+	v := m.View()
+	if !strings.Contains(v, "3 open") || !strings.Contains(v, "1 open") {
+		t.Errorf("the picker should show how much is open in each project:\n%s", v)
+	}
+}
+
+func TestEscReturnsToTheUncategorizedDefault(t *testing.T) {
+	m, _ := newModel(t)
+	m = press(t, m, "P")
+	m = press(t, m, "enter") // all projects
+	if len(m.tasks) != 4 {
+		t.Fatalf("got %d, want 4", len(m.tasks))
+	}
+	m = press(t, m, "esc")
+	if m.filter.Project == nil || *m.filter.Project != "" {
+		t.Errorf("esc should restore the uncategorized default, got %v", m.filter.Project)
+	}
+	if len(m.tasks) != 3 {
+		t.Errorf("got %d, want the 3 uncategorized tasks", len(m.tasks))
 	}
 }

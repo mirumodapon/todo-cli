@@ -45,6 +45,14 @@ type Model struct {
 	width, height int
 }
 
+// defaultFilter is what the list starts on and what esc returns to:
+// uncategorized tasks only, matching what a plain "todo ls" prints.
+// Project tasks are one P away.
+func defaultFilter() task.Filter {
+	uncategorized := ""
+	return task.Filter{Project: &uncategorized}
+}
+
 // New builds a Model.
 func New(s store.Store, now func() time.Time, cwd string) Model {
 	ti := textinput.New()
@@ -52,7 +60,7 @@ func New(s store.Store, now func() time.Time, cwd string) Model {
 	ti.Placeholder = "search titles"
 	return Model{
 		store: s, now: now, cwd: cwd,
-		mode: modeList, search: ti,
+		mode: modeList, search: ti, filter: defaultFilter(),
 		width: 80, height: 24,
 	}
 }
@@ -197,7 +205,7 @@ func (m Model) updateList(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.status = "sort: " + sortLabel(m.filter.Sort)
 		return m, m.loadCmd()
 	case "esc":
-		m.filter = task.Filter{}
+		m.filter = defaultFilter()
 		m.search.SetValue("")
 		m.status = ""
 		return m, m.loadCmd()

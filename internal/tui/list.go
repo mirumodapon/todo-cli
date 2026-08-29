@@ -73,8 +73,25 @@ func (m Model) viewList() string {
 	return b.String()
 }
 
+// scope names what the list is currently showing, so the project filter is
+// never invisible state.
+func (m Model) scope() string {
+	switch {
+	case m.filter.Project == nil:
+		return "all projects"
+	case *m.filter.Project == "":
+		return "uncategorized"
+	default:
+		return project.Label(*m.filter.Project)
+	}
+}
+
 func (m Model) header() string {
-	h := fmt.Sprintf("todo — %d tasks", len(m.tasks))
+	unit := "tasks"
+	if len(m.tasks) == 1 {
+		unit = "task"
+	}
+	h := fmt.Sprintf("todo — %d %s · %s", len(m.tasks), unit, m.scope())
 	if m.filter.Search != "" {
 		h += "  search: " + m.filter.Search
 	}

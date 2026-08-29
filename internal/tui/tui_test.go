@@ -26,10 +26,13 @@ func newModel(t *testing.T) (Model, store.Store) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { s.Close() })
+	// Three uncategorized tasks (what the default view shows) plus one that
+	// belongs to a project, so the project picker has something to select.
 	for _, ti := range []task.Task{
 		{Title: "first", Due: day(2026, 8, 29), Priority: task.PriHigh, Tags: []string{"urgent"}},
-		{Title: "second", Project: "/p/work"},
+		{Title: "second"},
 		{Title: "third"},
+		{Title: "work one", Project: "/p/work", Tags: []string{"misc"}},
 	} {
 		ti.CreatedAt, ti.UpdatedAt = refTime(), refTime()
 		if _, err := s.Add(ti); err != nil {
@@ -90,6 +93,27 @@ func press(t *testing.T, m Model, k string) Model {
 		m, msg = send(t, m, msg)
 	}
 	return m
+}
+
+func TestDefaultsToUncategorized(t *testing.T) {
+	m, _ := newModel(t)
+	for _, ti := range m.tasks {
+		if ti.Project != "" {
+			t.Errorf("the default view must not show project tasks, got %q", ti.Title)
+		}
+	}
+	if !strings.Contains(m.View(), "uncategorized") {
+		t.Errorf("the header should name the current scope:\n%s", m.View())
+	}
+}
+
+func TestHeaderCountIsSingularForOne(t *testing.T) {
+	m, _ := newModel(t)
+	m = press(t, m, "/")
+	m = press(t, m, "first")
+	if !strings.Contains(m.View(), "1 task ·") {
+		t.Errorf("a single result should read \"1 task\":\n%s", m.View())
+	}
 }
 
 func TestInitLoadsTasks(t *testing.T) {
@@ -176,7 +200,7 @@ func TestErrMsgShowsWithoutCrashing(t *testing.T) {
 func TestViewShowsTasksAndCursor(t *testing.T) {
 	m, _ := newModel(t)
 	v := m.View()
-	for _, want := range []string{"first", "second", "third", "today", "!high", "@urgent", "work"} {
+	for _, want := range []string{"first", "second", "third", "today", "!high", "@urgent"} {
 		if !strings.Contains(v, want) {
 			t.Errorf("the view is missing %q:\n%s", want, v)
 		}

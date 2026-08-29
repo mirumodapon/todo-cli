@@ -1,9 +1,11 @@
 package tui
 
 import (
+	"fmt"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 
 	"todo.mirumo.net/internal/project"
 	"todo.mirumo.net/internal/store"
@@ -17,8 +19,10 @@ const (
 )
 
 // pickerItem is one row of the menu. The entry with clear set means no filtering.
+// note is optional trailing detail, such as a project's open task count.
 type pickerItem struct {
 	label string
+	note  string
 	value string
 	clear bool
 }
@@ -30,19 +34,23 @@ type pickerState struct {
 }
 
 func projectItems(ps []store.ProjectCount) []pickerItem {
-	items := []pickerItem{{label: "All", clear: true}}
+	items := []pickerItem{{label: "All projects", clear: true}}
 	for _, p := range ps {
 		label := project.Label(p.Path)
 		if label == "" {
 			label = "(uncategorized)"
 		}
-		items = append(items, pickerItem{label: label, value: p.Path})
+		items = append(items, pickerItem{
+			label: label,
+			note:  fmt.Sprintf("%d open", p.Open),
+			value: p.Path,
+		})
 	}
 	return items
 }
 
 func tagItems(tags []string) []pickerItem {
-	items := []pickerItem{{label: "All", clear: true}}
+	items := []pickerItem{{label: "All tags", clear: true}}
 	for _, t := range tags {
 		items = append(items, pickerItem{label: "@" + t, value: t})
 	}
@@ -96,11 +104,20 @@ func (m Model) viewPicker() string {
 	if m.picker.kind == pickTag {
 		title = "Filter by tag"
 	}
+	var w int
+	for _, it := range m.picker.items {
+		if it.note != "" {
+			w = max(w, lipgloss.Width(it.label))
+		}
+	}
 	var b strings.Builder
 	b.WriteString(title + "\n\n")
 	for i, it := range m.picker.items {
 		marker := "  "
 		line := it.label
+		if it.note != "" {
+			line = pad(line, w) + "  " + styleDim.Render(it.note)
+		}
 		if i == m.picker.cursor {
 			marker = "▸ "
 			line = styleCursor.Render(line)

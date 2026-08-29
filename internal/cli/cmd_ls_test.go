@@ -145,3 +145,36 @@ func TestLsBadSortAndPriority(t *testing.T) {
 		t.Error("an unknown priority should fail")
 	}
 }
+
+func TestLsColorFlagForcesColor(t *testing.T) {
+	app, out, _ := newApp(t) // Color is false: not a terminal
+	app.Run([]string{"add", "overdue one", "-d", "2026-08-20"})
+
+	out.Reset()
+	app.Run([]string{"ls"})
+	if strings.Contains(out.String(), "\x1b[") {
+		t.Errorf("without -c and without a terminal there should be no ANSI: %q", out.String())
+	}
+
+	for _, flag := range []string{"-c", "--color"} {
+		out.Reset()
+		if code := app.Run([]string{"ls", flag}); code != 0 {
+			t.Fatalf("%s exit code = %d", flag, code)
+		}
+		if !strings.Contains(out.String(), "\x1b[") {
+			t.Errorf("%s should force colour on: %q", flag, out.String())
+		}
+	}
+}
+
+func TestLsColorFlagOnListAlias(t *testing.T) {
+	app, out, _ := newApp(t)
+	app.Run([]string{"add", "overdue one", "-d", "2026-08-20"})
+	out.Reset()
+	if code := app.Run([]string{"list", "-c"}); code != 0 {
+		t.Fatalf("exit code = %d", code)
+	}
+	if !strings.Contains(out.String(), "\x1b[") {
+		t.Errorf("the alias should take the same flags: %q", out.String())
+	}
+}

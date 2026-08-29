@@ -88,6 +88,36 @@ func TestHelpTextIsEnglish(t *testing.T) {
 	}
 }
 
+func TestListIsAnAliasForLs(t *testing.T) {
+	app, out, errBuf := newApp(t)
+	app.Run([]string{"add", "buy milk"})
+	out.Reset()
+	if code := app.Run([]string{"list"}); code != 0 {
+		t.Fatalf("exit code = %d; stderr = %q", code, errBuf.String())
+	}
+	if !strings.Contains(out.String(), "buy milk") {
+		t.Errorf("todo list should behave like todo ls, got %q", out.String())
+	}
+}
+
+func TestAliasIsDiscoverableInHelp(t *testing.T) {
+	app, out, _ := newApp(t)
+	app.Run(nil)
+	if !strings.Contains(out.String(), "list") {
+		t.Errorf("the global help should mention the list alias:\n%s", out.String())
+	}
+
+	out.Reset()
+	app.Run([]string{"help", "list"})
+	s := out.String()
+	if !strings.Contains(s, "todo ls") {
+		t.Errorf("todo help list should print ls's help: %q", s)
+	}
+	if !strings.Contains(s, "Aliases: list") {
+		t.Errorf("the subcommand help should name its aliases: %q", s)
+	}
+}
+
 func TestRunUnknownCommand(t *testing.T) {
 	app, _, errBuf := newApp(t)
 	if code := app.Run([]string{"frobnicate"}); code != 2 {

@@ -30,15 +30,30 @@ type App struct {
 // so the global usage and each subcommand's --help cannot drift apart.
 type command struct {
 	name    string
-	syntax  string // the form shown in the command list, e.g. "add <title>"
+	aliases []string
+	args    string // argument placeholders, e.g. "<title>"
 	summary string
 	flags   func() *argparse.Set // nil for subcommands that take no flags
 	run     func([]string) error
 }
 
-// usageLine is the first line of a subcommand's help.
+// listing is how the command appears in the global command list: every name it
+// answers to, then its arguments.
+func (c command) listing() string {
+	names := strings.Join(append([]string{c.name}, c.aliases...), ", ")
+	if c.args == "" {
+		return names
+	}
+	return names + " " + c.args
+}
+
+// usageLine is the first line of a subcommand's help. It names one command,
+// not the aliases, so there is a single obvious way to write it.
 func (c command) usageLine() string {
-	u := "todo " + c.syntax
+	u := "todo " + c.name
+	if c.args != "" {
+		u += " " + c.args
+	}
 	if c.flags != nil {
 		u += " [flags]"
 	}
@@ -49,6 +64,9 @@ func (c command) usageLine() string {
 func (c command) help() string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "Usage:\n  %s\n\n%s\n", c.usageLine(), c.summary)
+	if len(c.aliases) > 0 {
+		fmt.Fprintf(&b, "\nAliases: %s\n", strings.Join(c.aliases, ", "))
+	}
 	if c.flags != nil {
 		fmt.Fprintf(&b, "\nFlags:\n%s", c.flags().Usage())
 	}
@@ -57,15 +75,15 @@ func (c command) help() string {
 
 func (a *App) commandList() []command {
 	return []command{
-		{"add", "add <title>", "Add a task.", addFlags, a.cmdAdd},
-		{"ls", "ls", "List uncategorized open tasks; -p selects a project, -a includes done ones.", lsFlags, a.cmdLs},
-		{"done", "done <id>...", "Mark tasks as done.", nil, a.cmdDone},
-		{"undone", "undone <id>...", "Mark tasks as not done.", nil, a.cmdUndone},
-		{"edit", "edit <id> [new title]", "Change a task. Only the fields you pass are touched.", addFlags, a.cmdEdit},
-		{"rm", "rm <id>...", "Delete tasks.", nil, a.cmdRm},
-		{"projects", "projects", "List projects with their open task counts.", nil, a.cmdProjects},
-		{"tags", "tags", "List tags that are in use.", nil, a.cmdTags},
-		{"tui", "tui", "Open the interactive interface.", nil, a.cmdTUI},
+		{name: "add", args: "<title>", summary: "Add a task.", flags: addFlags, run: a.cmdAdd},
+		{name: "ls", aliases: []string{"list"}, summary: "List uncategorized open tasks; -p selects a project, -a includes done ones.", flags: lsFlags, run: a.cmdLs},
+		{name: "done", args: "<id>...", summary: "Mark tasks as done.", run: a.cmdDone},
+		{name: "undone", args: "<id>...", summary: "Mark tasks as not done.", run: a.cmdUndone},
+		{name: "edit", args: "<id> [new title]", summary: "Change a task. Only the fields you pass are touched.", flags: addFlags, run: a.cmdEdit},
+		{name: "rm", args: "<id>...", summary: "Delete tasks.", run: a.cmdRm},
+		{name: "projects", summary: "List projects with their open task counts.", run: a.cmdProjects},
+		{name: "tags", summary: "List tags that are in use.", run: a.cmdTags},
+		{name: "tui", summary: "Open the interactive interface.", run: a.cmdTUI},
 	}
 }
 
@@ -73,6 +91,11 @@ func (a *App) findCommand(name string) (command, bool) {
 	for _, c := range a.commandList() {
 		if c.name == name {
 			return c, true
+		}
+		for _, alias := range c.aliases {
+			if alias == name {
+				return c, true
+			}
 		}
 	}
 	return command{}, false
@@ -83,12 +106,12 @@ func (a *App) usage() string {
 	cmds := a.commandList()
 	var w int
 	for _, c := range cmds {
-		w = max(w, len(c.syntax))
+		w = max(w, len(c.listing()))
 	}
 	var b strings.Builder
 	b.WriteString("todo — a local task list\n\nUsage:\n  todo <command> [flags]\n\nCommands:\n")
 	for _, c := range cmds {
-		fmt.Fprintf(&b, "  %-*s  %s\n", w, c.syntax, c.summary)
+		fmt.Fprintf(&b, "  %-*s  %s\n", w, c.listing(), c.summary)
 	}
 	b.WriteString("\nGlobal flags:\n")
 	b.WriteString("  --db <path>           Database file (default ~/.todo/todo.db, or $TODO_DB)\n")

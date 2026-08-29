@@ -48,7 +48,7 @@ func run() int {
 		Err:   os.Stderr,
 		Now:   time.Now,
 		Cwd:   cwd,
-		Color: isTTY(os.Stdout),
+		Color: resolveColor(os.Getenv("NO_COLOR"), isTTY(os.Stdout)),
 	}
 	app.RunTUI = func() error { return tui.Run(st, app.Now, cwd) }
 	return app.Run(args)
@@ -63,6 +63,16 @@ func resolveDBPath(envDB, flagDB, home string) string {
 		return envDB
 	}
 	return filepath.Join(home, ".todo", "todo.db")
+}
+
+// resolveColor decides whether to colour output by default. NO_COLOR is the
+// cross-tool convention for turning colour off (https://no-color.org); ls -c
+// still overrides it, since passing a flag is a deliberate act.
+func resolveColor(noColor string, tty bool) bool {
+	if noColor != "" {
+		return false
+	}
+	return tty
 }
 
 // isTTY reports whether output is a terminal; colour is dropped when redirected to a file or pipe.

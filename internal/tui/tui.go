@@ -19,6 +19,7 @@ const (
 	modePicker
 	modeForm
 	modeHelp
+	modeConfirm
 )
 
 // Model is the root model. Every substate hangs off it and Update dispatches on mode.
@@ -32,9 +33,10 @@ type Model struct {
 	cursor int
 	filter task.Filter
 
-	search textinput.Model
-	picker pickerState
-	form   formState
+	search  textinput.Model
+	picker  pickerState
+	form    formState
+	confirm confirmState
 	// undo keeps a single level: the last deleted item, discarded when the TUI exits.
 	undo *task.Task
 
@@ -123,6 +125,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case modeHelp:
 			m.mode = modeList
 			return m, nil
+		case modeConfirm:
+			return m.updateConfirm(msg)
 		}
 	}
 	return m, nil
@@ -146,7 +150,13 @@ func (m Model) updateList(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.cursor = max(0, len(m.tasks)-1)
 	case " ":
 		if t, ok := m.current(); ok {
-			return m, m.toggleCmd(t)
+			// Un-completing needs no confirmation: completing is already gated,
+			// so an accidental completion cannot happen, and reversing one is the
+			// recovery move rather than a destructive act.
+			if t.Done() {
+				return m, m.toggleCmd(t)
+			}
+			return m.askConfirm(`Mark "`+t.Title+`" done? (y/n)`, m.toggleCmd(t)), nil
 		}
 	case "a":
 		return m.openForm(task.Task{}, false), nil
@@ -159,7 +169,7 @@ func (m Model) updateList(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case "d":
 		if t, ok := m.current(); ok {
-			return m, m.deleteCmd(t)
+			return m.askConfirm(`Delete "`+t.Title+`"? (y/n)`, m.deleteCmd(t)), nil
 		}
 	case "u":
 		if m.undo == nil {

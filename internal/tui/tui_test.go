@@ -137,6 +137,7 @@ func TestSpaceTogglesDone(t *testing.T) {
 	m, s := newModel(t)
 	id := m.tasks[0].ID
 	m = press(t, m, " ")
+	m = press(t, m, "y")
 
 	got, err := s.Get(id)
 	if err != nil {

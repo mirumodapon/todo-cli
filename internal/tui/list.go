@@ -85,6 +85,9 @@ func (m Model) header() string {
 }
 
 func (m Model) footer() string {
+	if m.mode == modeConfirm {
+		return m.confirm.prompt
+	}
 	if m.mode == modeSearch {
 		return m.search.View()
 	}
@@ -103,9 +106,9 @@ func viewHelp() string {
 	rows := [][2]string{
 		{"j / k / ↑ / ↓", "Move"},
 		{"g / G", "Jump to top / bottom"},
-		{"space", "Toggle done"},
+		{"space", "Toggle done (asks first)"},
 		{"a / e", "Add / edit"},
-		{"d", "Delete"},
+		{"d", "Delete (asks first)"},
 		{"u", "Undo the last delete"},
 		{"/", "Search titles"},
 		{"P / T", "Filter by project / tag"},

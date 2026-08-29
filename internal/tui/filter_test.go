@@ -14,6 +14,7 @@ func TestDeleteThenUndo(t *testing.T) {
 	victim := m.tasks[0]
 
 	m = press(t, m, "d")
+	m = press(t, m, "y")
 	if _, err := s.Get(victim.ID); !errors.Is(err, store.ErrNotFound) {
 		t.Fatalf("d 應該刪掉項目，err = %v", err)
 	}
@@ -41,8 +42,10 @@ func TestUndoOnlyKeepsOneLevel(t *testing.T) {
 	m, s := newModel(t)
 	first := m.tasks[0]
 	m = press(t, m, "d")
+	m = press(t, m, "y")
 	second := m.tasks[0]
 	m = press(t, m, "d")
+	m = press(t, m, "y")
 	m = press(t, m, "u")
 
 	if _, err := s.Get(second.ID); err != nil {
@@ -92,6 +95,7 @@ func TestSearchEscCancels(t *testing.T) {
 func TestToggleIncludeDone(t *testing.T) {
 	m, _ := newModel(t)
 	m = press(t, m, " ")
+	m = press(t, m, "y")
 	if len(m.tasks) != 2 {
 		t.Fatalf("預期剩 2 筆，實得 %d", len(m.tasks))
 	}

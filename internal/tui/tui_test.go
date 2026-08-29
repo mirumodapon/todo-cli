@@ -6,6 +6,7 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 
 	"todo.mirumo.net/internal/store"
 	"todo.mirumo.net/internal/task"
@@ -205,8 +206,43 @@ func TestViewShowsTasksAndCursor(t *testing.T) {
 			t.Errorf("the view is missing %q:\n%s", want, v)
 		}
 	}
-	if !strings.Contains(v, "▸") {
+	if !strings.Contains(v, cursorMarker) {
 		t.Errorf("the view should carry a cursor marker:\n%s", v)
+	}
+}
+
+func TestCursorIsTheOnlyDifferenceBetweenRows(t *testing.T) {
+	m, _ := newModel(t)
+	if !strings.HasPrefix(m.marker(0), cursorMarker) {
+		t.Errorf("the selected row should carry the arrow, got %q", m.marker(0))
+	}
+	if strings.Contains(m.marker(1), cursorMarker) {
+		t.Errorf("an unselected row should not, got %q", m.marker(1))
+	}
+	// Both must occupy the same width or the columns walk as the cursor moves.
+	if lipgloss.Width(m.marker(0)) != lipgloss.Width(m.marker(1)) {
+		t.Errorf("markers differ in width: %d vs %d",
+			lipgloss.Width(m.marker(0)), lipgloss.Width(m.marker(1)))
+	}
+}
+
+// Selecting a row must not restyle it: colour carries how soon a task is due,
+// and the row under the cursor has to keep saying that.
+func TestSelectionDoesNotChangeRowColour(t *testing.T) {
+	m, _ := newModel(t)
+	first := m.tasks[0] // due today, so it has an urgency colour
+
+	onIt := m.rowStyle(first).GetForeground()
+	if onIt == (lipgloss.NoColor{}) {
+		t.Fatal("the fixture should carry a colour for this test to mean anything")
+	}
+
+	m = press(t, m, "j") // move the cursor away
+	if m.cursor == 0 {
+		t.Fatal("the cursor should have moved")
+	}
+	if got := m.rowStyle(first).GetForeground(); got != onIt {
+		t.Errorf("colour changed with the cursor: %v then %v", onIt, got)
 	}
 }
 

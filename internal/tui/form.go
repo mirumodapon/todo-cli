@@ -5,6 +5,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 
 	"todo.mirumo.net/internal/datearg"
 	"todo.mirumo.net/internal/project"
@@ -147,14 +148,22 @@ func (m Model) viewForm() string {
 	if m.form.editing {
 		title = "Edit #" + itoa(m.form.original.ID)
 	}
+	// Derive the label column from the labels themselves; a hard-coded width
+	// silently runs the longest label into its input.
+	var labelWidth int
+	for _, l := range fieldLabels {
+		labelWidth = max(labelWidth, lipgloss.Width(l))
+	}
+	labelWidth++ // at least one space before the input
+
 	var b strings.Builder
 	b.WriteString(title + "\n\n")
 	for i, in := range m.form.inputs {
-		marker := "  "
+		marker := pad("", markerWidth)
 		if i == m.form.focus {
-			marker = "▸ "
+			marker = pad(cursorMarker, markerWidth)
 		}
-		b.WriteString(marker + pad(fieldLabels[i], 8) + in.View() + "\n")
+		b.WriteString(marker + pad(fieldLabels[i], labelWidth) + in.View() + "\n")
 	}
 	b.WriteString("\n")
 	if m.form.errText != "" {

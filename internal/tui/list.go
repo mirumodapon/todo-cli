@@ -51,9 +51,30 @@ func (m Model) taskLine(t task.Task) string {
 	return strings.Join(parts, " ")
 }
 
-// urgencyStyle paints a row by how soon it is due, on the same ramp the CLI
-// uses. Rows that are not close to due keep the plain style.
-func (m Model) urgencyStyle(t task.Task) lipgloss.Style {
+// cursorMarker is how the selected row is shown. Selection deliberately does
+// not restyle the row: colour there means how soon the task is due, and
+// overriding it would hide that for whichever row you happened to be on.
+const cursorMarker = "▶"
+
+// markerWidth keeps selected and unselected rows aligned. The arrow is an
+// East Asian ambiguous-width character, so it occupies one cell in some
+// terminals and two in others; padding to a fixed width covers both.
+const markerWidth = 2
+
+func (m Model) marker(i int) string {
+	if i == m.cursor {
+		return pad(cursorMarker, markerWidth)
+	}
+	return pad("", markerWidth)
+}
+
+// rowStyle paints a row by how soon it is due, on the same ramp the CLI uses.
+// It takes only the task: what a row looks like must not depend on where the
+// cursor happens to be.
+func (m Model) rowStyle(t task.Task) lipgloss.Style {
+	if t.Done() {
+		return styleDim
+	}
 	if t.Due == nil {
 		return lipgloss.NewStyle()
 	}
@@ -71,20 +92,7 @@ func (m Model) viewList() string {
 		b.WriteString(styleDim.Render("No matching tasks") + "\n")
 	}
 	for i, t := range m.tasks {
-		marker := "  "
-		if i == m.cursor {
-			marker = "▸ "
-		}
-		line := marker + m.taskLine(t)
-		switch {
-		case i == m.cursor:
-			line = styleCursor.Render(line)
-		case t.Done():
-			line = styleDim.Render(line)
-		default:
-			line = m.urgencyStyle(t).Render(line)
-		}
-		b.WriteString(line + "\n")
+		b.WriteString(m.marker(i) + m.rowStyle(t).Render(m.taskLine(t)) + "\n")
 	}
 	b.WriteString("\n" + m.footer())
 	return b.String()

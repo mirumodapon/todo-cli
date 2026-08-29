@@ -81,6 +81,23 @@ func TestFormEditPrefillsAndUpdates(t *testing.T) {
 	}
 }
 
+// The longest label used to touch its input, because the column width was
+// hard-coded to exactly that label's length.
+func TestFormLabelsAreSeparatedFromTheirInputs(t *testing.T) {
+	m, _ := newModel(t)
+	m = press(t, m, "a")
+	for _, line := range strings.Split(m.View(), "\n") {
+		for _, label := range []string{"Title", "Project", "Tags", "Due", "Priority"} {
+			if i := strings.Index(line, label); i >= 0 {
+				rest := line[i+len(label):]
+				if rest != "" && !strings.HasPrefix(rest, " ") {
+					t.Errorf("%q runs into its input: %q", label, line)
+				}
+			}
+		}
+	}
+}
+
 func TestFormRejectsEmptyTitle(t *testing.T) {
 	m, _ := newModel(t)
 	m = press(t, m, "a")

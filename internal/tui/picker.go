@@ -99,6 +99,15 @@ func (m Model) updatePicker(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// pickerMarker uses the same arrow as the task list, so selection looks the
+// same everywhere in the interface.
+func (m Model) pickerMarker(i int) string {
+	if i == m.picker.cursor {
+		return pad(cursorMarker, markerWidth)
+	}
+	return pad("", markerWidth)
+}
+
 func (m Model) viewPicker() string {
 	title := "Filter by project"
 	if m.picker.kind == pickTag {
@@ -113,16 +122,14 @@ func (m Model) viewPicker() string {
 	var b strings.Builder
 	b.WriteString(title + "\n\n")
 	for i, it := range m.picker.items {
-		marker := "  "
 		line := it.label
 		if it.note != "" {
 			line = pad(line, w) + "  " + styleDim.Render(it.note)
 		}
 		if i == m.picker.cursor {
-			marker = "▸ "
 			line = styleCursor.Render(line)
 		}
-		b.WriteString(marker + line + "\n")
+		b.WriteString(m.pickerMarker(i) + line + "\n")
 	}
 	b.WriteString("\n" + styleHint.Render("j/k move · enter select · esc cancel"))
 	return b.String()

@@ -1,4 +1,4 @@
-// Package cli 實作 todo 的命令列介面。
+// Package cli implements the todo command line interface.
 package cli
 
 import (
@@ -14,7 +14,7 @@ import (
 	"todo.mirumo.net/internal/store"
 )
 
-// App 持有一次執行所需的全部依賴。全部可注入，測試才能完全隔離。
+// App holds everything one run needs. All of it is injectable so tests stay isolated.
 type App struct {
 	Store store.Store
 	Out   io.Writer
@@ -22,21 +22,21 @@ type App struct {
 	Now   func() time.Time
 	Cwd   string
 	Color bool
-	// RunTUI 由 cmd/todo 注入。cli 不 import tui，兩者保持平行。
+	// RunTUI is injected by cmd/todo. cli does not import tui; they stay siblings.
 	RunTUI func() error
 }
 
-// command 是一個子指令的完整描述。說明文字由這裡生成，
-// 全域說明與各子指令的 --help 共用同一份來源，不會走樣。
+// command fully describes one subcommand. All help text is generated from here,
+// so the global usage and each subcommand's --help cannot drift apart.
 type command struct {
 	name    string
-	syntax  string // 出現在指令清單裡的形式，如 "add <title>"
+	syntax  string // the form shown in the command list, e.g. "add <title>"
 	summary string
-	flags   func() *argparse.Set // 沒有 flag 的子指令為 nil
+	flags   func() *argparse.Set // nil for subcommands that take no flags
 	run     func([]string) error
 }
 
-// usageLine 是子指令說明最上方那一行。
+// usageLine is the first line of a subcommand's help.
 func (c command) usageLine() string {
 	u := "todo " + c.syntax
 	if c.flags != nil {
@@ -45,7 +45,7 @@ func (c command) usageLine() string {
 	return u
 }
 
-// help 產生單一子指令的說明。
+// help renders one subcommand's help.
 func (c command) help() string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "Usage:\n  %s\n\n%s\n", c.usageLine(), c.summary)
@@ -78,7 +78,7 @@ func (a *App) findCommand(name string) (command, bool) {
 	return command{}, false
 }
 
-// usage 產生全域說明。指令清單由 commandList 生成，加子指令不必再改這裡。
+// usage renders the global help. The command list comes from commandList, so adding a subcommand needs no edit here.
 func (a *App) usage() string {
 	cmds := a.commandList()
 	var w int
@@ -97,7 +97,7 @@ func (a *App) usage() string {
 	return b.String()
 }
 
-// Run 執行一次命令，回傳行程離開碼：0 成功、1 執行失敗、2 用法錯誤。
+// Run executes one command and returns the process exit code: 0 success, 1 failure, 2 usage error.
 func (a *App) Run(args []string) int {
 	if len(args) == 0 {
 		fmt.Fprint(a.Out, a.usage())
@@ -126,8 +126,8 @@ func (a *App) Run(args []string) int {
 		fmt.Fprint(a.Err, a.usage())
 		return 2
 	}
-	// 子指令的 flag 集不認得 -h，必須在解析之前攔下來，
-	// 否則 todo add -h 會變成「未知的 flag」，那是很差的體驗。
+	// A subcommand's flag set does not know -h, so catch it before parsing;
+	// otherwise todo add -h reports an unknown flag, which is a poor experience.
 	for _, x := range rest {
 		if x == "-h" || x == "--help" {
 			fmt.Fprint(a.Out, c.help())
@@ -151,8 +151,8 @@ func (a *App) cmdTUI(args []string) error {
 	return a.RunTUI()
 }
 
-// SplitGlobal 取出開頭連續的 --db，回傳剩下的參數。
-// 只掃描開頭：--db 是全域 flag，位置固定才不會與子指令的 flag 混淆。
+// SplitGlobal pulls leading --db occurrences off args and returns the rest.
+// Only the front is scanned: --db is global, and a fixed position keeps it distinct from subcommand flags.
 func SplitGlobal(args []string) (dbPath string, rest []string, err error) {
 	for len(args) > 0 {
 		switch a := args[0]; {
@@ -185,8 +185,8 @@ func parseIDs(args []string) ([]int64, error) {
 	return ids, nil
 }
 
-// resolveProject 判讀 -p 的三態。
-// 回傳的 bool 代表「要不要動 project 欄位」，字串才是新值（可為空字串）。
+// resolveProject reads the three states of -p.
+// The bool says whether to touch the project field; the string is the new value, possibly empty.
 func (a *App) resolveProject(r *argparse.Result) (string, bool, error) {
 	if !r.Changed("project") {
 		return "", false, nil

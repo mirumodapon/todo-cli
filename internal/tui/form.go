@@ -22,7 +22,7 @@ const (
 
 var fieldLabels = [fieldCount]string{"標題", "專案", "標籤", "截止日", "優先度"}
 
-// formState 是新增／編輯共用的表單。editing 為 false 時代表新增。
+// formState is the form shared by add and edit. editing false means add.
 type formState struct {
 	editing  bool
 	original task.Task
@@ -31,7 +31,7 @@ type formState struct {
 	errText  string
 }
 
-// openForm 準備一份表單。編輯時以現有值預填。
+// openForm prepares a form, prefilling current values when editing.
 func (m Model) openForm(t task.Task, editing bool) Model {
 	f := formState{editing: editing, original: t}
 	values := [fieldCount]string{
@@ -98,13 +98,13 @@ func (m Model) updateForm(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.mode = modeList
 		return m, m.saveCmd(t, m.form.editing)
 	}
-	// 同 updateSearch：不轉傳游標閃爍的計時器 cmd。
+	// As in updateSearch, the cursor blink timer cmd is not forwarded.
 	m.form.inputs[m.form.focus], _ = m.form.inputs[m.form.focus].Update(msg)
 	m.form.errText = ""
 	return m, nil
 }
 
-// formTask 把表單內容組成一筆 Task，任何欄位不合法就回傳錯誤。
+// formTask assembles a Task from the form, returning an error if any field is invalid.
 func (m Model) formTask() (task.Task, error) {
 	f := m.form
 	t := f.original

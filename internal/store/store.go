@@ -1,4 +1,4 @@
-// Package store 負責待辦事項的持久化。
+// Package store persists todo items.
 package store
 
 import (
@@ -8,35 +8,35 @@ import (
 	"todo.mirumo.net/internal/task"
 )
 
-// ErrNotFound 表示指定 id 的任務不存在。
+// ErrNotFound reports that no task has the given id.
 var ErrNotFound = errors.New("找不到該任務")
 
-// ProjectCount 是一個專案與它的未完成數。
+// ProjectCount pairs a project with its open task count.
 type ProjectCount struct {
 	Path string
 	Open int
 }
 
-// Store 是待辦事項的儲存介面。CLI 與 TUI 只認這個介面，
-// 測試時換成 :memory: 的實作，永不碰使用者的真實資料。
+// Store is the persistence interface. The CLI and the TUI know only this interface,
+// so tests can swap in an in-memory implementation and never touch real data.
 type Store interface {
-	// Add 新增一筆並回傳含 ID 的結果。
+	// Add inserts a task and returns it with its ID filled in.
 	Add(t task.Task) (task.Task, error)
-	// Get 依 id 取一筆，不存在時回傳 ErrNotFound。
+	// Get fetches one task by id, returning ErrNotFound when it does not exist.
 	Get(id int64) (task.Task, error)
-	// List 依 f 查詢；now 用於解析 today/week/overdue 這類相對條件。
+	// List queries by f; now resolves relative conditions such as today, week, and overdue.
 	List(f task.Filter, now time.Time) ([]task.Task, error)
-	// Update 依 t.ID 覆寫全部欄位（含標籤）。
+	// Update overwrites every field of t.ID, tags included.
 	Update(t task.Task) error
-	// Delete 刪除一筆，連帶清掉它的標籤關聯。
+	// Delete removes one task along with its tag links.
 	Delete(id int64) error
-	// SetDone 設定或取消完成狀態。
+	// SetDone sets or clears the completed state.
 	SetDone(id int64, done bool, now time.Time) error
-	// Restore 以 t.ID 原號重新插入，供 TUI 的刪除復原使用。
+	// Restore reinserts a task under its original t.ID, backing the TUI's undo.
 	Restore(t task.Task) error
-	// Tags 列出至少被一個任務引用的標籤。
+	// Tags lists the tags referenced by at least one task.
 	Tags() ([]string, error)
-	// Projects 列出所有專案與各自的未完成數。
+	// Projects lists every project with its open task count.
 	Projects() ([]ProjectCount, error)
 	Close() error
 }

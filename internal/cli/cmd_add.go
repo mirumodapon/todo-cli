@@ -10,7 +10,7 @@ import (
 	"todo.mirumo.net/internal/task"
 )
 
-// addFlags 是 add 與 edit 共用的欄位 flag。
+// addFlags holds the field flags shared by add and edit.
 func addFlags() *argparse.Set {
 	return argparse.New(
 		argparse.Spec{Long: "project", Short: "p", Kind: argparse.OptionalString, Usage: "Project; uses the current directory when given no value"},
@@ -27,7 +27,7 @@ func (a *App) cmdAdd(args []string) error {
 	}
 	pos := r.Args()
 	if len(pos) == 0 {
-		// 最常見的誤用：todo add -p "買牛奶"，標題被 -p 吃掉了。
+		// The common mistake: todo add -p "buy milk", where -p swallowed the title.
 		if v, has := r.Optional("project"); has {
 			return fmt.Errorf("缺少標題；看起來 %q 被當成 --project 的值。標題請放在 flag 前面（todo add %q -p），或用 --project=%s", v, v, v)
 		}

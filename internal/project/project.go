@@ -1,4 +1,4 @@
-// Package project 由檔案系統位置推導待辦事項所屬的專案。
+// Package project derives a task's project from a filesystem location.
 package project
 
 import (
@@ -6,15 +6,15 @@ import (
 	"path/filepath"
 )
 
-// Current 從 dir 往上找 .git；找到就回傳該目錄，找不到則回傳 dir 本身。
-// 一律回傳絕對路徑——目錄名會撞（兩個 repo 都可能有 docs/），路徑才唯一。
+// Current walks up from dir looking for .git, returning that directory when found and dir otherwise.
+// It always returns an absolute path: directory names collide (two repos can both have docs/) but paths do not.
 func Current(dir string) (string, error) {
 	abs, err := filepath.Abs(dir)
 	if err != nil {
 		return "", err
 	}
 	for d := abs; ; {
-		// git worktree 的 .git 是檔案，一般 repo 是目錄，兩種都算。
+		// In a git worktree .git is a file; in a normal repo it is a directory. Both count.
 		if _, err := os.Stat(filepath.Join(d, ".git")); err == nil {
 			return d, nil
 		}
@@ -27,7 +27,7 @@ func Current(dir string) (string, error) {
 	return abs, nil
 }
 
-// Label 回傳顯示用的短名。空字串代表全域未分類，原樣回傳。
+// Label returns the short display name. An empty path means uncategorised and is returned as is.
 func Label(path string) string {
 	if path == "" {
 		return ""

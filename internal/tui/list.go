@@ -26,7 +26,7 @@ func pad(s string, w int) string {
 	return s
 }
 
-// taskLine 組出一行的內容（不含游標標記）。
+// taskLine builds one row's text, without the cursor marker.
 func (m Model) taskLine(t task.Task) string {
 	status := "[ ]"
 	if t.Done() {

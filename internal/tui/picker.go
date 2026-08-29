@@ -16,7 +16,7 @@ const (
 	pickTag
 )
 
-// pickerItem 是選單的一列。clear 為 true 的那項代表「不過濾」。
+// pickerItem is one row of the menu. The entry with clear set means no filtering.
 type pickerItem struct {
 	label string
 	value string
@@ -49,7 +49,7 @@ func tagItems(tags []string) []pickerItem {
 	return items
 }
 
-// updatePicker 處理選單模式的按鍵。
+// updatePicker handles keys in menu mode.
 func (m Model) updatePicker(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "esc", "q":

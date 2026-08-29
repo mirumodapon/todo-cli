@@ -9,7 +9,7 @@ import (
 	"todo.mirumo.net/internal/task"
 )
 
-// typeInto 依序把字串打進目前聚焦的欄位。
+// typeInto types a string into the focused field.
 func typeInto(t *testing.T, m Model, s string) Model {
 	t.Helper()
 	return press(t, m, s)

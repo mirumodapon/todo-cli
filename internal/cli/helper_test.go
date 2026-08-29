@@ -10,7 +10,7 @@ import (
 
 func refTime() time.Time { return time.Date(2026, 8, 29, 15, 0, 0, 0, time.Local) }
 
-// newApp 建一個完全隔離的 App：in-memory 資料庫、緩衝輸出、固定時鐘、暫存目錄當 cwd。
+// newApp builds a fully isolated App: in-memory database, buffered output, fixed clock, temp dir as cwd.
 func newApp(t *testing.T) (*App, *bytes.Buffer, *bytes.Buffer) {
 	t.Helper()
 	st, err := store.OpenSQLite(":memory:")

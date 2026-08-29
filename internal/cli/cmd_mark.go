@@ -33,7 +33,7 @@ func (a *App) cmdRm(args []string) error {
 		return err
 	}
 	for _, id := range ids {
-		// 先取回來，刪除訊息才能帶上標題，讓使用者確認自己刪對了。
+		// Fetch first so the message can name the title and the user can confirm they deleted the right thing.
 		t, err := a.Store.Get(id)
 		if err != nil {
 			return fmt.Errorf("#%d：%w", id, err)

@@ -1,4 +1,4 @@
-// Package task 定義待辦事項的領域型別。此套件不做任何 IO。
+// Package task defines the todo domain types. It performs no IO.
 package task
 
 import (
@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-// Priority 是優先度。數值由低到高遞增，SQL 可直接 ORDER BY。
+// Priority ranks a task. Values ascend from low to high so SQL can ORDER BY it directly.
 type Priority int
 
 const (
@@ -18,7 +18,7 @@ const (
 	PriHigh
 )
 
-// ParsePriority 解析使用者輸入。空字串代表未設定。
+// ParsePriority parses user input. An empty string means unset.
 func ParsePriority(s string) (Priority, error) {
 	switch strings.ToLower(strings.TrimSpace(s)) {
 	case "":
@@ -33,7 +33,7 @@ func ParsePriority(s string) (Priority, error) {
 	return PriNone, fmt.Errorf("看不懂的優先度：%q（可用 low、med、high）", s)
 }
 
-// String 回傳 CLI 用的英文代號。
+// String returns the identifier used on the command line.
 func (p Priority) String() string {
 	switch p {
 	case PriLow:
@@ -46,7 +46,7 @@ func (p Priority) String() string {
 	return ""
 }
 
-// Label 回傳顯示用的中文標記。
+// Label returns the short marker shown in listings.
 func (p Priority) Label() string {
 	switch p {
 	case PriLow:
@@ -59,7 +59,7 @@ func (p Priority) Label() string {
 	return ""
 }
 
-// Task 是一條待辦事項。Project 為空字串代表全域未分類。
+// Task is one todo item. An empty Project means globally uncategorised.
 type Task struct {
 	ID        int64
 	Title     string
@@ -72,10 +72,10 @@ type Task struct {
 	UpdatedAt time.Time
 }
 
-// Done 回報是否已完成。
+// Done reports whether the task is complete.
 func (t Task) Done() bool { return t.DoneAt != nil }
 
-// ValidateTitle 去掉頭尾空白並確認非空。
+// ValidateTitle trims surrounding whitespace and rejects an empty result.
 func ValidateTitle(s string) (string, error) {
 	s = strings.TrimSpace(s)
 	if s == "" {
@@ -84,7 +84,7 @@ func ValidateTitle(s string) (string, error) {
 	return s, nil
 }
 
-// NormalizeTags 去空白、去空字串、去重，並保留首次出現的順序。
+// NormalizeTags trims, drops empties, removes duplicates, and keeps first-seen order.
 func NormalizeTags(tags []string) []string {
 	seen := map[string]bool{}
 	out := make([]string, 0, len(tags))
@@ -99,7 +99,7 @@ func NormalizeTags(tags []string) []string {
 	return out
 }
 
-// SortBy 是清單排序方式。
+// SortBy selects the listing order.
 type SortBy int
 
 const (
@@ -108,7 +108,7 @@ const (
 	SortCreated
 )
 
-// ParseSortBy 解析 -s 的值。
+// ParseSortBy parses the value of -s.
 func ParseSortBy(s string) (SortBy, error) {
 	switch strings.ToLower(strings.TrimSpace(s)) {
 	case "", "due":
@@ -121,7 +121,7 @@ func ParseSortBy(s string) (SortBy, error) {
 	return SortDue, fmt.Errorf("看不懂的排序：%q（可用 due、pri、created）", s)
 }
 
-// DueRange 是截止日的過濾範圍。
+// DueRange narrows a query by due date.
 type DueRange int
 
 const (
@@ -132,8 +132,8 @@ const (
 	DueOn
 )
 
-// Filter 描述一次查詢。Project 為 nil 代表不依專案過濾；
-// 指向空字串則代表「只看全域未分類」。
+// Filter describes one query. A nil Project means no project filtering;
+// a pointer to an empty string means uncategorised tasks only.
 type Filter struct {
 	Project     *string
 	Tags        []string

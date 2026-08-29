@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-// 2026-08-29 是星期六。
+// 2026-08-29 is a Saturday.
 func ref() time.Time {
 	return time.Date(2026, 8, 29, 15, 4, 5, 0, time.Local)
 }

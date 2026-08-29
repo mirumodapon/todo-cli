@@ -30,7 +30,7 @@ func (a *App) cmdEdit(args []string) error {
 		return fmt.Errorf("#%d：%w", ids[0], err)
 	}
 
-	// 只動「有給」的欄位。沒給 flag 與給了空值是兩回事。
+	// Touch only the fields that were given. An absent flag and an empty value are different things.
 	if len(pos) == 2 {
 		if t.Title, err = task.ValidateTitle(pos[1]); err != nil {
 			return err

@@ -43,14 +43,14 @@ const taskCols = `id, title, project, due, priority, done_at, created_at, update
 
 type sqlStore struct{ db *sql.DB }
 
-// OpenSQLite 開啟（必要時建立）資料庫。path 可以是檔案路徑或 ":memory:"。
+// OpenSQLite opens, and creates if needed, the database. path may be a file path or ":memory:".
 func OpenSQLite(path string) (Store, error) {
 	db, err := sql.Open("sqlite", path)
 	if err != nil {
 		return nil, err
 	}
-	// 單一使用者的 CLI 不需要連線池；限制為一條連線，
-	// PRAGMA 才會確實套用在之後所有查詢上（SQLite 預設關閉外鍵）。
+	// A single-user CLI needs no connection pool. One connection guarantees the
+	// PRAGMA applies to every later query; SQLite disables foreign keys by default.
 	db.SetMaxOpenConns(1)
 	if _, err := db.Exec(`PRAGMA foreign_keys = ON`); err != nil {
 		db.Close()
@@ -119,7 +119,7 @@ func scanTask(sc scanner) (task.Task, error) {
 	return t, nil
 }
 
-// setTags 覆寫一筆任務的標籤關聯。
+// setTags replaces one task's tag links.
 func (s *sqlStore) setTags(id int64, tags []string) error {
 	if _, err := s.db.Exec(`DELETE FROM task_tags WHERE task_id = ?`, id); err != nil {
 		return err
@@ -239,7 +239,7 @@ func (s *sqlStore) List(f task.Filter, now time.Time) ([]task.Task, error) {
 		args = append(args, len(tags))
 	}
 
-	// 無期限者一律排在有期限者之後：SQLite 中 (due IS NULL) 為 0/1，升冪即可。
+	// Undated tasks always sort after dated ones: (due IS NULL) is 0 or 1, so ascending works.
 	order := `(due IS NULL), due ASC, priority DESC, id ASC`
 	switch f.Sort {
 	case task.SortPriority:
@@ -273,7 +273,7 @@ func (s *sqlStore) List(f task.Filter, now time.Time) ([]task.Task, error) {
 	}
 	rows.Close()
 
-	// 清單規模是個人待辦，逐筆載入標籤的 N+1 成本可忽略，換來的是簡單。
+	// For a personal todo list the N+1 cost of loading tags per row is negligible, and the code stays simple.
 	for i := range out {
 		tags, err := s.loadTags(out[i].ID)
 		if err != nil {
@@ -339,7 +339,7 @@ func (s *sqlStore) SetDone(id int64, done bool, now time.Time) error {
 	return nil
 }
 
-// Restore 以原 id 重新插入。AUTOINCREMENT 不重用號碼，該 id 必定仍空著。
+// Restore reinserts under the original id. AUTOINCREMENT never reuses numbers, so that id is still free.
 func (s *sqlStore) Restore(t task.Task) error {
 	_, err := s.db.Exec(
 		`INSERT INTO tasks (id, title, project, due, priority, done_at, created_at, updated_at)
@@ -352,7 +352,7 @@ func (s *sqlStore) Restore(t task.Task) error {
 	return s.setTags(t.ID, t.Tags)
 }
 
-// Tags 只列出至少被一個任務引用的標籤；刪除任務留下的孤兒標籤不清理也不顯示。
+// Tags lists only referenced tags. Orphans left behind by deletes are neither cleaned up nor shown.
 func (s *sqlStore) Tags() ([]string, error) {
 	rows, err := s.db.Query(
 		`SELECT DISTINCT g.name FROM tags g JOIN task_tags tt ON tt.tag_id = g.id ORDER BY g.name`)

@@ -1,7 +1,8 @@
-// Package argparse 提供 GNU 風格的命令列參數解析。
+// Package argparse provides GNU-style command line argument parsing.
 //
-// 不使用 pflag 或標準庫 flag 的原因：本工具的 -p/--project 需要「可選值」——
-// 不給值代表當前目錄，給值代表指定專案名。兩個現成庫都不支援這種 flag。
+// Neither pflag nor the standard library flag package is used because this tool's
+// -p/--project needs an optional value: no value means the current directory, a
+// value means an explicit project name. Neither library supports such a flag.
 package argparse
 
 import (
@@ -9,21 +10,21 @@ import (
 	"strings"
 )
 
-// Kind 決定一個 flag 如何吃掉後續的 token。
+// Kind decides how a flag consumes the tokens that follow it.
 type Kind int
 
 const (
-	// Bool 永不吃下一個 token。
+	// Bool never consumes the next token.
 	Bool Kind = iota
-	// String 必須有值，缺值視為錯誤。
+	// String requires a value; a missing value is an error.
 	String
-	// StringSlice 同 String，但可重複出現、累積成清單。
+	// StringSlice behaves like String but may repeat, accumulating into a list.
 	StringSlice
-	// OptionalString 的下一個 token 若存在且不以 "-" 開頭就吃掉，否則視為「有給但無值」。
+	// OptionalString consumes the next token if it exists and does not start with "-"; otherwise it counts as given without a value.
 	OptionalString
 )
 
-// Spec 描述一個 flag。Short 不含前導的 "-"，可為空字串。
+// Spec describes one flag. Short omits the leading "-" and may be empty.
 type Spec struct {
 	Long  string
 	Short string
@@ -31,10 +32,10 @@ type Spec struct {
 	Usage string
 }
 
-// Set 是一個子指令的 flag 定義集合。
+// Set is one subcommand's collection of flag definitions.
 type Set struct{ specs []Spec }
 
-// New 建立 Set。
+// New builds a Set.
 func New(specs ...Spec) *Set { return &Set{specs: specs} }
 
 type value struct {
@@ -44,22 +45,22 @@ type value struct {
 	strs     []string
 }
 
-// Result 是一次解析的結果。
+// Result holds the outcome of one parse.
 type Result struct {
 	vals map[string]*value
 	args []string
 }
 
-// Changed 回報該 flag 有沒有出現在命令列上。
+// Changed reports whether the flag appeared on the command line.
 func (r *Result) Changed(long string) bool {
 	v, ok := r.vals[long]
 	return ok && v.set
 }
 
-// Bool 回傳布林 flag 是否出現。
+// Bool reports whether a boolean flag was given.
 func (r *Result) Bool(long string) bool { return r.Changed(long) }
 
-// String 回傳字串 flag 的值；沒給時為空字串（用 Changed 區分）。
+// String returns a string flag's value, or "" when not given (use Changed to tell them apart).
 func (r *Result) String(long string) string {
 	if v, ok := r.vals[long]; ok {
 		return v.str
@@ -67,7 +68,7 @@ func (r *Result) String(long string) string {
 	return ""
 }
 
-// Strings 回傳可重複 flag 累積的值。
+// Strings returns the values a repeatable flag accumulated.
 func (r *Result) Strings(long string) []string {
 	if v, ok := r.vals[long]; ok {
 		return v.strs
@@ -75,8 +76,8 @@ func (r *Result) Strings(long string) []string {
 	return nil
 }
 
-// Optional 回傳可選值 flag 的值與「有沒有帶值」。
-// 三態判讀：Changed 為 false 是沒給；Changed 為 true 但 hasValue 為 false 是給了但無值。
+// Optional returns an optional-value flag's value and whether one was given.
+// Three states: Changed false means absent; Changed true with hasValue false means given without a value.
 func (r *Result) Optional(long string) (string, bool) {
 	v, ok := r.vals[long]
 	if !ok || !v.set {
@@ -85,10 +86,10 @@ func (r *Result) Optional(long string) (string, bool) {
 	return v.str, v.hasValue
 }
 
-// Args 回傳位置參數。
+// Args returns the positional arguments.
 func (r *Result) Args() []string { return r.args }
 
-// Usage 產生 flag 說明文字。
+// Usage renders the flag help text.
 func (s *Set) Usage() string {
 	var b strings.Builder
 	for _, sp := range s.specs {
@@ -120,7 +121,7 @@ func cut(s string) (name, val string, has bool) {
 	return s, "", false
 }
 
-// Parse 解析 args（不含程式名與子指令名）。
+// Parse parses args, which exclude the program name and the subcommand name.
 func (s *Set) Parse(args []string) (*Result, error) {
 	r := &Result{vals: map[string]*value{}}
 	for _, sp := range s.specs {
@@ -162,7 +163,7 @@ func (s *Set) Parse(args []string) (*Result, error) {
 	return r, nil
 }
 
-// assign 套用一個 flag，回傳吃掉幾個 token。
+// assign applies one flag and reports how many tokens it consumed.
 func (s *Set) assign(r *Result, sp Spec, inline string, hasInline bool, args []string, i int) (int, error) {
 	v := r.vals[sp.Long]
 	v.set = true

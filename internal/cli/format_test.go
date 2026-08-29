@@ -15,7 +15,7 @@ func day(y int, m time.Month, d int) *time.Time {
 }
 
 func TestPadUsesDisplayWidth(t *testing.T) {
-	// "買牛奶" 是 3 個 rune、9 個 byte、6 格寬。
+	// The Chinese title is 3 runes, 9 bytes, and 6 display cells wide.
 	if got := pad("買牛奶", 8); got != "買牛奶  " {
 		t.Errorf("= %q，預期補到 8 格寬（兩個空白）", got)
 	}

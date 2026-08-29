@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-// 先塞幾筆資料再測 ls。
+// Seed a few tasks before exercising ls.
 func seedCLI(t *testing.T, app *App) {
 	t.Helper()
 	cases := [][]string{

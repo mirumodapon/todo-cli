@@ -20,7 +20,7 @@ const (
 	ansiYellow = "\x1b[33m"
 )
 
-// pad 依終端顯示寬度補空白。中文字佔兩格，len() 與 text/tabwriter 都會算錯。
+// pad aligns by terminal display width. CJK characters take two cells, which len() and text/tabwriter both get wrong.
 func pad(s string, w int) string {
 	if d := w - lipgloss.Width(s); d > 0 {
 		return s + strings.Repeat(" ", d)
@@ -64,7 +64,7 @@ func colorize(line string, t task.Task, now time.Time) string {
 	return line
 }
 
-// WriteList 輸出對齊的待辦清單。color 為 false 時完全不輸出 ANSI 碼。
+// WriteList prints an aligned task list. With color false it emits no ANSI codes at all.
 func WriteList(w io.Writer, ts []task.Task, now time.Time, color bool) {
 	if len(ts) == 0 {
 		fmt.Fprintln(w, "沒有符合的待辦")

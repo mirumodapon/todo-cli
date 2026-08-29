@@ -1,4 +1,4 @@
-// Package datearg 負責截止日的輸入解析與人類化顯示。
+// Package datearg parses due dates and renders them for people.
 package datearg
 
 import (
@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-// Day 把時間截成當地時區的當日零時。
+// Day truncates a time to midnight in its own location.
 func Day(t time.Time) time.Time {
 	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
 }
@@ -22,8 +22,8 @@ var weekdays = map[string]time.Weekday{
 
 var zhWeekday = [7]string{"週日", "週一", "週二", "週三", "週四", "週五", "週六"}
 
-// Parse 解析使用者輸入的截止日，回傳當地時區的當日零時。
-// 接受 today / tomorrow / yesterday、星期簡稱、+3d、+2w、YYYY-MM-DD。
+// Parse reads a user-supplied due date and returns local midnight on that day.
+// Accepts today / tomorrow / yesterday, weekday abbreviations, +3d, +2w, and YYYY-MM-DD.
 func Parse(s string, now time.Time) (time.Time, error) {
 	s = strings.ToLower(strings.TrimSpace(s))
 	base := Day(now)
@@ -36,7 +36,7 @@ func Parse(s string, now time.Time) (time.Time, error) {
 		return base.AddDate(0, 0, -1), nil
 	}
 	if wd, ok := weekdays[s]; ok {
-		// 未來七天內（含今天）第一個符合的日子。
+		// First matching day within the next seven, today included.
 		for i := 0; i < 7; i++ {
 			if d := base.AddDate(0, 0, i); d.Weekday() == wd {
 				return d, nil
@@ -60,7 +60,7 @@ func Parse(s string, now time.Time) (time.Time, error) {
 	return time.Time{}, fmt.Errorf("看不懂的日期：%q（可用 today、tomorrow、fri、+3d、2026-09-01）", s)
 }
 
-// Format 產生顯示用字串：逾期 N 天 / 今天 / 明天 / 週五 / 09-05 / 2027-01-02。
+// Format renders a due date for display: overdue, today, tomorrow, a weekday, or a date.
 func Format(due, now time.Time) string {
 	d, base := Day(due), Day(now)
 	diff := int(math.Round(d.Sub(base).Hours() / 24))

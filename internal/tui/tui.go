@@ -1,4 +1,4 @@
-// Package tui 提供 todo 的互動介面。
+// Package tui provides the interactive interface.
 package tui
 
 import (
@@ -21,7 +21,7 @@ const (
 	modeHelp
 )
 
-// Model 是根 model。所有子狀態掛在這裡，Update 依 mode 分派。
+// Model is the root model. Every substate hangs off it and Update dispatches on mode.
 type Model struct {
 	store store.Store
 	now   func() time.Time
@@ -35,7 +35,7 @@ type Model struct {
 	search textinput.Model
 	picker pickerState
 	form   formState
-	// undo 只保留一層：最近一次刪除的完整項目，離開 TUI 即失效。
+	// undo keeps a single level: the last deleted item, discarded when the TUI exits.
 	undo *task.Task
 
 	status        string
@@ -43,7 +43,7 @@ type Model struct {
 	width, height int
 }
 
-// New 建立一個 Model。
+// New builds a Model.
 func New(s store.Store, now func() time.Time, cwd string) Model {
 	ti := textinput.New()
 	ti.Prompt = "/"
@@ -55,7 +55,7 @@ func New(s store.Store, now func() time.Time, cwd string) Model {
 	}
 }
 
-// Run 啟動互動介面。
+// Run starts the interactive interface.
 func Run(s store.Store, now func() time.Time, cwd string) error {
 	_, err := tea.NewProgram(New(s, now, cwd), tea.WithAltScreen()).Run()
 	return err
@@ -63,7 +63,7 @@ func Run(s store.Store, now func() time.Time, cwd string) error {
 
 func (m Model) Init() tea.Cmd { return m.loadCmd() }
 
-// current 回傳游標所指的項目。
+// current returns the item under the cursor.
 func (m Model) current() (task.Task, bool) {
 	if m.cursor < 0 || m.cursor >= len(m.tasks) {
 		return task.Task{}, false
@@ -195,8 +195,8 @@ func (m Model) updateList(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// updateSearch 處理增量搜尋。每個按鍵都重查一次——清單規模小，成本可忽略，
-// 換來的是畫面與資料庫永遠一致。
+// updateSearch drives incremental search, requerying on every keystroke. The list is small,
+// so the cost is negligible and the view never drifts from the database.
 func (m Model) updateSearch(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "enter":
@@ -210,8 +210,8 @@ func (m Model) updateSearch(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.filter.Search = ""
 		return m, m.loadCmd()
 	}
-	// 刻意丟掉 textinput 回傳的 cmd：那是游標閃爍的計時器。
-	// 轉傳它會讓 Update 的測試變成在等計時器，而閃爍只是裝飾。
+	// The cmd textinput returns is dropped on purpose: it is the cursor blink timer.
+	// Forwarding it would make Update tests wait on a timer, and blinking is decoration.
 	m.search, _ = m.search.Update(msg)
 	m.filter.Search = m.search.Value()
 	m.cursor = 0

@@ -1,4 +1,4 @@
-// Command todo 是一個本機待辦事項工具。
+// Command todo is a local task list.
 package main
 
 import (
@@ -14,7 +14,7 @@ import (
 
 func main() { os.Exit(run()) }
 
-// run 把整個流程包起來，讓 defer 有機會執行（os.Exit 會跳過 defer）。
+// run wraps the whole flow so deferred calls still run; os.Exit skips them.
 func run() int {
 	dbFlag, args, err := cli.SplitGlobal(os.Args[1:])
 	if err != nil {
@@ -54,7 +54,7 @@ func run() int {
 	return app.Run(args)
 }
 
-// resolveDBPath 決定資料庫位置：--db 優先於 TODO_DB，都沒有就用 ~/.todo/todo.db。
+// resolveDBPath picks the database location: --db beats TODO_DB, and ~/.todo/todo.db is the fallback.
 func resolveDBPath(envDB, flagDB, home string) string {
 	if flagDB != "" {
 		return flagDB
@@ -65,7 +65,7 @@ func resolveDBPath(envDB, flagDB, home string) string {
 	return filepath.Join(home, ".todo", "todo.db")
 }
 
-// isTTY 判斷輸出是不是終端機；被導向檔案或管線時要關掉顏色。
+// isTTY reports whether output is a terminal; colour is dropped when redirected to a file or pipe.
 func isTTY(f *os.File) bool {
 	fi, err := f.Stat()
 	if err != nil {

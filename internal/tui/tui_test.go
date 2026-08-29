@@ -18,7 +18,7 @@ func day(y int, m time.Month, d int) *time.Time {
 	return &t
 }
 
-// newModel 建一個接上 in-memory 資料庫、已載入資料的 Model。
+// newModel builds a Model backed by an in-memory database with its tasks already loaded.
 func newModel(t *testing.T) (Model, store.Store) {
 	t.Helper()
 	s, err := store.OpenSQLite(":memory:")
@@ -43,7 +43,7 @@ func newModel(t *testing.T) (Model, store.Store) {
 	return m, s
 }
 
-// key 把按鍵字串轉成 tea.KeyMsg。
+// key turns a key name into a tea.KeyMsg.
 func key(s string) tea.KeyMsg {
 	switch s {
 	case "up":
@@ -67,7 +67,7 @@ func key(s string) tea.KeyMsg {
 	}
 }
 
-// send 餵一個 msg，回傳新 model 與 cmd 執行後的結果 msg（沒有 cmd 時為 nil）。
+// send feeds one msg and returns the new model plus the msg its cmd produced, or nil when there is no cmd.
 func send(t *testing.T, m Model, msg tea.Msg) (Model, tea.Msg) {
 	t.Helper()
 	next, cmd := m.Update(msg)
@@ -82,7 +82,7 @@ func run(t *testing.T, m Model, cmd tea.Cmd) (Model, tea.Msg) {
 	return m, cmd()
 }
 
-// press 按一個鍵，並把它引發的 cmd 結果也餵回去（模擬 Bubble Tea 的迴圈一輪）。
+// press sends one key and feeds back whatever its cmd produced, mimicking one turn of the Bubble Tea loop.
 func press(t *testing.T, m Model, k string) Model {
 	t.Helper()
 	m, msg := send(t, m, key(k))

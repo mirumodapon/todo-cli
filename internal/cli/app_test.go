@@ -35,8 +35,8 @@ func TestRunHelp(t *testing.T) {
 }
 
 func TestSubcommandHelpIsSpecificToThatCommand(t *testing.T) {
-	// 子指令的 flag 集不認得 -h，必須在 dispatch 之前攔下來，
-	// 而且要印該子指令自己的說明，不是全域說明。
+	// A subcommand's flag set does not know -h, so it must be caught before dispatch,
+	// and it must print that subcommand's own help rather than the global usage.
 	app, out, errBuf := newApp(t)
 	if code := app.Run([]string{"add", "-h"}); code != 0 {
 		t.Errorf("離開碼 = %d，預期 0；stderr = %q", code, errBuf.String())

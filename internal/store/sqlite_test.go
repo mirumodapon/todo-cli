@@ -15,7 +15,7 @@ func day(y int, m time.Month, d int) *time.Time {
 	return &t
 }
 
-// newStore 開一個 in-memory 的 store，測試永不碰 ~/.todo。
+// newStore opens an in-memory store; tests never touch ~/.todo.
 func newStore(t *testing.T) Store {
 	t.Helper()
 	s, err := OpenSQLite(":memory:")

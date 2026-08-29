@@ -17,7 +17,7 @@ func TestProjectPickerFiltersByProject(t *testing.T) {
 			t.Errorf("選單缺少 %q：\n%s", want, v)
 		}
 	}
-	// 第一項是「全部」，第二項是「（未分類）」，第三項是 work。
+	// Row 0 is the clear-filter entry, row 1 is uncategorised, row 2 is work.
 	m = press(t, m, "j")
 	m = press(t, m, "j")
 	m = press(t, m, "enter")
@@ -48,7 +48,7 @@ func TestProjectPickerAllClearsFilter(t *testing.T) {
 	m = press(t, m, "j")
 	m = press(t, m, "enter")
 	m = press(t, m, "P")
-	m = press(t, m, "enter") // 第一項「全部」
+	m = press(t, m, "enter") // row 0 clears the filter
 	if m.filter.Project != nil {
 		t.Errorf("選「全部」應該清掉專案過濾，實得 %v", m.filter.Project)
 	}

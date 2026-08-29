@@ -7,7 +7,7 @@ import (
 	"todo.mirumo.net/internal/task"
 )
 
-// seed 建立一組固定資料，並回傳 title -> id。
+// seed inserts a fixed set of tasks and returns title -> id.
 func seed(t *testing.T, s Store) map[string]int64 {
 	t.Helper()
 	ids := map[string]int64{}

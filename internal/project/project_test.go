@@ -43,7 +43,7 @@ func TestCurrentFallsBackToDir(t *testing.T) {
 }
 
 func TestCurrentAcceptsGitFile(t *testing.T) {
-	// git worktree 的 .git 是檔案不是目錄。
+	// In a git worktree .git is a file, not a directory.
 	root := t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, ".git"), []byte("gitdir: /elsewhere\n"), 0o644); err != nil {
 		t.Fatal(err)

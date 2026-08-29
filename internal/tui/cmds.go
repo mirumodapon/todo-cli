@@ -7,8 +7,8 @@ import (
 	"todo.mirumo.net/internal/task"
 )
 
-// 所有與資料庫往來的動作都包成 tea.Cmd，結果以 msg 回到 Update。
-// Update 本身不碰 IO，維持純函式，測試只需要餵 msg。
+// Every database action is wrapped in a tea.Cmd whose result returns to Update as a msg.
+// Update itself performs no IO and stays pure, so tests only have to feed it messages.
 type (
 	tasksMsg   []task.Task
 	errMsg     struct{ err error }
@@ -41,7 +41,7 @@ func (m Model) toggleCmd(t task.Task) tea.Cmd {
 	}
 }
 
-// deleteCmd 先完整取回再刪除——undo 需要包含標籤的整份資料。
+// deleteCmd fetches the whole task before deleting it: undo needs the tags too.
 func (m Model) deleteCmd(t task.Task) tea.Cmd {
 	s := m.store
 	return func() tea.Msg {

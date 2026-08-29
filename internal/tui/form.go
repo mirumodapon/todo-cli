@@ -156,6 +156,6 @@ func (m Model) viewForm() string {
 	if m.form.errText != "" {
 		b.WriteString(styleErr.Render(m.form.errText) + "\n")
 	}
-	b.WriteString(styleHint.Render("tab 換欄 · ctrl+p 填入當前目錄 · enter 儲存 · esc 取消"))
+	b.WriteString(styleHint.Render("tab next field · ctrl+p fill current directory · enter save · esc cancel"))
 	return b.String()
 }

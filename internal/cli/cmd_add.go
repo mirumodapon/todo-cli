@@ -13,10 +13,10 @@ import (
 // addFlags 是 add 與 edit 共用的欄位 flag。
 func addFlags() *argparse.Set {
 	return argparse.New(
-		argparse.Spec{Long: "project", Short: "p", Kind: argparse.OptionalString, Usage: "專案；不給值時用當前目錄"},
-		argparse.Spec{Long: "tag", Short: "t", Kind: argparse.StringSlice, Usage: "標籤，可重複"},
-		argparse.Spec{Long: "due", Short: "d", Kind: argparse.String, Usage: "截止日：tomorrow、fri、+3d、2026-09-01"},
-		argparse.Spec{Long: "pri", Kind: argparse.String, Usage: "優先度：low、med、high"},
+		argparse.Spec{Long: "project", Short: "p", Kind: argparse.OptionalString, Usage: "Project; uses the current directory when given no value"},
+		argparse.Spec{Long: "tag", Short: "t", Kind: argparse.StringSlice, Usage: "Tag; repeatable"},
+		argparse.Spec{Long: "due", Short: "d", Kind: argparse.String, Usage: "Due date: tomorrow, fri, +3d, 2026-09-01"},
+		argparse.Spec{Long: "pri", Kind: argparse.String, Usage: "Priority: low, med, high"},
 	)
 }
 

@@ -11,8 +11,11 @@ func TestRunNoArgsPrintsUsage(t *testing.T) {
 	if code := app.Run(nil); code != 0 {
 		t.Errorf("離開碼 = %d，預期 0", code)
 	}
-	if !strings.Contains(out.String(), "用法：") {
+	if !strings.Contains(out.String(), "Usage:") {
 		t.Errorf("裸打 todo 應印出用法，實得：%q", out.String())
+	}
+	if !strings.Contains(out.String(), "Commands:") {
+		t.Errorf("全域說明應列出子指令，實得：%q", out.String())
 	}
 	if strings.Contains(out.String(), "沒有符合的待辦") {
 		t.Error("裸打 todo 不該進入清單或 TUI")
@@ -25,20 +28,62 @@ func TestRunHelp(t *testing.T) {
 		if code := app.Run([]string{arg}); code != 0 {
 			t.Errorf("%s 離開碼 = %d，預期 0", arg, code)
 		}
-		if !strings.Contains(out.String(), "用法：") {
+		if !strings.Contains(out.String(), "Usage:") {
 			t.Errorf("%s 沒印出用法", arg)
 		}
 	}
 }
 
-func TestHelpFlagWorksAfterSubcommand(t *testing.T) {
-	// 子指令的 flag 集不認得 -h，必須在 dispatch 之前攔下來。
+func TestSubcommandHelpIsSpecificToThatCommand(t *testing.T) {
+	// 子指令的 flag 集不認得 -h，必須在 dispatch 之前攔下來，
+	// 而且要印該子指令自己的說明，不是全域說明。
 	app, out, errBuf := newApp(t)
 	if code := app.Run([]string{"add", "-h"}); code != 0 {
 		t.Errorf("離開碼 = %d，預期 0；stderr = %q", code, errBuf.String())
 	}
-	if !strings.Contains(out.String(), "用法：") {
-		t.Errorf("todo add -h 應印出用法，實得：%q", out.String())
+	s := out.String()
+	if !strings.Contains(s, "todo add <title>") {
+		t.Errorf("應印出 add 自己的用法行，實得：%q", s)
+	}
+	if !strings.Contains(s, "-p, --project") || !strings.Contains(s, "-d, --due") {
+		t.Errorf("應列出 add 的 flag，實得：%q", s)
+	}
+	if strings.Contains(s, "Commands:") {
+		t.Errorf("子指令說明不該退回全域說明：%q", s)
+	}
+}
+
+func TestEverySubcommandHasHelp(t *testing.T) {
+	for _, name := range []string{"add", "ls", "done", "undone", "edit", "rm", "projects", "tags", "tui"} {
+		app, out, errBuf := newApp(t)
+		if code := app.Run([]string{name, "--help"}); code != 0 {
+			t.Errorf("%s --help 離開碼 = %d；stderr = %q", name, code, errBuf.String())
+			continue
+		}
+		s := out.String()
+		if !strings.Contains(s, "Usage:") || !strings.Contains(s, "todo "+name) {
+			t.Errorf("%s --help 沒印出自己的用法：%q", name, s)
+		}
+	}
+}
+
+func TestHelpSubcommandTakesACommandName(t *testing.T) {
+	app, out, _ := newApp(t)
+	if code := app.Run([]string{"help", "ls"}); code != 0 {
+		t.Fatalf("離開碼 = %d", code)
+	}
+	if !strings.Contains(out.String(), "todo ls") || strings.Contains(out.String(), "Commands:") {
+		t.Errorf("todo help ls 應印出 ls 的說明：%q", out.String())
+	}
+}
+
+func TestHelpTextIsEnglish(t *testing.T) {
+	app, out, _ := newApp(t)
+	app.Run(nil)
+	for _, banned := range []string{"用法", "指令", "顯示"} {
+		if strings.Contains(out.String(), banned) {
+			t.Errorf("說明文字應為英文，卻含有 %q：\n%s", banned, out.String())
+		}
 	}
 }
 
@@ -47,7 +92,7 @@ func TestRunUnknownCommand(t *testing.T) {
 	if code := app.Run([]string{"frobnicate"}); code != 2 {
 		t.Errorf("離開碼 = %d，預期 2", code)
 	}
-	if !strings.Contains(errBuf.String(), "未知的指令：frobnicate") {
+	if !strings.Contains(errBuf.String(), `unknown command "frobnicate"`) {
 		t.Errorf("stderr = %q", errBuf.String())
 	}
 }

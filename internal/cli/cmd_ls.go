@@ -10,17 +10,21 @@ import (
 	"todo.mirumo.net/internal/task"
 )
 
-func (a *App) cmdLs(args []string) error {
-	set := argparse.New(
-		argparse.Spec{Long: "project", Short: "p", Kind: argparse.OptionalString, Usage: "只看某專案；不給值時用當前目錄"},
-		argparse.Spec{Long: "no-project", Kind: argparse.Bool, Usage: "只看全域未分類"},
-		argparse.Spec{Long: "tag", Short: "t", Kind: argparse.StringSlice, Usage: "標籤，可重複，取交集"},
-		argparse.Spec{Long: "due", Short: "d", Kind: argparse.String, Usage: "today、week、overdue 或一個日期"},
-		argparse.Spec{Long: "pri", Kind: argparse.String, Usage: "優先度：low、med、high"},
-		argparse.Spec{Long: "all", Short: "a", Kind: argparse.Bool, Usage: "含已完成"},
-		argparse.Spec{Long: "done", Kind: argparse.Bool, Usage: "只看已完成"},
-		argparse.Spec{Long: "sort", Short: "s", Kind: argparse.String, Usage: "排序：due、pri、created"},
+func lsFlags() *argparse.Set {
+	return argparse.New(
+		argparse.Spec{Long: "project", Short: "p", Kind: argparse.OptionalString, Usage: "Only this project; uses the current directory when given no value"},
+		argparse.Spec{Long: "no-project", Kind: argparse.Bool, Usage: "Only uncategorised tasks"},
+		argparse.Spec{Long: "tag", Short: "t", Kind: argparse.StringSlice, Usage: "Tag; repeatable, matches tasks having all of them"},
+		argparse.Spec{Long: "due", Short: "d", Kind: argparse.String, Usage: "today, week, overdue, or a date"},
+		argparse.Spec{Long: "pri", Kind: argparse.String, Usage: "Priority: low, med, high"},
+		argparse.Spec{Long: "all", Short: "a", Kind: argparse.Bool, Usage: "Include done tasks"},
+		argparse.Spec{Long: "done", Kind: argparse.Bool, Usage: "Only done tasks"},
+		argparse.Spec{Long: "sort", Short: "s", Kind: argparse.String, Usage: "Sort by: due, pri, created"},
 	)
+}
+
+func (a *App) cmdLs(args []string) error {
+	set := lsFlags()
 	r, err := set.Parse(args)
 	if err != nil {
 		return err

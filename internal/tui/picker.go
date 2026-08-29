@@ -107,6 +107,6 @@ func (m Model) viewPicker() string {
 		}
 		b.WriteString(marker + line + "\n")
 	}
-	b.WriteString("\n" + styleHint.Render("j/k 移動 · enter 選擇 · esc 取消"))
+	b.WriteString("\n" + styleHint.Render("j/k move · enter select · esc cancel"))
 	return b.String()
 }

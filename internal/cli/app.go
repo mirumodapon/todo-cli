@@ -51,6 +51,7 @@ const usageText = `todo — 本機待辦事項
 func (a *App) commands() map[string]func([]string) error {
 	return map[string]func([]string) error{
 		"add": a.cmdAdd,
+		"ls":  a.cmdLs,
 		"tui": a.cmdTUI,
 	}
 }

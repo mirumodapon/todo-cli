@@ -48,7 +48,7 @@ func run() int {
 		Err:   os.Stderr,
 		Now:   time.Now,
 		Cwd:   cwd,
-		Color: resolveColor(os.Getenv("NO_COLOR"), isTTY(os.Stdout)),
+		Color: resolveColor(os.Getenv("NO_COLOR"), os.Getenv("CLICOLOR_FORCE"), isTTY(os.Stdout)),
 	}
 	app.RunTUI = func() error { return tui.Run(st, app.Now, cwd) }
 	return app.Run(args)
@@ -65,10 +65,15 @@ func resolveDBPath(envDB, flagDB, home string) string {
 	return filepath.Join(home, ".todo", "todo.db")
 }
 
-// resolveColor decides whether to colour output by default. NO_COLOR is the
-// cross-tool convention for turning colour off (https://no-color.org); ls -c
-// still overrides it, since passing a flag is a deliberate act.
-func resolveColor(noColor string, tty bool) bool {
+// resolveColor decides whether to colour output by default. Colour follows the
+// terminal unless one of the two cross-tool conventions overrides it:
+// CLICOLOR_FORCE turns it on even through a pipe, NO_COLOR turns it off
+// (https://no-color.org). Forcing wins over suppressing, on the same principle
+// that makes ls -c beat NO_COLOR: the more explicit request carries.
+func resolveColor(noColor, forceColor string, tty bool) bool {
+	if forceColor != "" {
+		return true
+	}
 	if noColor != "" {
 		return false
 	}

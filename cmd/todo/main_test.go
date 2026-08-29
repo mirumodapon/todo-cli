@@ -32,17 +32,20 @@ func TestResolveColor(t *testing.T) {
 	cases := []struct {
 		name    string
 		noColor string
+		force   string
 		tty     bool
 		want    bool
 	}{
-		{"terminal", "", true, true},
-		{"pipe", "", false, false},
-		{"NO_COLOR wins over a terminal", "1", true, false},
-		{"NO_COLOR set but empty is not set", "", true, true},
+		{"terminal", "", "", true, true},
+		{"pipe", "", "", false, false},
+		{"NO_COLOR wins over a terminal", "1", "", true, false},
+		{"NO_COLOR set but empty is not set", "", "", true, true},
+		{"CLICOLOR_FORCE colours a pipe", "", "1", false, true},
+		{"CLICOLOR_FORCE beats NO_COLOR", "1", "1", true, true},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			if got := resolveColor(c.noColor, c.tty); got != c.want {
+			if got := resolveColor(c.noColor, c.force, c.tty); got != c.want {
 				t.Errorf("= %v, want %v", got, c.want)
 			}
 		})

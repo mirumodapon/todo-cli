@@ -98,8 +98,15 @@ todo ls -s pri              # sort by priority; also due (default) or created
 todo ls -c | less -R        # force colour through a pipe
 ```
 
-Colour is on when the output is a terminal and off when it is redirected.
-`NO_COLOR` turns the default off; an explicit `-c` still wins.
+Colour is on when the output is a terminal and off when it is redirected, so
+piping into a file does not fill it with escape codes. Two environment
+variables override that: `CLICOLOR_FORCE` keeps colour on through a pipe,
+`NO_COLOR` turns it off. `-c` and `CLICOLOR_FORCE` beat `NO_COLOR`, on the
+principle that the more explicit request carries.
+
+```sh
+export CLICOLOR_FORCE=1   # always colour, without typing -c
+```
 
 Colour tracks how soon a task is due: green three days out, ramping through
 yellow and orange, fully red once twelve hours or less remain, and red for

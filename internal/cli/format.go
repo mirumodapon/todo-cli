@@ -27,9 +27,19 @@ func pad(s string, w int) string {
 	return s
 }
 
+// ListOptions carries the presentation choices for a listing. It is a struct
+// because a fifth positional boolean would make every call site a puzzle.
+type ListOptions struct {
+	Now time.Time
+	// Color emits ANSI escapes.
+	Color bool
+	// Dates shows absolute due dates instead of the time remaining.
+	Dates bool
+}
+
 type row struct{ id, status, pri, due, title, proj, tags string }
 
-func toRow(t task.Task, now time.Time) row {
+func toRow(t task.Task, opt ListOptions) row {
 	r := row{
 		id:     fmt.Sprintf("%d", t.ID),
 		status: "[ ]",
@@ -43,7 +53,11 @@ func toRow(t task.Task, now time.Time) row {
 		r.pri = "!" + p
 	}
 	if t.Due != nil {
-		r.due = datearg.Format(*t.Due, t.DueHasTime, now)
+		if opt.Dates {
+			r.due = datearg.Format(*t.Due, t.DueHasTime, opt.Now)
+		} else {
+			r.due = datearg.Remaining(*t.Due, t.DueHasTime, opt.Now)
+		}
 	}
 	if len(t.Tags) > 0 {
 		r.tags = "@" + strings.Join(t.Tags, " @")
@@ -69,8 +83,9 @@ func colorize(line string, t task.Task, now time.Time) string {
 	return urgency.ANSI(level) + line + ansiReset
 }
 
-// WriteList prints an aligned task list. With color false it emits no ANSI codes at all.
-func WriteList(w io.Writer, ts []task.Task, now time.Time, color bool) {
+// WriteList prints an aligned task list. With Color false it emits no ANSI
+// codes at all.
+func WriteList(w io.Writer, ts []task.Task, opt ListOptions) {
 	if len(ts) == 0 {
 		fmt.Fprintln(w, "No matching tasks")
 		return
@@ -78,7 +93,7 @@ func WriteList(w io.Writer, ts []task.Task, now time.Time, color bool) {
 	rows := make([]row, len(ts))
 	var wID, wPri, wDue, wTitle, wProj int
 	for i, t := range ts {
-		rows[i] = toRow(t, now)
+		rows[i] = toRow(t, opt)
 		wID = max(wID, lipgloss.Width(rows[i].id))
 		wPri = max(wPri, lipgloss.Width(rows[i].pri))
 		wDue = max(wDue, lipgloss.Width(rows[i].due))
@@ -90,8 +105,8 @@ func WriteList(w io.Writer, ts []task.Task, now time.Time, color bool) {
 			pad(r.id, wID), r.status, pad(r.pri, wPri), pad(r.due, wDue),
 			pad(r.title, wTitle), pad(r.proj, wProj), r.tags,
 		}, " "), " ")
-		if color {
-			line = colorize(line, ts[i], now)
+		if opt.Color {
+			line = colorize(line, ts[i], opt.Now)
 		}
 		fmt.Fprintln(w, line)
 	}

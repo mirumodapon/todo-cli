@@ -22,6 +22,7 @@ func lsFlags() *argparse.Set {
 		argparse.Spec{Long: "done", Kind: argparse.Bool, Usage: "Only done tasks"},
 		argparse.Spec{Long: "sort", Short: "s", Kind: argparse.String, Usage: "Sort by: due, pri, created"},
 		argparse.Spec{Long: "color", Short: "c", Kind: argparse.Bool, Usage: "Colour the output even when it is not a terminal"},
+		argparse.Spec{Long: "dates", Kind: argparse.Bool, Usage: "Show due dates instead of the time remaining"},
 	)
 }
 
@@ -101,8 +102,12 @@ func (a *App) cmdLs(args []string) error {
 	if err != nil {
 		return err
 	}
-	// -c is an override, never a downgrade: it turns colour on where the
-	// terminal check said no, and changes nothing where it already said yes.
-	WriteList(a.Out, ts, a.Now(), a.Color || r.Bool("color"))
+	WriteList(a.Out, ts, ListOptions{
+		Now: a.Now(),
+		// -c is an override, never a downgrade: it turns colour on where the
+		// terminal check said no, and changes nothing where it already said yes.
+		Color: a.Color || r.Bool("color"),
+		Dates: r.Bool("dates"),
+	})
 	return nil
 }

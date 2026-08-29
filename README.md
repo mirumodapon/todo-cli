@@ -96,6 +96,7 @@ todo ls -d today            # due today; also week, overdue, or a date
 todo ls -t urgent -t home   # tasks carrying every one of these tags
 todo ls -s pri              # sort by priority; also due (default) or created
 todo ls -c | less -R        # force colour through a pipe
+todo ls --dates             # calendar dates instead of time remaining
 ```
 
 Colour is on when the output is a terminal and off when it is redirected, so
@@ -118,8 +119,11 @@ The shades come from [Catppuccin Macchiato](https://catppuccin.com/palette/).
 The ramp blends between palette entries rather than between arbitrary values,
 so every step along it belongs to the same set.
 
-Due dates read as a date, except for today, which reads as `today` or as the
-time of day when the task has one.
+The due column shows how long is left, as a single unit: `12m`, `1h`, `40d`,
+and negative once past. `--dates` swaps it for the calendar date, where today
+reads as `today` or as the time of day when the task has one. A due date with
+no time of day runs to the end of that day, so something due today still shows
+the hours left in it.
 
 ## Terminal UI
 
@@ -136,6 +140,7 @@ time of day when the task has one.
 | `P` / `T` | Filter by project / tag |
 | `A` | Show or hide done tasks |
 | `s` | Cycle sort order |
+| `D` | Switch between time remaining and dates |
 | `esc` | Back to the uncategorized default |
 | `?` | Key help |
 | `q` | Quit |

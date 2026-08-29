@@ -39,7 +39,11 @@ func (m Model) taskLine(t task.Task) string {
 		parts = append(parts, "!"+p)
 	}
 	if t.Due != nil {
-		parts = append(parts, datearg.Format(*t.Due, t.DueHasTime, m.now()))
+		if m.dates {
+			parts = append(parts, datearg.Format(*t.Due, t.DueHasTime, m.now()))
+		} else {
+			parts = append(parts, datearg.Remaining(*t.Due, t.DueHasTime, m.now()))
+		}
 	}
 	parts = append(parts, t.Title)
 	if p := project.Label(t.Project); p != "" {
@@ -139,7 +143,7 @@ func (m Model) footer() string {
 	if m.status != "" {
 		return m.status
 	}
-	return styleHint.Render("a add · e edit · space toggle · d delete · / search · P/T filter · ? help · q quit")
+	return styleHint.Render("a add · e edit · space toggle · d delete · / search · P/T filter · D dates · ? help · q quit")
 }
 
 func itoa(n int64) string { return strconv.FormatInt(n, 10) }
@@ -156,6 +160,7 @@ func viewHelp() string {
 		{"P / T", "Filter by project / tag"},
 		{"A", "Show or hide done tasks"},
 		{"s", "Cycle sort order"},
+		{"D", "Switch between time remaining and dates"},
 		{"esc", "Clear all filters"},
 		{"?", "This help"},
 		{"q", "Quit"},

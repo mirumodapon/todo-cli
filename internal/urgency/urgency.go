@@ -5,6 +5,7 @@ package urgency
 import (
 	"time"
 
+	"todo.mirumo.net/internal/datearg"
 	"todo.mirumo.net/internal/theme"
 )
 
@@ -16,21 +17,11 @@ const (
 	FullRed = 12 * time.Hour
 )
 
-// deadline is the moment a due date actually falls due. A date with no time of
-// day is due by the end of that day; treating it as midnight would make
-// everything due today read as already overdue.
-func deadline(due time.Time, hasTime bool) time.Time {
-	if hasTime {
-		return due
-	}
-	return time.Date(due.Year(), due.Month(), due.Day(), 23, 59, 59, 0, due.Location())
-}
-
 // Level reports how urgent a due date is: 0 at ColourFrom, rising to 1 at
 // FullRed and staying there once past it. ok is false when the deadline is far
 // enough away that it should not be coloured at all.
 func Level(due time.Time, hasTime bool, now time.Time) (float64, bool) {
-	left := deadline(due, hasTime).Sub(now)
+	left := datearg.Deadline(due, hasTime).Sub(now)
 	if left > ColourFrom {
 		return 0, false
 	}

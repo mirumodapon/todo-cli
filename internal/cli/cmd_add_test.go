@@ -114,9 +114,10 @@ func TestAddWithTimeOfDay(t *testing.T) {
 		t.Fatalf("due = %v hasTime = %v", got.Due, got.DueHasTime)
 	}
 
-	// Due today, so the listing shows the clock rather than the word "today".
+	// Due today, so the date listing shows the clock rather than the word
+	// "today". The default listing shows time remaining instead.
 	out.Reset()
-	app.Run([]string{"ls"})
+	app.Run([]string{"ls", "--dates"})
 	if !strings.Contains(out.String(), "09:30") {
 		t.Errorf("a task due today should list its time: %q", out.String())
 	}

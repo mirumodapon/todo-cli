@@ -167,3 +167,42 @@ func TestFormat(t *testing.T) {
 		}
 	}
 }
+
+func TestDeadlineOfADateIsTheEndOfThatDay(t *testing.T) {
+	d := time.Date(2026, 8, 29, 0, 0, 0, 0, time.Local)
+	if got := Deadline(d, false); got.Hour() != 23 || got.Minute() != 59 {
+		t.Errorf("= %v, want the end of the day", got)
+	}
+	timed := time.Date(2026, 8, 29, 9, 30, 0, 0, time.Local)
+	if got := Deadline(timed, true); !got.Equal(timed) {
+		t.Errorf("= %v, want the moment itself", got)
+	}
+}
+
+func TestRemaining(t *testing.T) {
+	cases := []struct {
+		name    string
+		due     time.Time
+		hasTime bool
+		want    string
+	}{
+		{"half an hour", ref().Add(30 * time.Minute), true, "30m"},
+		{"an hour", ref().Add(time.Hour), true, "1h"},
+		{"rounds down to the unit", ref().Add(90 * time.Minute), true, "1h"},
+		{"a day", ref().Add(24 * time.Hour), true, "1d"},
+		{"forty days", ref().Add(40 * 24 * time.Hour), true, "40d"},
+		{"just under a day stays in hours", ref().Add(23 * time.Hour), true, "23h"},
+		{"the moment itself", ref(), true, "now"},
+		{"overdue reads as negative", ref().Add(-50 * time.Hour), true, "-2d"},
+		{"overdue by minutes", ref().Add(-5 * time.Minute), true, "-5m"},
+		{"a date with no time runs to the end of the day",
+			time.Date(2026, 8, 29, 0, 0, 0, 0, time.Local), false, "8h"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := Remaining(c.due, c.hasTime, ref()); got != c.want {
+				t.Errorf("= %q, want %q", got, c.want)
+			}
+		})
+	}
+}

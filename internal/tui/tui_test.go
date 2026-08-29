@@ -201,7 +201,9 @@ func TestErrMsgShowsWithoutCrashing(t *testing.T) {
 func TestViewShowsTasksAndCursor(t *testing.T) {
 	m, _ := newModel(t)
 	v := m.View()
-	for _, want := range []string{"first", "second", "third", "today", "!high", "@urgent"} {
+	// "first" is due today with no time, so it runs to the end of the day:
+	// eight hours from the fixed clock.
+	for _, want := range []string{"first", "second", "third", "8h", "!high", "@urgent"} {
 		if !strings.Contains(v, want) {
 			t.Errorf("the view is missing %q:\n%s", want, v)
 		}
@@ -251,3 +253,24 @@ var errFake = fakeErr{}
 type fakeErr struct{}
 
 func (fakeErr) Error() string { return "the database broke" }
+
+func TestDToggleSwapsRemainingTimeForDates(t *testing.T) {
+	m, _ := newModel(t)
+	// "first" is due today, so the two renderings differ visibly.
+	if !strings.Contains(m.View(), "h ") && !strings.Contains(m.View(), "m ") {
+		t.Errorf("the default should show time remaining:\n%s", m.View())
+	}
+
+	m = press(t, m, "D")
+	if !m.dates {
+		t.Fatal("D should switch to dates")
+	}
+	if !strings.Contains(m.View(), "today") {
+		t.Errorf("dates mode should show the absolute due date:\n%s", m.View())
+	}
+
+	m = press(t, m, "D")
+	if m.dates {
+		t.Error("D should switch back")
+	}
+}

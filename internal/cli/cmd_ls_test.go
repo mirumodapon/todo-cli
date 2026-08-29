@@ -178,3 +178,21 @@ func TestLsColorFlagOnListAlias(t *testing.T) {
 		t.Errorf("the alias should take the same flags: %q", out.String())
 	}
 }
+
+func TestLsShowsRemainingTimeUnlessDatesIsGiven(t *testing.T) {
+	app, out, _ := newApp(t)
+	app.Run([]string{"add", "later", "-d", "2026-09-08"})
+
+	out.Reset()
+	app.Run([]string{"ls"})
+	// 2026-09-08 falls due at the end of that day, ten days out.
+	if !strings.Contains(out.String(), "10d") {
+		t.Errorf("the default should show the time remaining: %q", out.String())
+	}
+
+	out.Reset()
+	app.Run([]string{"ls", "--dates"})
+	if !strings.Contains(out.String(), "09-08") {
+		t.Errorf("--dates should show the date: %q", out.String())
+	}
+}

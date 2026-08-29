@@ -111,3 +111,40 @@ func Format(due time.Time, hasTime bool, now time.Time) string {
 		return d.Format("2006-01-02")
 	}
 }
+
+// Deadline is the moment a due date actually falls due. A date with no time of
+// day is due by the end of that day; treating it as midnight would make
+// everything due today read as already overdue.
+func Deadline(due time.Time, hasTime bool) time.Time {
+	if hasTime {
+		return due
+	}
+	return time.Date(due.Year(), due.Month(), due.Day(), 23, 59, 59, 0, due.Location())
+}
+
+// Remaining renders how long is left as a single unit: "30m", "1h", "40d".
+// Past deadlines read negative. One unit keeps the column narrow, and the
+// value is truncated rather than rounded, so it never claims more time than
+// there is.
+func Remaining(due time.Time, hasTime bool, now time.Time) string {
+	left := Deadline(due, hasTime).Sub(now)
+	past := left < 0
+	if past {
+		left = -left
+	}
+	var s string
+	switch {
+	case left < time.Minute:
+		return "now"
+	case left < time.Hour:
+		s = fmt.Sprintf("%dm", int(left/time.Minute))
+	case left < 24*time.Hour:
+		s = fmt.Sprintf("%dh", int(left/time.Hour))
+	default:
+		s = fmt.Sprintf("%dd", int(left/(24*time.Hour)))
+	}
+	if past {
+		return "-" + s
+	}
+	return s
+}

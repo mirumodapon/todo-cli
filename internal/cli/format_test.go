@@ -31,7 +31,7 @@ func TestWriteListAlignsColumns(t *testing.T) {
 		{ID: 12, Title: "繳房租", Project: "/p/home"},
 	}
 	var buf bytes.Buffer
-	WriteList(&buf, ts, now, false)
+	WriteList(&buf, ts, ListOptions{Now: now, Dates: true})
 	lines := strings.Split(strings.TrimRight(buf.String(), "\n"), "\n")
 	if len(lines) != 2 {
 		t.Fatalf("want two lines, got %d: %q", len(lines), buf.String())
@@ -58,9 +58,35 @@ func TestWriteListAlignsColumns(t *testing.T) {
 	}
 }
 
+func TestWriteListShowsRemainingTimeByDefault(t *testing.T) {
+	now := time.Date(2026, 8, 29, 15, 0, 0, 0, time.Local)
+	soon := now.Add(90 * time.Minute)
+	ts := []task.Task{
+		{ID: 1, Title: "soon", Due: &soon, DueHasTime: true},
+		{ID: 2, Title: "later", Due: day(2026, 9, 8)},
+	}
+
+	var buf bytes.Buffer
+	WriteList(&buf, ts, ListOptions{Now: now})
+	got := buf.String()
+	if !strings.Contains(got, "1h") || !strings.Contains(got, "10d") {
+		t.Errorf("the default should show time remaining: %q", got)
+	}
+
+	buf.Reset()
+	WriteList(&buf, ts, ListOptions{Now: now, Dates: true})
+	got = buf.String()
+	if !strings.Contains(got, "09-08") {
+		t.Errorf("Dates should show the calendar date: %q", got)
+	}
+	if strings.Contains(got, "10d") {
+		t.Errorf("Dates should not also show the remaining time: %q", got)
+	}
+}
+
 func TestWriteListEmpty(t *testing.T) {
 	var buf bytes.Buffer
-	WriteList(&buf, nil, time.Now(), false)
+	WriteList(&buf, nil, ListOptions{Now: time.Now()})
 	if !strings.Contains(buf.String(), "No matching tasks") {
 		t.Errorf("= %q", buf.String())
 	}
@@ -80,7 +106,7 @@ func TestWriteListColorsByUrgency(t *testing.T) {
 		{ID: 6, Title: "done", DoneAt: &done},
 	}
 	var buf bytes.Buffer
-	WriteList(&buf, ts, now, true)
+	WriteList(&buf, ts, ListOptions{Now: now, Color: true, Dates: true})
 	lines := strings.Split(strings.TrimRight(buf.String(), "\n"), "\n")
 
 	const macchiatoRed = "\x1b[38;2;237;135;150m"

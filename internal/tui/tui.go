@@ -33,8 +33,10 @@ type Model struct {
 	cursor int
 	filter task.Filter
 
-	search  textinput.Model
-	picker  pickerState
+	search textinput.Model
+	picker pickerState
+	// dates swaps the due column from time remaining to calendar dates.
+	dates   bool
 	form    formState
 	confirm confirmState
 	// undo keeps a single level: the last deleted item, discarded when the TUI exits.
@@ -200,6 +202,9 @@ func (m Model) updateList(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "A":
 		m.filter.IncludeDone = !m.filter.IncludeDone
 		return m, m.loadCmd()
+	case "D":
+		m.dates = !m.dates
+		return m, nil
 	case "s":
 		m.filter.Sort = (m.filter.Sort + 1) % 3
 		m.status = "sort: " + sortLabel(m.filter.Sort)

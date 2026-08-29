@@ -36,7 +36,7 @@ func TestWriteListAlignsColumns(t *testing.T) {
 	if len(lines) != 2 {
 		t.Fatalf("want two lines, got %d: %q", len(lines), buf.String())
 	}
-	if !strings.HasPrefix(lines[0], "1  [ ] !high today 買牛奶 ") {
+	if !strings.HasPrefix(lines[0], "1  [ ] !!! today 買牛奶 ") {
 		t.Errorf("first line = %q", lines[0])
 	}
 	if !strings.Contains(lines[0], "@shopping") {

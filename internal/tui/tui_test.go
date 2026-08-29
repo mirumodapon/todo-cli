@@ -203,7 +203,7 @@ func TestViewShowsTasksAndCursor(t *testing.T) {
 	v := m.View()
 	// "first" is due today with no time, so it runs to the end of the day:
 	// eight hours from the fixed clock.
-	for _, want := range []string{"first", "second", "third", "8h", "!high", "@urgent"} {
+	for _, want := range []string{"first", "second", "third", "8h", "!!!", "@urgent"} {
 		if !strings.Contains(v, want) {
 			t.Errorf("the view is missing %q:\n%s", want, v)
 		}

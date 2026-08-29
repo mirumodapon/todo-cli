@@ -16,7 +16,12 @@ func TestParsePriority(t *testing.T) {
 		{"med", PriMed, false},
 		{"high", PriHigh, false},
 		{"HIGH", PriHigh, false},
+		{"!", PriLow, false},
+		{"!!", PriMed, false},
+		{"!!!", PriHigh, false},
+		{"  !!  ", PriMed, false},
 		{"urgent", PriNone, true},
+		{"!!!!", PriNone, true},
 	}
 	for _, c := range cases {
 		got, err := ParsePriority(c.in)
@@ -26,6 +31,30 @@ func TestParsePriority(t *testing.T) {
 		}
 		if err == nil && got != c.want {
 			t.Errorf("ParsePriority(%q) = %v, want %v", c.in, got, c.want)
+		}
+	}
+}
+
+func TestPriorityMarks(t *testing.T) {
+	for p, want := range map[Priority]string{
+		PriNone: "", PriLow: "!", PriMed: "!!", PriHigh: "!!!",
+	} {
+		if got := p.Marks(); got != want {
+			t.Errorf("%v.Marks() = %q, want %q", p, got, want)
+		}
+	}
+}
+
+// Whatever Marks renders must parse back to the same priority.
+func TestMarksRoundTrip(t *testing.T) {
+	for _, p := range []Priority{PriNone, PriLow, PriMed, PriHigh} {
+		got, err := ParsePriority(p.Marks())
+		if err != nil {
+			t.Errorf("ParsePriority(%q): %v", p.Marks(), err)
+			continue
+		}
+		if got != p {
+			t.Errorf("%q parsed back as %v, want %v", p.Marks(), got, p)
 		}
 	}
 }

@@ -17,7 +17,7 @@ func lsFlags() *argparse.Set {
 		argparse.Spec{Long: "all-projects", Kind: argparse.Bool, Usage: "Every task, whatever its project"},
 		argparse.Spec{Long: "tag", Short: "t", Kind: argparse.StringSlice, Usage: "Tag; repeatable, matches tasks having all of them"},
 		argparse.Spec{Long: "due", Short: "d", Kind: argparse.String, Usage: "today, week, overdue, or a date"},
-		argparse.Spec{Long: "pri", Kind: argparse.String, Usage: "Priority: low, med, high"},
+		argparse.Spec{Long: "pri", Kind: argparse.String, Usage: "Priority: low, med, high, or !, !!, !!!"},
 		argparse.Spec{Long: "all", Short: "a", Kind: argparse.Bool, Usage: "Include done tasks"},
 		argparse.Spec{Long: "done", Kind: argparse.Bool, Usage: "Only done tasks"},
 		argparse.Spec{Long: "sort", Short: "s", Kind: argparse.String, Usage: "Sort by: due, pri, created"},

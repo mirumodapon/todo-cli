@@ -40,7 +40,7 @@ func (m Model) openForm(t task.Task, editing bool) Model {
 		t.Project,
 		strings.Join(t.Tags, ","),
 		"",
-		t.Priority.String(),
+		t.Priority.Marks(),
 	}
 	if t.Due != nil {
 		layout := "2006-01-02"
@@ -54,7 +54,7 @@ func (m Model) openForm(t task.Task, editing bool) Model {
 		"empty = uncategorized (ctrl+p fills the current directory)",
 		"comma separated",
 		"tomorrow, fri, +3d, 2026-09-01, today 15:00",
-		"low, med, high",
+		"low, med, high or !, !!, !!!",
 	}
 	for i := range f.inputs {
 		ti := textinput.New()

@@ -18,22 +18,38 @@ const (
 	PriHigh
 )
 
-// ParsePriority parses user input. An empty string means unset.
+// ParsePriority parses user input. An empty string means unset. Both the words
+// and the marks a listing shows are accepted, so what you read back is
+// something you can type.
 func ParsePriority(s string) (Priority, error) {
 	switch strings.ToLower(strings.TrimSpace(s)) {
 	case "":
 		return PriNone, nil
-	case "low":
+	case "low", "!":
 		return PriLow, nil
-	case "med":
+	case "med", "!!":
 		return PriMed, nil
-	case "high":
+	case "high", "!!!":
 		return PriHigh, nil
 	}
-	return PriNone, fmt.Errorf("unknown priority %q (use low, med, high)", s)
+	return PriNone, fmt.Errorf("unknown priority %q (use low, med, high, or !, !!, !!!)", s)
 }
 
-// String returns the identifier used on the command line and in listings.
+// Marks is how a priority is shown in a listing: one mark per level, so
+// urgency reads as a shape before it reads as a word.
+func (p Priority) Marks() string {
+	switch p {
+	case PriLow:
+		return "!"
+	case PriMed:
+		return "!!"
+	case PriHigh:
+		return "!!!"
+	}
+	return ""
+}
+
+// String returns the identifier used on the command line.
 func (p Priority) String() string {
 	switch p {
 	case PriLow:

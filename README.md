@@ -11,7 +11,7 @@ $ todo add "fix the parser" -p
 added #2: fix the parser
 
 $ todo ls
-1 [ ] !high 17:00 buy milk  @shopping
+1 [ ] !!! 2h buy milk  @shopping
 ```
 
 Tasks with no project are the default view. Tasks that belong to a project are
@@ -60,7 +60,7 @@ todo tui                        Open the interactive interface
 | `-p`, `--project` | With no value, the current directory. With a value, that project. |
 | `-t`, `--tag` | Repeatable. |
 | `-d`, `--due` | `today`, `tomorrow`, `fri`, `+3d`, `+2w`, `2026-09-01`, each optionally with a time (`today 15:00`). A bare `18:00` means today. |
-| `--pri` | `low`, `med`, `high`. |
+| `--pri` | `low`, `med`, `high`, or the marks a listing shows: `!`, `!!`, `!!!`. Quote the marks — most shells treat `!!` as history expansion: `--pri '!!!'`. |
 
 `edit` touches only the fields you pass, so an omitted flag and an empty value
 mean different things:

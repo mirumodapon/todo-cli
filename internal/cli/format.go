@@ -49,9 +49,7 @@ func toRow(t task.Task, opt ListOptions) row {
 	if t.Done() {
 		r.status = "[x]"
 	}
-	if p := t.Priority.String(); p != "" {
-		r.pri = "!" + p
-	}
+	r.pri = t.Priority.Marks()
 	if t.Due != nil {
 		if opt.Dates {
 			r.due = datearg.Format(*t.Due, t.DueHasTime, opt.Now)

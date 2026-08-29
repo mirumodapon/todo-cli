@@ -145,3 +145,31 @@ func TestEditCanDropTheTimeOfDay(t *testing.T) {
 		t.Error("re-setting the due date without a time should drop the time")
 	}
 }
+
+func TestPriorityAcceptsMarksAndWords(t *testing.T) {
+	for _, given := range []string{"!", "!!", "!!!", "low", "med", "high"} {
+		app, _, errBuf := newApp(t)
+		if code := app.Run([]string{"add", "x", "--pri", given}); code != 0 {
+			t.Errorf("--pri %q failed: %s", given, errBuf.String())
+		}
+	}
+	app, _, _ := newApp(t)
+	if code := app.Run([]string{"add", "x", "--pri", "!!!!"}); code == 0 {
+		t.Error("four marks is not a priority and should fail")
+	}
+}
+
+func TestListingShowsPriorityAsMarks(t *testing.T) {
+	app, out, _ := newApp(t)
+	app.Run([]string{"add", "big", "--pri", "!!!"})
+	app.Run([]string{"add", "small", "--pri", "!"})
+	out.Reset()
+	app.Run([]string{"ls", "-s", "created"})
+	lines := strings.Split(strings.TrimRight(out.String(), "\n"), "\n")
+	if !strings.Contains(lines[0], "!!!") {
+		t.Errorf("high should read as three marks: %q", lines[0])
+	}
+	if !strings.Contains(lines[1], "!") || strings.Contains(lines[1], "!!") {
+		t.Errorf("low should read as one mark: %q", lines[1])
+	}
+}

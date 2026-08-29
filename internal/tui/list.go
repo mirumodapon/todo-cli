@@ -35,8 +35,8 @@ func (m Model) taskLine(t task.Task) string {
 		status = "[x]"
 	}
 	parts := []string{status}
-	if p := t.Priority.String(); p != "" {
-		parts = append(parts, "!"+p)
+	if p := t.Priority.Marks(); p != "" {
+		parts = append(parts, p)
 	}
 	if t.Due != nil {
 		if m.dates {

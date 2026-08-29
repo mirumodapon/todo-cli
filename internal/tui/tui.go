@@ -16,6 +16,7 @@ type mode int
 const (
 	modeList mode = iota
 	modeSearch
+	modePicker
 )
 
 // Model 是根 model。所有子狀態掛在這裡，Update 依 mode 分派。
@@ -30,6 +31,7 @@ type Model struct {
 	filter task.Filter
 
 	search textinput.Model
+	picker pickerState
 	// undo 只保留一層：最近一次刪除的完整項目，離開 TUI 即失效。
 	undo *task.Task
 
@@ -95,12 +97,24 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.err = nil
 		return m, m.loadCmd()
 
+	case projectsMsg:
+		m.picker = pickerState{kind: pickProject, items: projectItems(msg)}
+		m.mode = modePicker
+		return m, nil
+
+	case tagsMsg:
+		m.picker = pickerState{kind: pickTag, items: tagItems(msg)}
+		m.mode = modePicker
+		return m, nil
+
 	case tea.KeyMsg:
 		switch m.mode {
 		case modeList:
 			return m.updateList(msg)
 		case modeSearch:
 			return m.updateSearch(msg)
+		case modePicker:
+			return m.updatePicker(msg)
 		}
 	}
 	return m, nil
@@ -144,6 +158,10 @@ func (m Model) updateList(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.search.CursorEnd()
 		m.search.Focus()
 		return m, nil
+	case "P":
+		return m, m.projectsCmd()
+	case "T":
+		return m, m.tagsCmd()
 	case "A":
 		m.filter.IncludeDone = !m.filter.IncludeDone
 		return m, m.loadCmd()
@@ -193,4 +211,9 @@ func sortLabel(s task.SortBy) string {
 	return "截止日"
 }
 
-func (m Model) View() string { return m.viewList() }
+func (m Model) View() string {
+	if m.mode == modePicker {
+		return m.viewPicker()
+	}
+	return m.viewList()
+}

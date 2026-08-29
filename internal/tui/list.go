@@ -93,5 +93,5 @@ func (m Model) footer() string {
 	if m.status != "" {
 		return m.status
 	}
-	return styleHint.Render("j/k 移動 · space 完成 · d 刪除 · / 搜尋 · s 排序 · A 含已完成 · esc 清除 · q 離開")
+	return styleHint.Render("j/k 移動 · space 完成 · d 刪除 · / 搜尋 · P/T 過濾 · s 排序 · A 含已完成 · esc 清除 · q 離開")
 }

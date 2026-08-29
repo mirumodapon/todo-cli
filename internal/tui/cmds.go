@@ -3,6 +3,7 @@ package tui
 import (
 	tea "github.com/charmbracelet/bubbletea"
 
+	"todo.mirumo.net/internal/store"
 	"todo.mirumo.net/internal/task"
 )
 
@@ -62,5 +63,32 @@ func (m Model) restoreCmd(t task.Task) tea.Cmd {
 			return errMsg{err}
 		}
 		return savedMsg{note: "已復原「" + t.Title + "」"}
+	}
+}
+
+type (
+	projectsMsg []store.ProjectCount
+	tagsMsg     []string
+)
+
+func (m Model) projectsCmd() tea.Cmd {
+	s := m.store
+	return func() tea.Msg {
+		ps, err := s.Projects()
+		if err != nil {
+			return errMsg{err}
+		}
+		return projectsMsg(ps)
+	}
+}
+
+func (m Model) tagsCmd() tea.Cmd {
+	s := m.store
+	return func() tea.Msg {
+		ts, err := s.Tags()
+		if err != nil {
+			return errMsg{err}
+		}
+		return tagsMsg(ts)
 	}
 }

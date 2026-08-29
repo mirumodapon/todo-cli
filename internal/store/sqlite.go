@@ -284,7 +284,24 @@ func (s *sqlStore) List(f task.Filter, now time.Time) ([]task.Task, error) {
 	return out, nil
 }
 
-func (s *sqlStore) Update(t task.Task) error { return errors.New("尚未實作") }
+func (s *sqlStore) Update(t task.Task) error {
+	res, err := s.db.Exec(
+		`UPDATE tasks SET title = ?, project = ?, due = ?, priority = ?, done_at = ?, updated_at = ?
+		 WHERE id = ?`,
+		t.Title, t.Project, dueVal(t.Due), int(t.Priority), tsVal(t.DoneAt),
+		t.UpdatedAt.Format(time.RFC3339), t.ID)
+	if err != nil {
+		return err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return ErrNotFound
+	}
+	return s.setTags(t.ID, t.Tags)
+}
 
 func (s *sqlStore) Delete(id int64) error {
 	res, err := s.db.Exec(`DELETE FROM tasks WHERE id = ?`, id)
@@ -302,9 +319,73 @@ func (s *sqlStore) Delete(id int64) error {
 }
 
 func (s *sqlStore) SetDone(id int64, done bool, now time.Time) error {
-	return errors.New("尚未實作")
+	var doneAt any
+	if done {
+		doneAt = now.Format(time.RFC3339)
+	}
+	res, err := s.db.Exec(
+		`UPDATE tasks SET done_at = ?, updated_at = ? WHERE id = ?`,
+		doneAt, now.Format(time.RFC3339), id)
+	if err != nil {
+		return err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return ErrNotFound
+	}
+	return nil
 }
 
-func (s *sqlStore) Restore(t task.Task) error         { return errors.New("尚未實作") }
-func (s *sqlStore) Tags() ([]string, error)           { return nil, errors.New("尚未實作") }
-func (s *sqlStore) Projects() ([]ProjectCount, error) { return nil, errors.New("尚未實作") }
+// Restore 以原 id 重新插入。AUTOINCREMENT 不重用號碼，該 id 必定仍空著。
+func (s *sqlStore) Restore(t task.Task) error {
+	_, err := s.db.Exec(
+		`INSERT INTO tasks (id, title, project, due, priority, done_at, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		t.ID, t.Title, t.Project, dueVal(t.Due), int(t.Priority), tsVal(t.DoneAt),
+		t.CreatedAt.Format(time.RFC3339), t.UpdatedAt.Format(time.RFC3339))
+	if err != nil {
+		return err
+	}
+	return s.setTags(t.ID, t.Tags)
+}
+
+// Tags 只列出至少被一個任務引用的標籤；刪除任務留下的孤兒標籤不清理也不顯示。
+func (s *sqlStore) Tags() ([]string, error) {
+	rows, err := s.db.Query(
+		`SELECT DISTINCT g.name FROM tags g JOIN task_tags tt ON tt.tag_id = g.id ORDER BY g.name`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []string
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, err
+		}
+		out = append(out, name)
+	}
+	return out, rows.Err()
+}
+
+func (s *sqlStore) Projects() ([]ProjectCount, error) {
+	rows, err := s.db.Query(
+		`SELECT project, SUM(CASE WHEN done_at IS NULL THEN 1 ELSE 0 END)
+		 FROM tasks GROUP BY project ORDER BY project`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []ProjectCount
+	for rows.Next() {
+		var p ProjectCount
+		if err := rows.Scan(&p.Path, &p.Open); err != nil {
+			return nil, err
+		}
+		out = append(out, p)
+	}
+	return out, rows.Err()
+}

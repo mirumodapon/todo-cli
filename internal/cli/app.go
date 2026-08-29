@@ -50,13 +50,15 @@ const usageText = `todo — 本機待辦事項
 // commands 是子指令表。每加一個子指令就在這裡登記一行。
 func (a *App) commands() map[string]func([]string) error {
 	return map[string]func([]string) error{
-		"add":    a.cmdAdd,
-		"ls":     a.cmdLs,
-		"edit":   a.cmdEdit,
-		"done":   a.cmdDone,
-		"undone": a.cmdUndone,
-		"rm":     a.cmdRm,
-		"tui":    a.cmdTUI,
+		"add":      a.cmdAdd,
+		"ls":       a.cmdLs,
+		"edit":     a.cmdEdit,
+		"done":     a.cmdDone,
+		"undone":   a.cmdUndone,
+		"rm":       a.cmdRm,
+		"projects": a.cmdProjects,
+		"tags":     a.cmdTags,
+		"tui":      a.cmdTUI,
 	}
 }
 

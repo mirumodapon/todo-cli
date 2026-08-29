@@ -182,3 +182,7 @@ value means the current directory, a value names a project — and neither
 `tui.Update` performs no IO. Every database action is a `tea.Cmd` whose result
 comes back as a message, which keeps the update function pure and makes the
 tests a matter of feeding it messages rather than driving a terminal.
+
+## Licence
+
+MIT. See [LICENSE](LICENSE).

@@ -16,10 +16,10 @@ func (a *App) cmdEdit(args []string) error {
 	}
 	pos := r.Args()
 	if len(pos) == 0 {
-		return errors.New("用法：todo edit <id> [新標題] [flags]")
+		return errors.New("usage: todo edit <id> [new title] [flags]")
 	}
 	if len(pos) > 2 {
-		return fmt.Errorf("最多接受 <id> 與新標題兩個位置參數，收到 %d 個", len(pos))
+		return fmt.Errorf("at most two positional arguments are accepted, <id> and a new title, got %d", len(pos))
 	}
 	ids, err := parseIDs(pos[:1])
 	if err != nil {
@@ -27,7 +27,7 @@ func (a *App) cmdEdit(args []string) error {
 	}
 	t, err := a.Store.Get(ids[0])
 	if err != nil {
-		return fmt.Errorf("#%d：%w", ids[0], err)
+		return fmt.Errorf("#%d: %w", ids[0], err)
 	}
 
 	// Touch only the fields that were given. An absent flag and an empty value are different things.
@@ -63,8 +63,8 @@ func (a *App) cmdEdit(args []string) error {
 	t.UpdatedAt = a.Now()
 
 	if err := a.Store.Update(t); err != nil {
-		return fmt.Errorf("#%d：%w", t.ID, err)
+		return fmt.Errorf("#%d: %w", t.ID, err)
 	}
-	fmt.Fprintf(a.Out, "已更新 #%d：%s\n", t.ID, t.Title)
+	fmt.Fprintf(a.Out, "updated #%d: %s\n", t.ID, t.Title)
 	return nil
 }

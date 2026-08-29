@@ -29,12 +29,13 @@ func (a *App) cmdAdd(args []string) error {
 	if len(pos) == 0 {
 		// The common mistake: todo add -p "buy milk", where -p swallowed the title.
 		if v, has := r.Optional("project"); has {
-			return fmt.Errorf("缺少標題；看起來 %q 被當成 --project 的值。標題請放在 flag 前面（todo add %q -p），或用 --project=%s", v, v, v)
+			return fmt.Errorf("missing title: %q was taken as the value of --project.\n"+
+				"Put the title before the flags (todo add %q -p), or write --project=%s", v, v, v)
 		}
-		return errors.New("用法：todo add <標題> [flags]")
+		return errors.New("usage: todo add <title> [flags]")
 	}
 	if len(pos) > 1 {
-		return fmt.Errorf("只能有一個標題，收到 %d 個位置參數；含空白的標題請用引號包起來", len(pos))
+		return fmt.Errorf("only one title is allowed, got %d positional arguments; quote a title that contains spaces", len(pos))
 	}
 	title, err := task.ValidateTitle(pos[0])
 	if err != nil {
@@ -68,6 +69,6 @@ func (a *App) cmdAdd(args []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(a.Out, "已新增 #%d：%s\n", got.ID, got.Title)
+	fmt.Fprintf(a.Out, "added #%d: %s\n", got.ID, got.Title)
 	return nil
 }

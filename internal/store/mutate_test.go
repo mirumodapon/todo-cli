@@ -11,55 +11,55 @@ func TestSetDoneAndUndone(t *testing.T) {
 	s := newStore(t)
 	got, _ := s.Add(sample())
 	if err := s.SetDone(got.ID, true, ref()); err != nil {
-		t.Fatalf("SetDone：%v", err)
+		t.Fatalf("SetDone: %v", err)
 	}
 	back, _ := s.Get(got.ID)
 	if !back.Done() {
-		t.Fatal("應為已完成")
+		t.Fatal("should be done")
 	}
 	if back.DoneAt.Format("2006-01-02") != "2026-08-29" {
-		t.Errorf("done_at = %v，預期記錄完成時間", back.DoneAt)
+		t.Errorf("done_at = %v, want the completion time recorded", back.DoneAt)
 	}
 	if err := s.SetDone(got.ID, false, ref()); err != nil {
 		t.Fatal(err)
 	}
 	back, _ = s.Get(got.ID)
 	if back.Done() {
-		t.Error("取消完成後 DoneAt 應為 nil")
+		t.Error("DoneAt should be nil after reopening")
 	}
 }
 
 func TestSetDoneMissingID(t *testing.T) {
 	s := newStore(t)
 	if err := s.SetDone(42, true, ref()); !errors.Is(err, ErrNotFound) {
-		t.Errorf("err = %v，預期 ErrNotFound", err)
+		t.Errorf("err = %v, want ErrNotFound", err)
 	}
 }
 
 func TestUpdateOverwritesFieldsAndTags(t *testing.T) {
 	s := newStore(t)
 	got, _ := s.Add(sample())
-	got.Title = "買豆漿"
+	got.Title = "buy soy milk"
 	got.Project = ""
 	got.Due = nil
 	got.Priority = task.PriLow
-	got.Tags = []string{"早餐"}
+	got.Tags = []string{"breakfast"}
 	if err := s.Update(got); err != nil {
-		t.Fatalf("Update：%v", err)
+		t.Fatalf("Update: %v", err)
 	}
 	back, _ := s.Get(got.ID)
-	if back.Title != "買豆漿" || back.Project != "" || back.Due != nil || back.Priority != task.PriLow {
-		t.Errorf("欄位沒更新：%+v", back)
+	if back.Title != "buy soy milk" || back.Project != "" || back.Due != nil || back.Priority != task.PriLow {
+		t.Errorf("fields were not updated: %+v", back)
 	}
-	if len(back.Tags) != 1 || back.Tags[0] != "早餐" {
-		t.Errorf("tags = %v，預期整組被取代成 [早餐]", back.Tags)
+	if len(back.Tags) != 1 || back.Tags[0] != "breakfast" {
+		t.Errorf("tags = %v, the whole set should be replaced with [breakfast]", back.Tags)
 	}
 }
 
 func TestUpdateMissingID(t *testing.T) {
 	s := newStore(t)
 	if err := s.Update(task.Task{ID: 7, Title: "x", CreatedAt: ref(), UpdatedAt: ref()}); !errors.Is(err, ErrNotFound) {
-		t.Errorf("err = %v，預期 ErrNotFound", err)
+		t.Errorf("err = %v, want ErrNotFound", err)
 	}
 }
 
@@ -70,14 +70,14 @@ func TestDeleteRemovesTagLinks(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := s.Get(got.ID); !errors.Is(err, ErrNotFound) {
-		t.Errorf("err = %v，預期 ErrNotFound", err)
+		t.Errorf("err = %v, want ErrNotFound", err)
 	}
 	tags, err := s.Tags()
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(tags) != 0 {
-		t.Errorf("Tags() = %v，預期空：只列被引用的標籤", tags)
+		t.Errorf("Tags() = %v, want none: only referenced tags are listed", tags)
 	}
 }
 
@@ -89,14 +89,14 @@ func TestRestoreReusesOriginalID(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := s.Restore(original); err != nil {
-		t.Fatalf("Restore：%v", err)
+		t.Fatalf("Restore: %v", err)
 	}
 	back, err := s.Get(original.ID)
 	if err != nil {
-		t.Fatalf("復原後應能用原 id 取回：%v", err)
+		t.Fatalf("the original id should fetch it again after restore: %v", err)
 	}
 	if back.Title != original.Title || len(back.Tags) != len(original.Tags) {
-		t.Errorf("復原內容不符：%+v", back)
+		t.Errorf("restored content does not match: %+v", back)
 	}
 }
 
@@ -107,15 +107,15 @@ func TestTagsListsOnlyReferenced(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(tags) != 2 || tags[0] != "急" || tags[1] != "雜" {
-		t.Errorf("= %v，預期 [急 雜] 依名稱排序", tags)
+	if len(tags) != 2 || tags[0] != "misc" || tags[1] != "urgent" {
+		t.Errorf("= %v, want [misc urgent] sorted by name", tags)
 	}
 }
 
 func TestProjectsCountsOpenTasks(t *testing.T) {
 	s := newStore(t)
 	ids := seed(t, s)
-	if err := s.SetDone(ids["工作上的事"], true, ref()); err != nil {
+	if err := s.SetDone(ids["work one"], true, ref()); err != nil {
 		t.Fatal(err)
 	}
 	ps, err := s.Projects()
@@ -123,12 +123,12 @@ func TestProjectsCountsOpenTasks(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(ps) != 2 {
-		t.Fatalf("= %+v，預期兩個專案（含空字串的未分類）", ps)
+		t.Fatalf("= %+v, want two projects, uncategorized included", ps)
 	}
 	if ps[0].Path != "" || ps[0].Open != 3 {
-		t.Errorf("ps[0] = %+v，預期未分類 3 筆未完成", ps[0])
+		t.Errorf("ps[0] = %+v, want uncategorized with 3 open", ps[0])
 	}
 	if ps[1].Path != "/p/work" || ps[1].Open != 1 {
-		t.Errorf("ps[1] = %+v，預期 /p/work 1 筆未完成（另一筆已完成）", ps[1])
+		t.Errorf("ps[1] = %+v, want /p/work with 1 open, the other being done", ps[1])
 	}
 }

@@ -19,12 +19,12 @@ func TestFormAddCreatesTask(t *testing.T) {
 	m, s := newModel(t)
 	m = press(t, m, "a")
 	if m.mode != modeForm {
-		t.Fatal("a 應該開啟表單")
+		t.Fatal("a should open the form")
 	}
-	m = typeInto(t, m, "第四件")
+	m = typeInto(t, m, "fourth")
 	m = press(t, m, "tab")
 	m = press(t, m, "tab")
-	m = typeInto(t, m, "急,雜")
+	m = typeInto(t, m, "urgent,misc")
 	m = press(t, m, "tab")
 	m = typeInto(t, m, "tomorrow")
 	m = press(t, m, "tab")
@@ -32,14 +32,14 @@ func TestFormAddCreatesTask(t *testing.T) {
 	m = press(t, m, "enter")
 
 	if m.mode != modeList {
-		t.Fatalf("儲存後應回到清單，mode = %v", m.mode)
+		t.Fatalf("saving should return to the list, mode = %v", m.mode)
 	}
-	ts, err := s.List(task.Filter{Search: "第四件"}, refTime())
+	ts, err := s.List(task.Filter{Search: "fourth"}, refTime())
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(ts) != 1 {
-		t.Fatalf("應該新增了一筆，實得 %d 筆", len(ts))
+		t.Fatalf("one task should have been added, got %d", len(ts))
 	}
 	got := ts[0]
 	if got.Due == nil || got.Due.Format("2006-01-02") != "2026-08-30" {
@@ -49,7 +49,7 @@ func TestFormAddCreatesTask(t *testing.T) {
 		t.Errorf("priority = %v", got.Priority)
 	}
 	if len(got.Tags) != 2 {
-		t.Errorf("tags = %v，逗號分隔應拆成兩個", got.Tags)
+		t.Errorf("tags = %v, the comma-separated value should split into two", got.Tags)
 	}
 }
 
@@ -58,26 +58,26 @@ func TestFormEditPrefillsAndUpdates(t *testing.T) {
 	id := m.tasks[0].ID
 	m = press(t, m, "e")
 	if m.mode != modeForm {
-		t.Fatal("e 應該開啟表單")
+		t.Fatal("e should open the form")
 	}
-	if !strings.Contains(m.View(), "第一件") {
-		t.Errorf("編輯時應預填現有值：\n%s", m.View())
+	if !strings.Contains(m.View(), "first") {
+		t.Errorf("editing should prefill the current values:\n%s", m.View())
 	}
-	for range len([]rune("第一件")) {
+	for range len([]rune("first")) {
 		m = press(t, m, "backspace")
 	}
-	m = typeInto(t, m, "改過的")
+	m = typeInto(t, m, "changed")
 	m = press(t, m, "enter")
 
 	got, err := s.Get(id)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Title != "改過的" {
+	if got.Title != "changed" {
 		t.Errorf("title = %q", got.Title)
 	}
 	if got.Due == nil {
-		t.Error("沒動到的欄位應該保持原值")
+		t.Error("fields left alone should keep their value")
 	}
 }
 
@@ -86,27 +86,27 @@ func TestFormRejectsEmptyTitle(t *testing.T) {
 	m = press(t, m, "a")
 	m = press(t, m, "enter")
 	if m.mode != modeForm {
-		t.Error("標題空白時不該離開表單")
+		t.Error("an empty title must not leave the form")
 	}
-	if !strings.Contains(m.View(), "標題不能是空的") {
-		t.Errorf("應該說明為什麼存不了：\n%s", m.View())
+	if !strings.Contains(m.View(), "title cannot be empty") {
+		t.Errorf("it should say why it cannot save:\n%s", m.View())
 	}
 }
 
 func TestFormRejectsBadDue(t *testing.T) {
 	m, _ := newModel(t)
 	m = press(t, m, "a")
-	m = typeInto(t, m, "測試")
+	m = typeInto(t, m, "test task")
 	m = press(t, m, "tab")
 	m = press(t, m, "tab")
 	m = press(t, m, "tab")
 	m = typeInto(t, m, "someday")
 	m = press(t, m, "enter")
 	if m.mode != modeForm {
-		t.Error("日期不合法時不該離開表單")
+		t.Error("an invalid date must not leave the form")
 	}
-	if !strings.Contains(m.View(), "看不懂的日期") {
-		t.Errorf("應該指出是日期的問題：\n%s", m.View())
+	if !strings.Contains(m.View(), "cannot read date") {
+		t.Errorf("it should point at the date:\n%s", m.View())
 	}
 }
 
@@ -114,14 +114,14 @@ func TestFormEscCancels(t *testing.T) {
 	m, s := newModel(t)
 	before, _ := s.List(task.Filter{}, refTime())
 	m = press(t, m, "a")
-	m = typeInto(t, m, "不要存")
+	m = typeInto(t, m, "do not save")
 	m = press(t, m, "esc")
 	if m.mode != modeList {
-		t.Error("esc 應該回到清單")
+		t.Error("esc should return to the list")
 	}
 	after, _ := s.List(task.Filter{}, refTime())
 	if len(after) != len(before) {
-		t.Error("esc 不該存進任何東西")
+		t.Error("esc must not save anything")
 	}
 }
 
@@ -133,7 +133,7 @@ func TestFormFillsProjectFromCwd(t *testing.T) {
 	m = press(t, m, "a")
 	m = press(t, m, "ctrl+p")
 	if !strings.Contains(m.View(), filepath.Base(m.cwd)) {
-		t.Errorf("ctrl+p 應該填入當前目錄的專案：\n%s", m.View())
+		t.Errorf("ctrl+p should fill in the current directory's project:\n%s", m.View())
 	}
 }
 
@@ -141,16 +141,16 @@ func TestHelpOverlay(t *testing.T) {
 	m, _ := newModel(t)
 	m = press(t, m, "?")
 	if m.mode != modeHelp {
-		t.Fatal("? 應該開啟說明")
+		t.Fatal("? should open the help")
 	}
 	v := m.View()
 	for _, want := range []string{"space", "d", "u", "/", "P", "T"} {
 		if !strings.Contains(v, want) {
-			t.Errorf("說明缺少 %q：\n%s", want, v)
+			t.Errorf("the help is missing %q:\n%s", want, v)
 		}
 	}
 	m = press(t, m, "esc")
 	if m.mode != modeList {
-		t.Error("esc 應該關掉說明")
+		t.Error("esc should close the help")
 	}
 }

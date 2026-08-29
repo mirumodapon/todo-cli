@@ -9,14 +9,14 @@ import (
 func seedCLI(t *testing.T, app *App) {
 	t.Helper()
 	cases := [][]string{
-		{"add", "逾期的事", "-d", "2026-08-20"},
-		{"add", "今天的事", "-d", "today", "--pri", "high", "-t", "急"},
-		{"add", "工作的事", "-p", "work", "-t", "雜"},
-		{"add", "沒期限的事"},
+		{"add", "overdue one", "-d", "2026-08-20"},
+		{"add", "today one", "-d", "today", "--pri", "high", "-t", "urgent"},
+		{"add", "work one", "-p", "work", "-t", "misc"},
+		{"add", "undated one"},
 	}
 	for _, args := range cases {
 		if code := app.Run(args); code != 0 {
-			t.Fatalf("%v 失敗", args)
+			t.Fatalf("%v failed", args)
 		}
 	}
 }
@@ -25,17 +25,17 @@ func TestLsDefaultsToOpenOnly(t *testing.T) {
 	app, out, _ := newApp(t)
 	seedCLI(t, app)
 	if code := app.Run([]string{"done", "1"}); code != 0 {
-		t.Skip("done 尚未實作，Task 11 後再跑")
+		t.Skip("done is not implemented yet; revisit after Task 11")
 	}
 	out.Reset()
 	app.Run([]string{"ls"})
-	if strings.Contains(out.String(), "逾期的事") {
-		t.Errorf("預設不該列已完成：%q", out.String())
+	if strings.Contains(out.String(), "overdue one") {
+		t.Errorf("the default must not list done tasks: %q", out.String())
 	}
 	out.Reset()
 	app.Run([]string{"ls", "-a"})
-	if !strings.Contains(out.String(), "逾期的事") {
-		t.Errorf("-a 應含已完成：%q", out.String())
+	if !strings.Contains(out.String(), "overdue one") {
+		t.Errorf("-a should include done tasks: %q", out.String())
 	}
 }
 
@@ -45,26 +45,26 @@ func TestLsFilterByProjectAndNoProject(t *testing.T) {
 
 	out.Reset()
 	app.Run([]string{"ls", "-p", "work"})
-	if !strings.Contains(out.String(), "工作的事") || strings.Contains(out.String(), "今天的事") {
+	if !strings.Contains(out.String(), "work one") || strings.Contains(out.String(), "today one") {
 		t.Errorf("-p work = %q", out.String())
 	}
 
 	out.Reset()
 	app.Run([]string{"ls", "--no-project"})
-	if strings.Contains(out.String(), "工作的事") {
-		t.Errorf("--no-project 不該含有專案的項目：%q", out.String())
+	if strings.Contains(out.String(), "work one") {
+		t.Errorf("--no-project must exclude tasks with a project: %q", out.String())
 	}
-	if !strings.Contains(out.String(), "今天的事") {
-		t.Errorf("--no-project 應含未分類項目：%q", out.String())
+	if !strings.Contains(out.String(), "today one") {
+		t.Errorf("--no-project should include uncategorized tasks: %q", out.String())
 	}
 }
 
 func TestLsRejectsConflictingProjectFlags(t *testing.T) {
 	app, _, errBuf := newApp(t)
 	if code := app.Run([]string{"ls", "-p", "work", "--no-project"}); code != 1 {
-		t.Errorf("離開碼 = %d，預期 1", code)
+		t.Errorf("exit code = %d, want 1", code)
 	}
-	if !strings.Contains(errBuf.String(), "不能同時使用") {
+	if !strings.Contains(errBuf.String(), "cannot be used together") {
 		t.Errorf("stderr = %q", errBuf.String())
 	}
 }
@@ -75,29 +75,29 @@ func TestLsDueKeywordsAndTags(t *testing.T) {
 
 	out.Reset()
 	app.Run([]string{"ls", "-d", "today"})
-	if !strings.Contains(out.String(), "今天的事") || strings.Contains(out.String(), "逾期的事") {
+	if !strings.Contains(out.String(), "today one") || strings.Contains(out.String(), "overdue one") {
 		t.Errorf("-d today = %q", out.String())
 	}
 
 	out.Reset()
 	app.Run([]string{"ls", "-d", "overdue"})
-	if !strings.Contains(out.String(), "逾期的事") {
+	if !strings.Contains(out.String(), "overdue one") {
 		t.Errorf("-d overdue = %q", out.String())
 	}
 
 	out.Reset()
-	app.Run([]string{"ls", "-t", "急"})
-	if !strings.Contains(out.String(), "今天的事") || strings.Contains(out.String(), "工作的事") {
-		t.Errorf("-t 急 = %q", out.String())
+	app.Run([]string{"ls", "-t", "urgent"})
+	if !strings.Contains(out.String(), "today one") || strings.Contains(out.String(), "work one") {
+		t.Errorf("-t urgent = %q", out.String())
 	}
 }
 
 func TestLsRejectsPositionalArgs(t *testing.T) {
 	app, _, errBuf := newApp(t)
-	if code := app.Run([]string{"ls", "垃圾"}); code != 1 {
-		t.Errorf("離開碼 = %d，預期 1", code)
+	if code := app.Run([]string{"ls", "junk"}); code != 1 {
+		t.Errorf("exit code = %d, want 1", code)
 	}
-	if !strings.Contains(errBuf.String(), "不接受位置參數") {
+	if !strings.Contains(errBuf.String(), "takes no positional arguments") {
 		t.Errorf("stderr = %q", errBuf.String())
 	}
 }
@@ -105,9 +105,9 @@ func TestLsRejectsPositionalArgs(t *testing.T) {
 func TestLsBadSortAndPriority(t *testing.T) {
 	app, _, _ := newApp(t)
 	if code := app.Run([]string{"ls", "-s", "title"}); code == 0 {
-		t.Error("未知的排序應該失敗")
+		t.Error("an unknown sort should fail")
 	}
 	if code := app.Run([]string{"ls", "--pri", "urgent"}); code == 0 {
-		t.Error("未知的優先度應該失敗")
+		t.Error("an unknown priority should fail")
 	}
 }

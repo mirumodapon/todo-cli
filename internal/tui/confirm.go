@@ -30,6 +30,6 @@ func (m Model) updateConfirm(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "y", "Y":
 		return m, action
 	}
-	m.status = "已取消"
+	m.status = "cancelled"
 	return m, nil
 }

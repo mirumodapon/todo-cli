@@ -4,21 +4,22 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"unicode"
 )
 
 func TestRunNoArgsPrintsUsage(t *testing.T) {
 	app, out, _ := newApp(t)
 	if code := app.Run(nil); code != 0 {
-		t.Errorf("離開碼 = %d，預期 0", code)
+		t.Errorf("exit code = %d, want 0", code)
 	}
 	if !strings.Contains(out.String(), "Usage:") {
-		t.Errorf("裸打 todo 應印出用法，實得：%q", out.String())
+		t.Errorf("bare todo should print usage, got %q", out.String())
 	}
 	if !strings.Contains(out.String(), "Commands:") {
-		t.Errorf("全域說明應列出子指令，實得：%q", out.String())
+		t.Errorf("the global help should list the subcommands, got %q", out.String())
 	}
-	if strings.Contains(out.String(), "沒有符合的待辦") {
-		t.Error("裸打 todo 不該進入清單或 TUI")
+	if strings.Contains(out.String(), "No matching tasks") {
+		t.Error("bare todo must not enter the list or the TUI")
 	}
 }
 
@@ -26,10 +27,10 @@ func TestRunHelp(t *testing.T) {
 	for _, arg := range []string{"-h", "--help", "help"} {
 		app, out, _ := newApp(t)
 		if code := app.Run([]string{arg}); code != 0 {
-			t.Errorf("%s 離開碼 = %d，預期 0", arg, code)
+			t.Errorf("%s exit code = %d, want 0", arg, code)
 		}
 		if !strings.Contains(out.String(), "Usage:") {
-			t.Errorf("%s 沒印出用法", arg)
+			t.Errorf("%s did not print usage", arg)
 		}
 	}
 }
@@ -39,17 +40,17 @@ func TestSubcommandHelpIsSpecificToThatCommand(t *testing.T) {
 	// and it must print that subcommand's own help rather than the global usage.
 	app, out, errBuf := newApp(t)
 	if code := app.Run([]string{"add", "-h"}); code != 0 {
-		t.Errorf("離開碼 = %d，預期 0；stderr = %q", code, errBuf.String())
+		t.Errorf("exit code = %d, want 0; stderr = %q", code, errBuf.String())
 	}
 	s := out.String()
 	if !strings.Contains(s, "todo add <title>") {
-		t.Errorf("應印出 add 自己的用法行，實得：%q", s)
+		t.Errorf("it should print add's own usage line, got %q", s)
 	}
 	if !strings.Contains(s, "-p, --project") || !strings.Contains(s, "-d, --due") {
-		t.Errorf("應列出 add 的 flag，實得：%q", s)
+		t.Errorf("it should list add's flags, got %q", s)
 	}
 	if strings.Contains(s, "Commands:") {
-		t.Errorf("子指令說明不該退回全域說明：%q", s)
+		t.Errorf("a subcommand help must not fall back to the global usage: %q", s)
 	}
 }
 
@@ -57,12 +58,12 @@ func TestEverySubcommandHasHelp(t *testing.T) {
 	for _, name := range []string{"add", "ls", "done", "undone", "edit", "rm", "projects", "tags", "tui"} {
 		app, out, errBuf := newApp(t)
 		if code := app.Run([]string{name, "--help"}); code != 0 {
-			t.Errorf("%s --help 離開碼 = %d；stderr = %q", name, code, errBuf.String())
+			t.Errorf("%s --help exit code = %d; stderr = %q", name, code, errBuf.String())
 			continue
 		}
 		s := out.String()
 		if !strings.Contains(s, "Usage:") || !strings.Contains(s, "todo "+name) {
-			t.Errorf("%s --help 沒印出自己的用法：%q", name, s)
+			t.Errorf("%s --help did not print its own usage: %q", name, s)
 		}
 	}
 }
@@ -70,19 +71,19 @@ func TestEverySubcommandHasHelp(t *testing.T) {
 func TestHelpSubcommandTakesACommandName(t *testing.T) {
 	app, out, _ := newApp(t)
 	if code := app.Run([]string{"help", "ls"}); code != 0 {
-		t.Fatalf("離開碼 = %d", code)
+		t.Fatalf("exit code = %d", code)
 	}
 	if !strings.Contains(out.String(), "todo ls") || strings.Contains(out.String(), "Commands:") {
-		t.Errorf("todo help ls 應印出 ls 的說明：%q", out.String())
+		t.Errorf("todo help ls should print ls's help: %q", out.String())
 	}
 }
 
 func TestHelpTextIsEnglish(t *testing.T) {
 	app, out, _ := newApp(t)
 	app.Run(nil)
-	for _, banned := range []string{"用法", "指令", "顯示"} {
-		if strings.Contains(out.String(), banned) {
-			t.Errorf("說明文字應為英文，卻含有 %q：\n%s", banned, out.String())
+	for _, r := range out.String() {
+		if unicode.Is(unicode.Han, r) {
+			t.Fatalf("help text must be English but contains %q:\n%s", r, out.String())
 		}
 	}
 }
@@ -90,7 +91,7 @@ func TestHelpTextIsEnglish(t *testing.T) {
 func TestRunUnknownCommand(t *testing.T) {
 	app, _, errBuf := newApp(t)
 	if code := app.Run([]string{"frobnicate"}); code != 2 {
-		t.Errorf("離開碼 = %d，預期 2", code)
+		t.Errorf("exit code = %d, want 2", code)
 	}
 	if !strings.Contains(errBuf.String(), `unknown command "frobnicate"`) {
 		t.Errorf("stderr = %q", errBuf.String())
@@ -103,23 +104,23 @@ func TestTUIOnlyOnExplicitSubcommand(t *testing.T) {
 	app.RunTUI = func() error { called = true; return nil }
 
 	if code := app.Run(nil); code != 0 || called {
-		t.Error("裸打 todo 不該啟動 TUI")
+		t.Error("bare todo must not start the TUI")
 	}
 	if code := app.Run([]string{"tui"}); code != 0 {
-		t.Errorf("離開碼 = %d，預期 0", code)
+		t.Errorf("exit code = %d, want 0", code)
 	}
 	if !called {
-		t.Error("todo tui 應該啟動 TUI")
+		t.Error("todo tui should start the TUI")
 	}
 }
 
 func TestTUIErrorBecomesExitCode1(t *testing.T) {
 	app, _, errBuf := newApp(t)
-	app.RunTUI = func() error { return errors.New("終端機壞了") }
+	app.RunTUI = func() error { return errors.New("the terminal broke") }
 	if code := app.Run([]string{"tui"}); code != 1 {
-		t.Errorf("離開碼 = %d，預期 1", code)
+		t.Errorf("exit code = %d, want 1", code)
 	}
-	if !strings.Contains(errBuf.String(), "終端機壞了") {
+	if !strings.Contains(errBuf.String(), "the terminal broke") {
 		t.Errorf("stderr = %q", errBuf.String())
 	}
 }
@@ -131,27 +132,27 @@ func TestSplitGlobal(t *testing.T) {
 		wantDB   string
 		wantRest []string
 	}{
-		{"沒有 --db", []string{"ls", "-a"}, "", []string{"ls", "-a"}},
-		{"空格式", []string{"--db", "/tmp/x.db", "ls"}, "/tmp/x.db", []string{"ls"}},
-		{"等號式", []string{"--db=/tmp/x.db", "ls"}, "/tmp/x.db", []string{"ls"}},
-		{"只有 --db", []string{"--db=/tmp/x.db"}, "/tmp/x.db", nil},
+		{"no --db", []string{"ls", "-a"}, "", []string{"ls", "-a"}},
+		{"space form", []string{"--db", "/tmp/x.db", "ls"}, "/tmp/x.db", []string{"ls"}},
+		{"equals form", []string{"--db=/tmp/x.db", "ls"}, "/tmp/x.db", []string{"ls"}},
+		{"only --db", []string{"--db=/tmp/x.db"}, "/tmp/x.db", nil},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			db, rest, err := SplitGlobal(c.args)
 			if err != nil {
-				t.Fatalf("非預期錯誤：%v", err)
+				t.Fatalf("unexpected error: %v", err)
 			}
 			if db != c.wantDB {
-				t.Errorf("db = %q，預期 %q", db, c.wantDB)
+				t.Errorf("db = %q, want %q", db, c.wantDB)
 			}
 			if strings.Join(rest, " ") != strings.Join(c.wantRest, " ") {
-				t.Errorf("rest = %v，預期 %v", rest, c.wantRest)
+				t.Errorf("rest = %v, want %v", rest, c.wantRest)
 			}
 		})
 	}
 	if _, _, err := SplitGlobal([]string{"--db"}); err == nil {
-		t.Error("--db 缺值應該報錯")
+		t.Error("--db without a value should fail")
 	}
 }
 
@@ -162,7 +163,7 @@ func TestParseIDs(t *testing.T) {
 	}
 	for _, bad := range [][]string{{}, {"x"}, {"0"}, {"-1"}} {
 		if _, err := parseIDs(bad); err == nil {
-			t.Errorf("parseIDs(%v) 應該報錯", bad)
+			t.Errorf("parseIDs(%v) should fail", bad)
 		}
 	}
 }

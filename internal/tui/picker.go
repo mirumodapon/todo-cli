@@ -30,11 +30,11 @@ type pickerState struct {
 }
 
 func projectItems(ps []store.ProjectCount) []pickerItem {
-	items := []pickerItem{{label: "全部", clear: true}}
+	items := []pickerItem{{label: "All", clear: true}}
 	for _, p := range ps {
 		label := project.Label(p.Path)
 		if label == "" {
-			label = "（未分類）"
+			label = "(uncategorized)"
 		}
 		items = append(items, pickerItem{label: label, value: p.Path})
 	}
@@ -42,7 +42,7 @@ func projectItems(ps []store.ProjectCount) []pickerItem {
 }
 
 func tagItems(tags []string) []pickerItem {
-	items := []pickerItem{{label: "全部", clear: true}}
+	items := []pickerItem{{label: "All", clear: true}}
 	for _, t := range tags {
 		items = append(items, pickerItem{label: "@" + t, value: t})
 	}
@@ -92,9 +92,9 @@ func (m Model) updatePicker(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) viewPicker() string {
-	title := "依專案過濾"
+	title := "Filter by project"
 	if m.picker.kind == pickTag {
-		title = "依標籤過濾"
+		title = "Filter by tag"
 	}
 	var b strings.Builder
 	b.WriteString(title + "\n\n")

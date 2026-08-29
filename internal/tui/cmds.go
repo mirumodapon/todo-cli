@@ -33,9 +33,9 @@ func (m Model) toggleCmd(t task.Task) tea.Cmd {
 		if err := s.SetDone(t.ID, !t.Done(), now); err != nil {
 			return errMsg{err}
 		}
-		note := "已完成「" + t.Title + "」"
+		note := `done "` + t.Title + `"`
 		if t.Done() {
-			note = "已取消完成「" + t.Title + "」"
+			note = `reopened "` + t.Title + `"`
 		}
 		return savedMsg{note: note}
 	}
@@ -62,7 +62,7 @@ func (m Model) restoreCmd(t task.Task) tea.Cmd {
 		if err := s.Restore(t); err != nil {
 			return errMsg{err}
 		}
-		return savedMsg{note: "已復原「" + t.Title + "」"}
+		return savedMsg{note: `restored "` + t.Title + `"`}
 	}
 }
 
@@ -100,11 +100,11 @@ func (m Model) saveCmd(t task.Task, editing bool) tea.Cmd {
 			if err := s.Update(t); err != nil {
 				return errMsg{err}
 			}
-			return savedMsg{note: "已更新「" + t.Title + "」"}
+			return savedMsg{note: `updated "` + t.Title + `"`}
 		}
 		if _, err := s.Add(t); err != nil {
 			return errMsg{err}
 		}
-		return savedMsg{note: "已新增「" + t.Title + "」"}
+		return savedMsg{note: `added "` + t.Title + `"`}
 	}
 }

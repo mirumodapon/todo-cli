@@ -137,7 +137,7 @@ func (s *Set) Parse(args []string) (*Result, error) {
 			name, inline, hasInline := cut(a[2:])
 			sp, ok := s.find(name, true)
 			if !ok {
-				return nil, fmt.Errorf("未知的 flag：--%s", name)
+				return nil, fmt.Errorf("unknown flag --%s", name)
 			}
 			used, err := s.assign(r, sp, inline, hasInline, args, i)
 			if err != nil {
@@ -148,7 +148,7 @@ func (s *Set) Parse(args []string) (*Result, error) {
 			name, inline, hasInline := cut(a[1:])
 			sp, ok := s.find(name, false)
 			if !ok {
-				return nil, fmt.Errorf("未知的 flag：-%s", name)
+				return nil, fmt.Errorf("unknown flag -%s", name)
 			}
 			used, err := s.assign(r, sp, inline, hasInline, args, i)
 			if err != nil {
@@ -170,14 +170,14 @@ func (s *Set) assign(r *Result, sp Spec, inline string, hasInline bool, args []s
 	switch sp.Kind {
 	case Bool:
 		if hasInline {
-			return 0, fmt.Errorf("flag --%s 不接受值", sp.Long)
+			return 0, fmt.Errorf("flag --%s takes no value", sp.Long)
 		}
 		return 1, nil
 	case String, StringSlice:
 		val, used := inline, 1
 		if !hasInline {
 			if i+1 >= len(args) {
-				return 0, fmt.Errorf("flag --%s 需要一個值", sp.Long)
+				return 0, fmt.Errorf("flag --%s needs a value", sp.Long)
 			}
 			val, used = args[i+1], 2
 		}

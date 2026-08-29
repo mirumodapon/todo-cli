@@ -18,22 +18,22 @@ func main() { os.Exit(run()) }
 func run() int {
 	dbFlag, args, err := cli.SplitGlobal(os.Args[1:])
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "錯誤：%s\n", err)
+		fmt.Fprintf(os.Stderr, "error: %s\n", err)
 		return 2
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "錯誤：找不到家目錄：%s\n", err)
+		fmt.Fprintf(os.Stderr, "error: cannot find the home directory: %s\n", err)
 		return 1
 	}
 	dbPath := resolveDBPath(os.Getenv("TODO_DB"), dbFlag, home)
 	if err := os.MkdirAll(filepath.Dir(dbPath), 0o700); err != nil {
-		fmt.Fprintf(os.Stderr, "錯誤：無法建立資料目錄 %s：%s\n", filepath.Dir(dbPath), err)
+		fmt.Fprintf(os.Stderr, "error: cannot create the data directory %s: %s\n", filepath.Dir(dbPath), err)
 		return 1
 	}
 	st, err := store.OpenSQLite(dbPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "錯誤：無法開啟資料庫 %s：%s\n", dbPath, err)
+		fmt.Fprintf(os.Stderr, "error: cannot open the database %s: %s\n", dbPath, err)
 		return 1
 	}
 	defer st.Close()

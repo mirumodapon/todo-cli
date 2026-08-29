@@ -30,10 +30,10 @@ func ParsePriority(s string) (Priority, error) {
 	case "high":
 		return PriHigh, nil
 	}
-	return PriNone, fmt.Errorf("看不懂的優先度：%q（可用 low、med、high）", s)
+	return PriNone, fmt.Errorf("unknown priority %q (use low, med, high)", s)
 }
 
-// String returns the identifier used on the command line.
+// String returns the identifier used on the command line and in listings.
 func (p Priority) String() string {
 	switch p {
 	case PriLow:
@@ -42,19 +42,6 @@ func (p Priority) String() string {
 		return "med"
 	case PriHigh:
 		return "high"
-	}
-	return ""
-}
-
-// Label returns the short marker shown in listings.
-func (p Priority) Label() string {
-	switch p {
-	case PriLow:
-		return "低"
-	case PriMed:
-		return "中"
-	case PriHigh:
-		return "高"
 	}
 	return ""
 }
@@ -79,7 +66,7 @@ func (t Task) Done() bool { return t.DoneAt != nil }
 func ValidateTitle(s string) (string, error) {
 	s = strings.TrimSpace(s)
 	if s == "" {
-		return "", errors.New("標題不能是空的")
+		return "", errors.New("title cannot be empty")
 	}
 	return s, nil
 }
@@ -118,7 +105,7 @@ func ParseSortBy(s string) (SortBy, error) {
 	case "created":
 		return SortCreated, nil
 	}
-	return SortDue, fmt.Errorf("看不懂的排序：%q（可用 due、pri、created）", s)
+	return SortDue, fmt.Errorf("unknown sort %q (use due, pri, created)", s)
 }
 
 // DueRange narrows a query by due date.

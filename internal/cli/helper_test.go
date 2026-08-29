@@ -15,7 +15,7 @@ func newApp(t *testing.T) (*App, *bytes.Buffer, *bytes.Buffer) {
 	t.Helper()
 	st, err := store.OpenSQLite(":memory:")
 	if err != nil {
-		t.Fatalf("OpenSQLite：%v", err)
+		t.Fatalf("OpenSQLite: %v", err)
 	}
 	t.Cleanup(func() { st.Close() })
 	out, errBuf := &bytes.Buffer{}, &bytes.Buffer{}

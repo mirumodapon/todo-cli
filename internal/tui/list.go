@@ -33,7 +33,7 @@ func (m Model) taskLine(t task.Task) string {
 		status = "[x]"
 	}
 	parts := []string{status}
-	if p := t.Priority.Label(); p != "" {
+	if p := t.Priority.String(); p != "" {
 		parts = append(parts, "!"+p)
 	}
 	if t.Due != nil {
@@ -53,7 +53,7 @@ func (m Model) viewList() string {
 	var b strings.Builder
 	b.WriteString(m.header() + "\n\n")
 	if len(m.tasks) == 0 {
-		b.WriteString(styleDim.Render("沒有符合的待辦") + "\n")
+		b.WriteString(styleDim.Render("No matching tasks") + "\n")
 	}
 	for i, t := range m.tasks {
 		marker := "  "
@@ -74,12 +74,12 @@ func (m Model) viewList() string {
 }
 
 func (m Model) header() string {
-	h := fmt.Sprintf("todo — %d 筆", len(m.tasks))
+	h := fmt.Sprintf("todo — %d tasks", len(m.tasks))
 	if m.filter.Search != "" {
-		h += "  搜尋：" + m.filter.Search
+		h += "  search: " + m.filter.Search
 	}
 	if m.filter.IncludeDone {
-		h += "  含已完成"
+		h += "  including done"
 	}
 	return h
 }
@@ -92,7 +92,7 @@ func (m Model) footer() string {
 		return m.search.View()
 	}
 	if m.err != nil {
-		return styleErr.Render("錯誤：" + m.err.Error())
+		return styleErr.Render("error: " + m.err.Error())
 	}
 	if m.status != "" {
 		return m.status

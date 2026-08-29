@@ -9,7 +9,7 @@ import (
 )
 
 // ErrNotFound reports that no task has the given id.
-var ErrNotFound = errors.New("找不到該任務")
+var ErrNotFound = errors.New("task not found")
 
 // ProjectCount pairs a project with its open task count.
 type ProjectCount struct {

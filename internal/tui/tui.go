@@ -49,7 +49,7 @@ type Model struct {
 func New(s store.Store, now func() time.Time, cwd string) Model {
 	ti := textinput.New()
 	ti.Prompt = "/"
-	ti.Placeholder = "搜尋標題"
+	ti.Placeholder = "search titles"
 	return Model{
 		store: s, now: now, cwd: cwd,
 		mode: modeList, search: ti,
@@ -98,7 +98,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case deletedMsg:
 		t := msg.t
 		m.undo = &t
-		m.status = "已刪除「" + t.Title + "」· u 復原"
+		m.status = `deleted "` + t.Title + `" · u to undo`
 		m.err = nil
 		return m, m.loadCmd()
 
@@ -173,7 +173,7 @@ func (m Model) updateList(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 	case "u":
 		if m.undo == nil {
-			m.status = "沒有可復原的刪除"
+			m.status = "nothing to undo"
 			return m, nil
 		}
 		t := *m.undo
@@ -194,7 +194,7 @@ func (m Model) updateList(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, m.loadCmd()
 	case "s":
 		m.filter.Sort = (m.filter.Sort + 1) % 3
-		m.status = "排序：" + sortLabel(m.filter.Sort)
+		m.status = "sort: " + sortLabel(m.filter.Sort)
 		return m, m.loadCmd()
 	case "esc":
 		m.filter = task.Filter{}
@@ -231,11 +231,11 @@ func (m Model) updateSearch(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 func sortLabel(s task.SortBy) string {
 	switch s {
 	case task.SortPriority:
-		return "優先度"
+		return "priority"
 	case task.SortCreated:
-		return "建立時間"
+		return "created"
 	}
-	return "截止日"
+	return "due date"
 }
 
 func (m Model) View() string {

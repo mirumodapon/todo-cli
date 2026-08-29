@@ -15,15 +15,15 @@ func seed(t *testing.T, s Store) map[string]int64 {
 		ti.CreatedAt, ti.UpdatedAt = ref(), ref()
 		got, err := s.Add(ti)
 		if err != nil {
-			t.Fatalf("Add %q：%v", ti.Title, err)
+			t.Fatalf("Add %q: %v", ti.Title, err)
 		}
 		ids[ti.Title] = got.ID
 	}
-	add(task.Task{Title: "逾期的事", Due: day(2026, 8, 20), Priority: task.PriLow})
-	add(task.Task{Title: "今天的事", Due: day(2026, 8, 29), Priority: task.PriHigh, Tags: []string{"急"}})
-	add(task.Task{Title: "下週的事", Due: day(2026, 9, 10), Project: "/p/work"})
-	add(task.Task{Title: "沒期限的事", Priority: task.PriMed, Tags: []string{"急", "雜"}})
-	add(task.Task{Title: "工作上的事", Project: "/p/work", Tags: []string{"雜"}})
+	add(task.Task{Title: "overdue one", Due: day(2026, 8, 20), Priority: task.PriLow})
+	add(task.Task{Title: "today one", Due: day(2026, 8, 29), Priority: task.PriHigh, Tags: []string{"urgent"}})
+	add(task.Task{Title: "next week one", Due: day(2026, 9, 10), Project: "/p/work"})
+	add(task.Task{Title: "undated one", Priority: task.PriMed, Tags: []string{"urgent", "misc"}})
+	add(task.Task{Title: "work one", Project: "/p/work", Tags: []string{"misc"}})
 	return ids
 }
 
@@ -39,11 +39,11 @@ func assertTitles(t *testing.T, got []task.Task, want ...string) {
 	t.Helper()
 	g := titles(got)
 	if len(g) != len(want) {
-		t.Fatalf("= %v，預期 %v", g, want)
+		t.Fatalf("= %v, want %v", g, want)
 	}
 	for i := range want {
 		if g[i] != want[i] {
-			t.Fatalf("= %v，預期 %v", g, want)
+			t.Fatalf("= %v, want %v", g, want)
 		}
 	}
 }
@@ -57,7 +57,7 @@ func TestListDefaultsToOpenTasksSortedByDue(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assertTitles(t, got, "逾期的事", "今天的事", "下週的事", "沒期限的事", "工作上的事")
+	assertTitles(t, got, "overdue one", "today one", "next week one", "undated one", "work one")
 }
 
 func TestListSortByPriority(t *testing.T) {
@@ -67,8 +67,8 @@ func TestListSortByPriority(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got[0].Title != "今天的事" || got[1].Title != "沒期限的事" {
-		t.Errorf("= %v，預期 high 在前、med 次之", titles(got))
+	if got[0].Title != "today one" || got[1].Title != "undated one" {
+		t.Errorf("= %v, want high first and med second", titles(got))
 	}
 }
 
@@ -79,7 +79,7 @@ func TestListFilterByProject(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assertTitles(t, got, "下週的事", "工作上的事")
+	assertTitles(t, got, "next week one", "work one")
 }
 
 func TestListFilterByEmptyProjectMeansUncategorized(t *testing.T) {
@@ -89,17 +89,17 @@ func TestListFilterByEmptyProjectMeansUncategorized(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assertTitles(t, got, "逾期的事", "今天的事", "沒期限的事")
+	assertTitles(t, got, "overdue one", "today one", "undated one")
 }
 
 func TestListFilterByTagsIsAnd(t *testing.T) {
 	s := newStore(t)
 	seed(t, s)
-	got, err := s.List(task.Filter{Tags: []string{"急", "雜"}}, ref())
+	got, err := s.List(task.Filter{Tags: []string{"urgent", "misc"}}, ref())
 	if err != nil {
 		t.Fatal(err)
 	}
-	assertTitles(t, got, "沒期限的事")
+	assertTitles(t, got, "undated one")
 }
 
 func TestListDueRanges(t *testing.T) {
@@ -110,10 +110,10 @@ func TestListDueRanges(t *testing.T) {
 		f    task.Filter
 		want []string
 	}{
-		{"today", task.Filter{DueRange: task.DueToday}, []string{"今天的事"}},
-		{"overdue", task.Filter{DueRange: task.DueOverdue}, []string{"逾期的事"}},
-		{"week", task.Filter{DueRange: task.DueWeek}, []string{"逾期的事", "今天的事"}},
-		{"on", task.Filter{DueRange: task.DueOn, DueOn: *day(2026, 9, 10)}, []string{"下週的事"}},
+		{"today", task.Filter{DueRange: task.DueToday}, []string{"today one"}},
+		{"overdue", task.Filter{DueRange: task.DueOverdue}, []string{"overdue one"}},
+		{"week", task.Filter{DueRange: task.DueWeek}, []string{"overdue one", "today one"}},
+		{"on", task.Filter{DueRange: task.DueOn, DueOn: *day(2026, 9, 10)}, []string{"next week one"}},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -141,30 +141,30 @@ func TestListSearchIsCaseInsensitiveSubstring(t *testing.T) {
 func TestListDoneVisibility(t *testing.T) {
 	s := newStore(t)
 	ids := seed(t, s)
-	if err := s.SetDone(ids["今天的事"], true, ref()); err != nil {
+	if err := s.SetDone(ids["today one"], true, ref()); err != nil {
 		t.Fatal(err)
 	}
 	open, _ := s.List(task.Filter{}, ref())
 	if len(open) != 4 {
-		t.Errorf("預設應只列未完成，得到 %v", titles(open))
+		t.Errorf("the default should list open tasks only, got %v", titles(open))
 	}
 	all, _ := s.List(task.Filter{IncludeDone: true}, ref())
 	if len(all) != 5 {
-		t.Errorf("IncludeDone 應列全部，得到 %v", titles(all))
+		t.Errorf("IncludeDone should list everything, got %v", titles(all))
 	}
 	done, _ := s.List(task.Filter{OnlyDone: true}, ref())
-	assertTitles(t, done, "今天的事")
+	assertTitles(t, done, "today one")
 }
 
 func TestListLoadsTags(t *testing.T) {
 	s := newStore(t)
 	seed(t, s)
-	got, err := s.List(task.Filter{Search: "沒期限"}, ref())
+	got, err := s.List(task.Filter{Search: "undated"}, ref())
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(got) != 1 || len(got[0].Tags) != 2 {
-		t.Errorf("清單項目應該帶著標籤，得到 %+v", got)
+		t.Errorf("listed tasks should carry their tags, got %+v", got)
 	}
 }
 

@@ -27,9 +27,9 @@ func newModel(t *testing.T) (Model, store.Store) {
 	}
 	t.Cleanup(func() { s.Close() })
 	for _, ti := range []task.Task{
-		{Title: "第一件", Due: day(2026, 8, 29), Priority: task.PriHigh, Tags: []string{"急"}},
-		{Title: "第二件", Project: "/p/work"},
-		{Title: "第三件"},
+		{Title: "first", Due: day(2026, 8, 29), Priority: task.PriHigh, Tags: []string{"urgent"}},
+		{Title: "second", Project: "/p/work"},
+		{Title: "third"},
 	} {
 		ti.CreatedAt, ti.UpdatedAt = refTime(), refTime()
 		if _, err := s.Add(ti); err != nil {
@@ -95,10 +95,10 @@ func press(t *testing.T, m Model, k string) Model {
 func TestInitLoadsTasks(t *testing.T) {
 	m, _ := newModel(t)
 	if len(m.tasks) != 3 {
-		t.Fatalf("載入 %d 筆，預期 3 筆", len(m.tasks))
+		t.Fatalf("loaded %d tasks, want 3", len(m.tasks))
 	}
 	if m.cursor != 0 {
-		t.Errorf("cursor = %d，預期 0", m.cursor)
+		t.Errorf("cursor = %d, want 0", m.cursor)
 	}
 }
 
@@ -106,30 +106,30 @@ func TestNavigation(t *testing.T) {
 	m, _ := newModel(t)
 	m = press(t, m, "j")
 	if m.cursor != 1 {
-		t.Errorf("j 之後 cursor = %d，預期 1", m.cursor)
+		t.Errorf("after j cursor = %d, want 1", m.cursor)
 	}
 	m = press(t, m, "down")
 	m = press(t, m, "down")
 	if m.cursor != 2 {
-		t.Errorf("到底之後 cursor = %d，預期停在 2 不越界", m.cursor)
+		t.Errorf("at the bottom cursor = %d, want it clamped to 2", m.cursor)
 	}
 	m = press(t, m, "k")
 	if m.cursor != 1 {
-		t.Errorf("k 之後 cursor = %d，預期 1", m.cursor)
+		t.Errorf("after k cursor = %d, want 1", m.cursor)
 	}
 	m = press(t, m, "g")
 	if m.cursor != 0 {
-		t.Errorf("g 之後 cursor = %d，預期 0", m.cursor)
+		t.Errorf("after g cursor = %d, want 0", m.cursor)
 	}
 	m = press(t, m, "G")
 	if m.cursor != 2 {
-		t.Errorf("G 之後 cursor = %d，預期 2", m.cursor)
+		t.Errorf("after G cursor = %d, want 2", m.cursor)
 	}
 	m = press(t, m, "k")
 	m = press(t, m, "k")
 	m = press(t, m, "k")
 	if m.cursor != 0 {
-		t.Errorf("到頂之後 cursor = %d，預期停在 0 不越界", m.cursor)
+		t.Errorf("at the top cursor = %d, want it clamped to 0", m.cursor)
 	}
 }
 
@@ -144,10 +144,10 @@ func TestSpaceTogglesDone(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !got.Done() {
-		t.Error("space 應該把項目標成已完成")
+		t.Error("space should mark the task done")
 	}
 	if len(m.tasks) != 2 {
-		t.Errorf("重查後剩 %d 筆，預期 2 筆", len(m.tasks))
+		t.Errorf("after the reload %d remain, want 2", len(m.tasks))
 	}
 }
 
@@ -155,10 +155,10 @@ func TestQuit(t *testing.T) {
 	m, _ := newModel(t)
 	_, cmd := m.Update(key("q"))
 	if cmd == nil {
-		t.Fatal("q 應該回傳一個 cmd")
+		t.Fatal("q should return a cmd")
 	}
 	if _, ok := cmd().(tea.QuitMsg); !ok {
-		t.Error("q 應該離開程式")
+		t.Error("q should quit the program")
 	}
 }
 
@@ -166,23 +166,23 @@ func TestErrMsgShowsWithoutCrashing(t *testing.T) {
 	m, _ := newModel(t)
 	m, _ = send(t, m, errMsg{err: errFake})
 	if m.err == nil {
-		t.Fatal("錯誤應該被記下來")
+		t.Fatal("the error should be recorded")
 	}
-	if !strings.Contains(m.View(), "壞掉了") {
-		t.Errorf("錯誤應該顯示在畫面上：%q", m.View())
+	if !strings.Contains(m.View(), "broke") {
+		t.Errorf("the error should be visible on screen: %q", m.View())
 	}
 }
 
 func TestViewShowsTasksAndCursor(t *testing.T) {
 	m, _ := newModel(t)
 	v := m.View()
-	for _, want := range []string{"第一件", "第二件", "第三件", "今天", "!高", "@急", "work"} {
+	for _, want := range []string{"first", "second", "third", "today", "!high", "@urgent", "work"} {
 		if !strings.Contains(v, want) {
-			t.Errorf("畫面缺少 %q：\n%s", want, v)
+			t.Errorf("the view is missing %q:\n%s", want, v)
 		}
 	}
 	if !strings.Contains(v, "▸") {
-		t.Errorf("畫面應該有游標標記：\n%s", v)
+		t.Errorf("the view should carry a cursor marker:\n%s", v)
 	}
 }
 
@@ -190,4 +190,4 @@ var errFake = fakeErr{}
 
 type fakeErr struct{}
 
-func (fakeErr) Error() string { return "資料庫壞掉了" }
+func (fakeErr) Error() string { return "the database broke" }

@@ -135,7 +135,7 @@ func (a *App) Run(args []string) int {
 		}
 	}
 	if err := c.run(rest); err != nil {
-		fmt.Fprintf(a.Err, "錯誤：%s\n", err)
+		fmt.Fprintf(a.Err, "error: %s\n", err)
 		return 1
 	}
 	return 0
@@ -143,10 +143,10 @@ func (a *App) Run(args []string) int {
 
 func (a *App) cmdTUI(args []string) error {
 	if len(args) > 0 {
-		return fmt.Errorf("todo tui 不接受參數，收到 %q", args[0])
+		return fmt.Errorf("todo tui takes no arguments, got %q", args[0])
 	}
 	if a.RunTUI == nil {
-		return errors.New("這個組建沒有啟用 TUI")
+		return errors.New("the TUI is not enabled in this build")
 	}
 	return a.RunTUI()
 }
@@ -158,7 +158,7 @@ func SplitGlobal(args []string) (dbPath string, rest []string, err error) {
 		switch a := args[0]; {
 		case a == "--db":
 			if len(args) < 2 {
-				return "", nil, errors.New("flag --db 需要一個值")
+				return "", nil, errors.New("flag --db needs a value")
 			}
 			dbPath, args = args[1], args[2:]
 		case strings.HasPrefix(a, "--db="):
@@ -172,13 +172,13 @@ func SplitGlobal(args []string) (dbPath string, rest []string, err error) {
 
 func parseIDs(args []string) ([]int64, error) {
 	if len(args) == 0 {
-		return nil, errors.New("需要至少一個 id")
+		return nil, errors.New("need at least one id")
 	}
 	ids := make([]int64, 0, len(args))
 	for _, a := range args {
 		n, err := strconv.ParseInt(a, 10, 64)
 		if err != nil || n <= 0 {
-			return nil, fmt.Errorf("不是合法的 id：%q", a)
+			return nil, fmt.Errorf("not a valid id: %q", a)
 		}
 		ids = append(ids, n)
 	}

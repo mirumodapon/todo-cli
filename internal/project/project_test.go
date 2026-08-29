@@ -22,7 +22,7 @@ func TestCurrentFindsGitRoot(t *testing.T) {
 	want, _ := filepath.EvalSymlinks(root)
 	gotResolved, _ := filepath.EvalSymlinks(got)
 	if gotResolved != want {
-		t.Errorf("= %q，預期 repo 根 %q", gotResolved, want)
+		t.Errorf("= %q, want the repo root %q", gotResolved, want)
 	}
 }
 
@@ -33,12 +33,12 @@ func TestCurrentFallsBackToDir(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !filepath.IsAbs(got) {
-		t.Errorf("= %q，預期絕對路徑", got)
+		t.Errorf("= %q, want an absolute path", got)
 	}
 	gotResolved, _ := filepath.EvalSymlinks(got)
 	want, _ := filepath.EvalSymlinks(dir)
 	if gotResolved != want {
-		t.Errorf("= %q，沒有 .git 時應回傳目錄本身 %q", gotResolved, want)
+		t.Errorf("= %q, without .git it should return the directory itself %q", gotResolved, want)
 	}
 }
 
@@ -56,15 +56,15 @@ func TestCurrentAcceptsGitFile(t *testing.T) {
 	gotResolved, _ := filepath.EvalSymlinks(got)
 	want, _ := filepath.EvalSymlinks(root)
 	if gotResolved != want {
-		t.Errorf("= %q，.git 是檔案時仍應視為 repo 根 %q", gotResolved, want)
+		t.Errorf("= %q, a .git file still marks the repo root %q", gotResolved, want)
 	}
 }
 
 func TestLabel(t *testing.T) {
 	if got := Label("/Users/me/Projects/todo.mirumo.net"); got != "todo.mirumo.net" {
-		t.Errorf("= %q，預期 basename", got)
+		t.Errorf("= %q, want the basename", got)
 	}
 	if got := Label(""); got != "" {
-		t.Errorf("= %q，空字串應原樣回傳（全域未分類）", got)
+		t.Errorf("= %q, an empty path is returned as is (uncategorized)", got)
 	}
 }

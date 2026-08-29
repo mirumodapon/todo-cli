@@ -28,11 +28,11 @@ func TestParse(t *testing.T) {
 	for _, c := range cases {
 		got, err := Parse(c.in, ref())
 		if err != nil {
-			t.Errorf("Parse(%q) 非預期錯誤：%v", c.in, err)
+			t.Errorf("Parse(%q) unexpected error: %v", c.in, err)
 			continue
 		}
 		if got.Format("2006-01-02") != c.want {
-			t.Errorf("Parse(%q) = %s，預期 %s", c.in, got.Format("2006-01-02"), c.want)
+			t.Errorf("Parse(%q) = %s, want %s", c.in, got.Format("2006-01-02"), c.want)
 		}
 	}
 }
@@ -43,14 +43,14 @@ func TestParseReturnsMidnight(t *testing.T) {
 		t.Fatal(err)
 	}
 	if got.Hour() != 0 || got.Minute() != 0 || got.Second() != 0 {
-		t.Errorf("= %v，預期當日零時", got)
+		t.Errorf("= %v, want midnight of that day", got)
 	}
 }
 
 func TestParseRejectsGarbage(t *testing.T) {
 	for _, in := range []string{"someday", "2026-13-45", "+3x", "", "+d"} {
 		if _, err := Parse(in, ref()); err == nil {
-			t.Errorf("Parse(%q) 應該報錯", in)
+			t.Errorf("Parse(%q) should fail", in)
 		}
 	}
 }
@@ -60,12 +60,12 @@ func TestFormat(t *testing.T) {
 		due  string
 		want string
 	}{
-		{"2026-08-27", "逾期 2 天"},
-		{"2026-08-28", "逾期 1 天"},
-		{"2026-08-29", "今天"},
-		{"2026-08-30", "明天"},
-		{"2026-08-31", "週一"},
-		{"2026-09-04", "週五"},
+		{"2026-08-27", "2d overdue"},
+		{"2026-08-28", "1d overdue"},
+		{"2026-08-29", "today"},
+		{"2026-08-30", "tomorrow"},
+		{"2026-08-31", "Mon"},
+		{"2026-09-04", "Fri"},
 		{"2026-09-05", "09-05"},
 		{"2027-01-02", "2027-01-02"},
 	}
@@ -75,7 +75,7 @@ func TestFormat(t *testing.T) {
 			t.Fatal(err)
 		}
 		if got := Format(due, ref()); got != c.want {
-			t.Errorf("Format(%s) = %q，預期 %q", c.due, got, c.want)
+			t.Errorf("Format(%s) = %q, want %q", c.due, got, c.want)
 		}
 	}
 }

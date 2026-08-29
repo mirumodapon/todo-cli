@@ -20,7 +20,7 @@ const (
 	fieldCount
 )
 
-var fieldLabels = [fieldCount]string{"標題", "專案", "標籤", "截止日", "優先度"}
+var fieldLabels = [fieldCount]string{"Title", "Project", "Tags", "Due", "Priority"}
 
 // formState is the form shared by add and edit. editing false means add.
 type formState struct {
@@ -45,11 +45,11 @@ func (m Model) openForm(t task.Task, editing bool) Model {
 		values[fieldDue] = t.Due.Format("2006-01-02")
 	}
 	placeholders := [fieldCount]string{
-		"要做什麼",
-		"留空 = 全域未分類（ctrl+p 填入當前目錄）",
-		"逗號分隔",
-		"tomorrow、fri、+3d、2026-09-01",
-		"low、med、high",
+		"what needs doing",
+		"empty = uncategorized (ctrl+p fills the current directory)",
+		"comma separated",
+		"tomorrow, fri, +3d, 2026-09-01",
+		"low, med, high",
 	}
 	for i := range f.inputs {
 		ti := textinput.New()
@@ -139,9 +139,9 @@ func (m Model) formTask() (task.Task, error) {
 }
 
 func (m Model) viewForm() string {
-	title := "新增待辦"
+	title := "New task"
 	if m.form.editing {
-		title = "編輯 #" + itoa(m.form.original.ID)
+		title = "Edit #" + itoa(m.form.original.ID)
 	}
 	var b strings.Builder
 	b.WriteString(title + "\n\n")

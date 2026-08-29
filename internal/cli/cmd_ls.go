@@ -30,7 +30,7 @@ func (a *App) cmdLs(args []string) error {
 		return err
 	}
 	if pos := r.Args(); len(pos) > 0 {
-		return fmt.Errorf("ls 不接受位置參數，收到 %q；要搜尋標題請用 todo tui 的 / 鍵", pos[0])
+		return fmt.Errorf("ls takes no positional arguments, got %q; press / inside todo tui to search titles", pos[0])
 	}
 
 	f := task.Filter{
@@ -39,7 +39,7 @@ func (a *App) cmdLs(args []string) error {
 		Tags:        r.Strings("tag"),
 	}
 	if r.Bool("no-project") && r.Changed("project") {
-		return errors.New("-p 與 --no-project 不能同時使用")
+		return errors.New("-p and --no-project cannot be used together")
 	}
 	if r.Bool("no-project") {
 		empty := ""

@@ -40,7 +40,7 @@ func toRow(t task.Task, now time.Time) row {
 	if t.Done() {
 		r.status = "[x]"
 	}
-	if p := t.Priority.Label(); p != "" {
+	if p := t.Priority.String(); p != "" {
 		r.pri = "!" + p
 	}
 	if t.Due != nil {
@@ -67,7 +67,7 @@ func colorize(line string, t task.Task, now time.Time) string {
 // WriteList prints an aligned task list. With color false it emits no ANSI codes at all.
 func WriteList(w io.Writer, ts []task.Task, now time.Time, color bool) {
 	if len(ts) == 0 {
-		fmt.Fprintln(w, "沒有符合的待辦")
+		fmt.Fprintln(w, "No matching tasks")
 		return
 	}
 	rows := make([]row, len(ts))

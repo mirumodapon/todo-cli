@@ -20,7 +20,7 @@ var weekdays = map[string]time.Weekday{
 	"fri": time.Friday, "sat": time.Saturday,
 }
 
-var zhWeekday = [7]string{"週日", "週一", "週二", "週三", "週四", "週五", "週六"}
+var weekdayNames = [7]string{"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"}
 
 // Parse reads a user-supplied due date and returns local midnight on that day.
 // Accepts today / tomorrow / yesterday, weekday abbreviations, +3d, +2w, and YYYY-MM-DD.
@@ -57,22 +57,23 @@ func Parse(s string, now time.Time) (time.Time, error) {
 	if t, err := time.ParseInLocation("2006-01-02", s, now.Location()); err == nil {
 		return t, nil
 	}
-	return time.Time{}, fmt.Errorf("看不懂的日期：%q（可用 today、tomorrow、fri、+3d、2026-09-01）", s)
+	return time.Time{}, fmt.Errorf("cannot read date %q (try today, tomorrow, fri, +3d, 2026-09-01)", s)
 }
 
-// Format renders a due date for display: overdue, today, tomorrow, a weekday, or a date.
+// Format renders a due date for display: "3d overdue", "today", "tomorrow",
+// a weekday name, or a date.
 func Format(due, now time.Time) string {
 	d, base := Day(due), Day(now)
 	diff := int(math.Round(d.Sub(base).Hours() / 24))
 	switch {
 	case diff < 0:
-		return fmt.Sprintf("逾期 %d 天", -diff)
+		return fmt.Sprintf("%dd overdue", -diff)
 	case diff == 0:
-		return "今天"
+		return "today"
 	case diff == 1:
-		return "明天"
+		return "tomorrow"
 	case diff < 7:
-		return zhWeekday[int(d.Weekday())]
+		return weekdayNames[int(d.Weekday())]
 	case d.Year() == base.Year():
 		return d.Format("01-02")
 	default:

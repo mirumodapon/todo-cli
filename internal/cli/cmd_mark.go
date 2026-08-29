@@ -10,19 +10,19 @@ func (a *App) setDone(args []string, done bool) error {
 	if err != nil {
 		return err
 	}
-	verb := "已完成"
+	verb := "done"
 	if !done {
-		verb = "已取消完成"
+		verb = "reopened"
 	}
 	for _, id := range ids {
 		t, err := a.Store.Get(id)
 		if err != nil {
-			return fmt.Errorf("#%d：%w", id, err)
+			return fmt.Errorf("#%d: %w", id, err)
 		}
 		if err := a.Store.SetDone(id, done, a.Now()); err != nil {
-			return fmt.Errorf("#%d：%w", id, err)
+			return fmt.Errorf("#%d: %w", id, err)
 		}
-		fmt.Fprintf(a.Out, "%s #%d：%s\n", verb, id, t.Title)
+		fmt.Fprintf(a.Out, "%s #%d: %s\n", verb, id, t.Title)
 	}
 	return nil
 }
@@ -36,12 +36,12 @@ func (a *App) cmdRm(args []string) error {
 		// Fetch first so the message can name the title and the user can confirm they deleted the right thing.
 		t, err := a.Store.Get(id)
 		if err != nil {
-			return fmt.Errorf("#%d：%w", id, err)
+			return fmt.Errorf("#%d: %w", id, err)
 		}
 		if err := a.Store.Delete(id); err != nil {
-			return fmt.Errorf("#%d：%w", id, err)
+			return fmt.Errorf("#%d: %w", id, err)
 		}
-		fmt.Fprintf(a.Out, "已刪除 #%d：%s\n", id, t.Title)
+		fmt.Fprintf(a.Out, "deleted #%d: %s\n", id, t.Title)
 	}
 	return nil
 }

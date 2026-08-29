@@ -90,9 +90,9 @@ func parseDay(s string, now time.Time) (time.Time, error) {
 	return time.Time{}, fmt.Errorf("cannot read date %q (try today, tomorrow, fri, +3d, 2026-09-01, optionally with a time such as \"today 15:00\")", s)
 }
 
-// Format renders a due date for display: "3d overdue", "today", "tomorrow",
-// or a date. Weekday names are deliberately not used; a date is unambiguous
-// without the reader having to work out which week it belongs to.
+// Format renders a due date for display: "3d overdue", "today", a time of day
+// when the task is due today, or a date. Only today gets a word; every other
+// day is a date, which says which day without the reader having to count.
 func Format(due time.Time, hasTime bool, now time.Time) string {
 	d, base := Day(due), Day(now)
 	diff := int(math.Round(d.Sub(base).Hours() / 24))
@@ -105,8 +105,6 @@ func Format(due time.Time, hasTime bool, now time.Time) string {
 		return fmt.Sprintf("%dd overdue", -diff)
 	case diff == 0:
 		return "today"
-	case diff == 1:
-		return "tomorrow"
 	case d.Year() == base.Year():
 		return d.Format("01-02")
 	default:

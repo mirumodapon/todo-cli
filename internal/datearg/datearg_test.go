@@ -98,6 +98,20 @@ func TestParseRejectsGarbage(t *testing.T) {
 // produced as output.
 var weekdayNames = [7]string{"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"}
 
+// Only two things are ever rendered as words: how overdue something is, and
+// "today". Every other day is a date.
+func TestFormatUsesDatesNotDayNames(t *testing.T) {
+	for i := 1; i < 14; i++ {
+		due := ref().AddDate(0, 0, i)
+		got := Format(due, false, ref())
+		for _, word := range []string{"tomorrow", "today", "yesterday"} {
+			if got == word {
+				t.Errorf("Format(%s) = %q, want a date", due.Format("2006-01-02"), got)
+			}
+		}
+	}
+}
+
 func TestFormatNeverUsesWeekdayNames(t *testing.T) {
 	for i := 0; i < 14; i++ {
 		due := ref().AddDate(0, 0, i)
@@ -121,7 +135,7 @@ func TestFormatShowsTimeOnlyForToday(t *testing.T) {
 	if got := Format(at("2026-08-29", 15, 4), true, ref()); got != "15:04" {
 		t.Errorf("= %q, a task due today should show its time", got)
 	}
-	if got := Format(at("2026-08-30", 15, 4), true, ref()); got != "tomorrow" {
+	if got := Format(at("2026-08-30", 15, 4), true, ref()); got != "08-30" {
 		t.Errorf("= %q, only today shows a time", got)
 	}
 	if got := Format(at("2026-08-29", 0, 0), false, ref()); got != "today" {
@@ -137,7 +151,7 @@ func TestFormat(t *testing.T) {
 		{"2026-08-27", "2d overdue"},
 		{"2026-08-28", "1d overdue"},
 		{"2026-08-29", "today"},
-		{"2026-08-30", "tomorrow"},
+		{"2026-08-30", "08-30"},
 		{"2026-08-31", "08-31"},
 		{"2026-09-04", "09-04"},
 		{"2026-09-05", "09-05"},

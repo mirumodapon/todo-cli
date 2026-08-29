@@ -13,7 +13,10 @@ import (
 	"todo.mirumo.net/internal/task"
 )
 
-const dateLayout = "2006-01-02"
+const (
+	dateLayout     = "2006-01-02"
+	dateTimeLayout = "2006-01-02T15:04"
+)
 
 const schema = `
 CREATE TABLE IF NOT EXISTS tasks (
@@ -65,9 +68,15 @@ func OpenSQLite(path string) (Store, error) {
 
 func (s *sqlStore) Close() error { return s.db.Close() }
 
-func dueVal(t *time.Time) any {
+// dueVal stores a date-only due as "2006-01-02" and a timed one as
+// "2006-01-02T15:04". Both sort correctly as text, and a date-only value sorts
+// ahead of any timed value on the same day.
+func dueVal(t *time.Time, hasTime bool) any {
 	if t == nil {
 		return nil
+	}
+	if hasTime {
+		return t.Format(dateTimeLayout)
 	}
 	return t.Format(dateLayout)
 }
@@ -90,6 +99,21 @@ func parseNull(ns sql.NullString, layout string) (*time.Time, error) {
 	return &t, nil
 }
 
+// parseDue reads either stored shape and reports which one it was.
+func parseDue(ns sql.NullString) (*time.Time, bool, error) {
+	if !ns.Valid {
+		return nil, false, nil
+	}
+	if t, err := time.ParseInLocation(dateTimeLayout, ns.String, time.Local); err == nil {
+		return &t, true, nil
+	}
+	t, err := time.ParseInLocation(dateLayout, ns.String, time.Local)
+	if err != nil {
+		return nil, false, err
+	}
+	return &t, false, nil
+}
+
 type scanner interface{ Scan(dest ...any) error }
 
 func scanTask(sc scanner) (task.Task, error) {
@@ -104,7 +128,7 @@ func scanTask(sc scanner) (task.Task, error) {
 	}
 	t.Priority = task.Priority(pri)
 	var err error
-	if t.Due, err = parseNull(due, dateLayout); err != nil {
+	if t.Due, t.DueHasTime, err = parseDue(due); err != nil {
 		return task.Task{}, err
 	}
 	if t.DoneAt, err = parseNull(doneAt, time.RFC3339); err != nil {
@@ -159,7 +183,7 @@ func (s *sqlStore) Add(t task.Task) (task.Task, error) {
 	res, err := s.db.Exec(
 		`INSERT INTO tasks (title, project, due, priority, done_at, created_at, updated_at)
 		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
-		t.Title, t.Project, dueVal(t.Due), int(t.Priority), tsVal(t.DoneAt),
+		t.Title, t.Project, dueVal(t.Due, t.DueHasTime), int(t.Priority), tsVal(t.DoneAt),
 		t.CreatedAt.Format(time.RFC3339), t.UpdatedAt.Format(time.RFC3339))
 	if err != nil {
 		return task.Task{}, err
@@ -213,19 +237,22 @@ func (s *sqlStore) List(f task.Filter, now time.Time) ([]task.Task, error) {
 		where = append(where, `LOWER(title) LIKE ?`)
 		args = append(args, "%"+strings.ToLower(f.Search)+"%")
 	}
+	// Due filters work at day granularity, so they compare the date prefix:
+	// a stored value may carry a time of day and "due = '2026-09-01'" would
+	// silently miss it.
 	today := datearg.Day(now).Format(dateLayout)
 	switch f.DueRange {
 	case task.DueToday:
-		where = append(where, `due = ?`)
+		where = append(where, `substr(due, 1, 10) = ?`)
 		args = append(args, today)
 	case task.DueOverdue:
-		where = append(where, `due IS NOT NULL AND due < ?`)
+		where = append(where, `due IS NOT NULL AND substr(due, 1, 10) < ?`)
 		args = append(args, today)
 	case task.DueWeek:
-		where = append(where, `due IS NOT NULL AND due <= ?`)
+		where = append(where, `due IS NOT NULL AND substr(due, 1, 10) <= ?`)
 		args = append(args, datearg.Day(now).AddDate(0, 0, 7).Format(dateLayout))
 	case task.DueOn:
-		where = append(where, `due = ?`)
+		where = append(where, `substr(due, 1, 10) = ?`)
 		args = append(args, datearg.Day(f.DueOn).Format(dateLayout))
 	}
 	if tags := task.NormalizeTags(f.Tags); len(tags) > 0 {
@@ -288,7 +315,7 @@ func (s *sqlStore) Update(t task.Task) error {
 	res, err := s.db.Exec(
 		`UPDATE tasks SET title = ?, project = ?, due = ?, priority = ?, done_at = ?, updated_at = ?
 		 WHERE id = ?`,
-		t.Title, t.Project, dueVal(t.Due), int(t.Priority), tsVal(t.DoneAt),
+		t.Title, t.Project, dueVal(t.Due, t.DueHasTime), int(t.Priority), tsVal(t.DoneAt),
 		t.UpdatedAt.Format(time.RFC3339), t.ID)
 	if err != nil {
 		return err
@@ -344,7 +371,7 @@ func (s *sqlStore) Restore(t task.Task) error {
 	_, err := s.db.Exec(
 		`INSERT INTO tasks (id, title, project, due, priority, done_at, created_at, updated_at)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		t.ID, t.Title, t.Project, dueVal(t.Due), int(t.Priority), tsVal(t.DoneAt),
+		t.ID, t.Title, t.Project, dueVal(t.Due, t.DueHasTime), int(t.Priority), tsVal(t.DoneAt),
 		t.CreatedAt.Format(time.RFC3339), t.UpdatedAt.Format(time.RFC3339))
 	if err != nil {
 		return err

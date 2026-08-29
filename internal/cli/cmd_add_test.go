@@ -103,3 +103,44 @@ func TestAddRejectsBadValues(t *testing.T) {
 		}
 	}
 }
+
+func TestAddWithTimeOfDay(t *testing.T) {
+	app, out, _ := newApp(t)
+	if code := app.Run([]string{"add", "standup", "-d", "today 09:30"}); code != 0 {
+		t.Fatalf("exit code = %d", code)
+	}
+	got, _ := app.Store.Get(1)
+	if !got.DueHasTime || got.Due.Format("2006-01-02 15:04") != "2026-08-29 09:30" {
+		t.Fatalf("due = %v hasTime = %v", got.Due, got.DueHasTime)
+	}
+
+	// Due today, so the listing shows the clock rather than the word "today".
+	out.Reset()
+	app.Run([]string{"ls"})
+	if !strings.Contains(out.String(), "09:30") {
+		t.Errorf("a task due today should list its time: %q", out.String())
+	}
+}
+
+func TestAddBareTimeMeansToday(t *testing.T) {
+	app, _, _ := newApp(t)
+	if code := app.Run([]string{"add", "lunch", "-d", "12:00"}); code != 0 {
+		t.Fatalf("exit code = %d", code)
+	}
+	got, _ := app.Store.Get(1)
+	if got.Due.Format("2006-01-02 15:04") != "2026-08-29 12:00" {
+		t.Errorf("due = %v, want today at 12:00", got.Due)
+	}
+}
+
+func TestEditCanDropTheTimeOfDay(t *testing.T) {
+	app, _, _ := newApp(t)
+	app.Run([]string{"add", "standup", "-d", "today 09:30"})
+	if code := app.Run([]string{"edit", "1", "--due", "today"}); code != 0 {
+		t.Fatalf("exit code = %d", code)
+	}
+	got, _ := app.Store.Get(1)
+	if got.DueHasTime {
+		t.Error("re-setting the due date without a time should drop the time")
+	}
+}

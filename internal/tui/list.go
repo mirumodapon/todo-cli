@@ -37,7 +37,7 @@ func (m Model) taskLine(t task.Task) string {
 		parts = append(parts, "!"+p)
 	}
 	if t.Due != nil {
-		parts = append(parts, datearg.Format(*t.Due, m.now()))
+		parts = append(parts, datearg.Format(*t.Due, t.DueHasTime, m.now()))
 	}
 	parts = append(parts, t.Title)
 	if p := project.Label(t.Project); p != "" {

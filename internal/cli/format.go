@@ -44,7 +44,7 @@ func toRow(t task.Task, now time.Time) row {
 		r.pri = "!" + p
 	}
 	if t.Due != nil {
-		r.due = datearg.Format(*t.Due, now)
+		r.due = datearg.Format(*t.Due, t.DueHasTime, now)
 	}
 	if len(t.Tags) > 0 {
 		r.tags = "@" + strings.Join(t.Tags, " @")

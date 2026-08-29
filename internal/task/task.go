@@ -48,15 +48,18 @@ func (p Priority) String() string {
 
 // Task is one todo item. An empty Project means globally uncategorized.
 type Task struct {
-	ID        int64
-	Title     string
-	Project   string
-	Due       *time.Time
-	Priority  Priority
-	DoneAt    *time.Time
-	Tags      []string
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID      int64
+	Title   string
+	Project string
+	Due     *time.Time
+	// DueHasTime distinguishes "due on that day" from "due at that moment".
+	// Midnight is a legitimate time of day, so the zero clock cannot carry it.
+	DueHasTime bool
+	Priority   Priority
+	DoneAt     *time.Time
+	Tags       []string
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
 }
 
 // Done reports whether the task is complete.

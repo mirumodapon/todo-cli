@@ -169,3 +169,37 @@ func TestListLoadsTags(t *testing.T) {
 }
 
 var _ = time.Time{}
+
+// Due filters work by day, so a time of day must not hide a task from them.
+func TestDueFiltersIgnoreTimeOfDay(t *testing.T) {
+	s := newStore(t)
+	morning := time.Date(2026, 8, 29, 9, 0, 0, 0, time.Local)
+	weekEnd := time.Date(2026, 9, 5, 23, 30, 0, 0, time.Local)
+	for _, ti := range []task.Task{
+		{Title: "timed today", Due: &morning, DueHasTime: true, CreatedAt: ref(), UpdatedAt: ref()},
+		{Title: "timed week edge", Due: &weekEnd, DueHasTime: true, CreatedAt: ref(), UpdatedAt: ref()},
+	} {
+		if _, err := s.Add(ti); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	got, err := s.List(task.Filter{DueRange: task.DueToday}, ref())
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertTitles(t, got, "timed today")
+
+	got, err = s.List(task.Filter{DueRange: task.DueWeek}, ref())
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertTitles(t, got, "timed today", "timed week edge")
+
+	on := time.Date(2026, 9, 5, 0, 0, 0, 0, time.Local)
+	got, err = s.List(task.Filter{DueRange: task.DueOn, DueOn: on}, ref())
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertTitles(t, got, "timed week edge")
+}

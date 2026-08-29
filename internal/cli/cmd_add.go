@@ -15,7 +15,7 @@ func addFlags() *argparse.Set {
 	return argparse.New(
 		argparse.Spec{Long: "project", Short: "p", Kind: argparse.OptionalString, Usage: "Project; uses the current directory when given no value"},
 		argparse.Spec{Long: "tag", Short: "t", Kind: argparse.StringSlice, Usage: "Tag; repeatable"},
-		argparse.Spec{Long: "due", Short: "d", Kind: argparse.String, Usage: "Due date: tomorrow, fri, +3d, 2026-09-01"},
+		argparse.Spec{Long: "due", Short: "d", Kind: argparse.String, Usage: "Due date: tomorrow, fri, +3d, 2026-09-01, optionally with a time (today 15:00)"},
 		argparse.Spec{Long: "pri", Kind: argparse.String, Usage: "Priority: low, med, high"},
 	)
 }
@@ -55,11 +55,11 @@ func (a *App) cmdAdd(args []string) error {
 		t.Project = p
 	}
 	if r.Changed("due") && strings.TrimSpace(r.String("due")) != "" {
-		d, err := datearg.Parse(r.String("due"), now)
+		d, hasTime, err := datearg.Parse(r.String("due"), now)
 		if err != nil {
 			return err
 		}
-		t.Due = &d
+		t.Due, t.DueHasTime = &d, hasTime
 	}
 	if t.Priority, err = task.ParsePriority(r.String("pri")); err != nil {
 		return err

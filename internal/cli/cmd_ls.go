@@ -84,10 +84,11 @@ func (a *App) cmdLs(args []string) error {
 		case "overdue":
 			f.DueRange = task.DueOverdue
 		default:
-			d, err := datearg.Parse(v, a.Now())
+			d, _, err := datearg.Parse(v, a.Now())
 			if err != nil {
 				return err
 			}
+			// Filtering is by day; a time of day in -d narrows nothing.
 			f.DueRange, f.DueOn = task.DueOn, d
 		}
 	}

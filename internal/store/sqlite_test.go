@@ -109,3 +109,40 @@ func TestIDsAreNotReused(t *testing.T) {
 		t.Errorf("id %d was reused; AUTOINCREMENT must never reuse one", b.ID)
 	}
 }
+
+func TestDueTimeOfDayRoundTrips(t *testing.T) {
+	s := newStore(t)
+	at := time.Date(2026, 9, 1, 15, 4, 0, 0, time.Local)
+	in := sample()
+	in.Due, in.DueHasTime = &at, true
+
+	got, err := s.Add(in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	back, err := s.Get(got.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !back.DueHasTime {
+		t.Fatal("the stored task should remember it carries a time of day")
+	}
+	if back.Due.Format("2006-01-02 15:04") != "2026-09-01 15:04" {
+		t.Errorf("due = %v, want 2026-09-01 15:04", back.Due)
+	}
+}
+
+func TestDateOnlyDueStaysDateOnly(t *testing.T) {
+	s := newStore(t)
+	got, err := s.Add(sample())
+	if err != nil {
+		t.Fatal(err)
+	}
+	back, _ := s.Get(got.ID)
+	if back.DueHasTime {
+		t.Error("a date-only due must not come back claiming a time of day")
+	}
+	if back.Due.Hour() != 0 || back.Due.Minute() != 0 {
+		t.Errorf("due = %v, want midnight", back.Due)
+	}
+}

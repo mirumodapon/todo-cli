@@ -42,13 +42,17 @@ func (m Model) openForm(t task.Task, editing bool) Model {
 		t.Priority.String(),
 	}
 	if t.Due != nil {
-		values[fieldDue] = t.Due.Format("2006-01-02")
+		layout := "2006-01-02"
+		if t.DueHasTime {
+			layout = "2006-01-02 15:04"
+		}
+		values[fieldDue] = t.Due.Format(layout)
 	}
 	placeholders := [fieldCount]string{
 		"what needs doing",
 		"empty = uncategorized (ctrl+p fills the current directory)",
 		"comma separated",
-		"tomorrow, fri, +3d, 2026-09-01",
+		"tomorrow, fri, +3d, 2026-09-01, today 15:00",
 		"low, med, high",
 	}
 	for i := range f.inputs {
@@ -119,13 +123,13 @@ func (m Model) formTask() (task.Task, error) {
 	t.Tags = task.NormalizeTags(strings.Split(f.inputs[fieldTags].Value(), ","))
 
 	if v := strings.TrimSpace(f.inputs[fieldDue].Value()); v == "" {
-		t.Due = nil
+		t.Due, t.DueHasTime = nil, false
 	} else {
-		d, err := datearg.Parse(v, now)
+		d, hasTime, err := datearg.Parse(v, now)
 		if err != nil {
 			return task.Task{}, err
 		}
-		t.Due = &d
+		t.Due, t.DueHasTime = &d, hasTime
 	}
 	if t.Priority, err = task.ParsePriority(f.inputs[fieldPri].Value()); err != nil {
 		return task.Task{}, err

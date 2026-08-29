@@ -4,6 +4,7 @@ package datearg
 import (
 	"fmt"
 	"math"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -20,12 +21,41 @@ var weekdays = map[string]time.Weekday{
 	"fri": time.Friday, "sat": time.Saturday,
 }
 
-var weekdayNames = [7]string{"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"}
+var timeOfDay = regexp.MustCompile(`^([0-9]{1,2}):([0-9]{2})$`)
 
-// Parse reads a user-supplied due date and returns local midnight on that day.
-// Accepts today / tomorrow / yesterday, weekday abbreviations, +3d, +2w, and YYYY-MM-DD.
-func Parse(s string, now time.Time) (time.Time, error) {
+// Parse reads a user-supplied due date and reports whether a time of day came
+// with it. Accepts today / tomorrow / yesterday, weekday abbreviations, +3d,
+// +2w, and YYYY-MM-DD, each optionally followed by HH:MM. A bare HH:MM means
+// today at that time. Without a time the result is local midnight.
+func Parse(s string, now time.Time) (time.Time, bool, error) {
 	s = strings.ToLower(strings.TrimSpace(s))
+	datePart, timePart := s, ""
+	if i := strings.LastIndexAny(s, " \t"); i >= 0 {
+		if tail := strings.TrimSpace(s[i+1:]); timeOfDay.MatchString(tail) {
+			datePart, timePart = strings.TrimSpace(s[:i]), tail
+		}
+	} else if timeOfDay.MatchString(s) {
+		datePart, timePart = "today", s
+	}
+
+	d, err := parseDay(datePart, now)
+	if err != nil {
+		return time.Time{}, false, err
+	}
+	if timePart == "" {
+		return d, false, nil
+	}
+	m := timeOfDay.FindStringSubmatch(timePart)
+	hh, _ := strconv.Atoi(m[1])
+	mm, _ := strconv.Atoi(m[2])
+	if hh > 23 || mm > 59 {
+		return time.Time{}, false, fmt.Errorf("%q is not a valid time of day", timePart)
+	}
+	return time.Date(d.Year(), d.Month(), d.Day(), hh, mm, 0, 0, d.Location()), true, nil
+}
+
+// parseDay handles the date half, with no time of day involved.
+func parseDay(s string, now time.Time) (time.Time, error) {
 	base := Day(now)
 	switch s {
 	case "today":
@@ -57,14 +87,19 @@ func Parse(s string, now time.Time) (time.Time, error) {
 	if t, err := time.ParseInLocation("2006-01-02", s, now.Location()); err == nil {
 		return t, nil
 	}
-	return time.Time{}, fmt.Errorf("cannot read date %q (try today, tomorrow, fri, +3d, 2026-09-01)", s)
+	return time.Time{}, fmt.Errorf("cannot read date %q (try today, tomorrow, fri, +3d, 2026-09-01, optionally with a time such as \"today 15:00\")", s)
 }
 
 // Format renders a due date for display: "3d overdue", "today", "tomorrow",
-// a weekday name, or a date.
-func Format(due, now time.Time) string {
+// or a date. Weekday names are deliberately not used; a date is unambiguous
+// without the reader having to work out which week it belongs to.
+func Format(due time.Time, hasTime bool, now time.Time) string {
 	d, base := Day(due), Day(now)
 	diff := int(math.Round(d.Sub(base).Hours() / 24))
+	// A time of day only earns its place on the day it matters.
+	if hasTime && diff == 0 {
+		return due.Format("15:04")
+	}
 	switch {
 	case diff < 0:
 		return fmt.Sprintf("%dd overdue", -diff)
@@ -72,8 +107,6 @@ func Format(due, now time.Time) string {
 		return "today"
 	case diff == 1:
 		return "tomorrow"
-	case diff < 7:
-		return weekdayNames[int(d.Weekday())]
 	case d.Year() == base.Year():
 		return d.Format("01-02")
 	default:

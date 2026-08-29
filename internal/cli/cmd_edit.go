@@ -43,13 +43,13 @@ func (a *App) cmdEdit(args []string) error {
 	}
 	if r.Changed("due") {
 		if strings.TrimSpace(r.String("due")) == "" {
-			t.Due = nil
+			t.Due, t.DueHasTime = nil, false
 		} else {
-			d, err := datearg.Parse(r.String("due"), a.Now())
+			d, hasTime, err := datearg.Parse(r.String("due"), a.Now())
 			if err != nil {
 				return err
 			}
-			t.Due = &d
+			t.Due, t.DueHasTime = &d, hasTime
 		}
 	}
 	if r.Changed("pri") {

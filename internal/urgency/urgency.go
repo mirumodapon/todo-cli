@@ -3,8 +3,9 @@
 package urgency
 
 import (
-	"fmt"
 	"time"
+
+	"todo.mirumo.net/internal/theme"
 )
 
 const (
@@ -40,27 +41,17 @@ func Level(due time.Time, hasTime bool, now time.Time) (float64, bool) {
 	return float64(ColourFrom-left) / float64(ColourFrom-FullRed), true
 }
 
-// Colour returns the RGB for a level, ramping green to red. Interpolating
-// straight through RGB passes via yellow, which is the ramp people expect.
-func Color(level float64) (r, g, b uint8) {
-	if level < 0 {
-		level = 0
-	}
-	if level > 1 {
-		level = 1
-	}
-	const greenAt0 = 200.0
-	return uint8(level * 255), uint8(greenAt0 * (1 - level)), 0
-}
+// stops are the colours the ramp passes through, all of them Catppuccin
+// Macchiato entries. Blending straight from green to red would run through
+// shades the palette does not contain; going by way of yellow and peach keeps
+// every part of the ramp recognisably from the same set.
+var stops = []theme.RGB{theme.Green, theme.Yellow, theme.Peach, theme.Red}
+
+// Color returns the colour for a level, green at 0 and red at 1.
+func Color(level float64) theme.RGB { return theme.Ramp(stops, level) }
 
 // ANSI is the truecolor escape sequence for a level.
-func ANSI(level float64) string {
-	r, g, b := Color(level)
-	return fmt.Sprintf("\x1b[38;2;%d;%d;%dm", r, g, b)
-}
+func ANSI(level float64) string { return Color(level).ANSI() }
 
 // Hex is the same colour as "#rrggbb", for libraries that want one.
-func Hex(level float64) string {
-	r, g, b := Color(level)
-	return fmt.Sprintf("#%02x%02x%02x", r, g, b)
-}
+func Hex(level float64) string { return Color(level).Hex() }

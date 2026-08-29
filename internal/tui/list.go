@@ -10,13 +10,14 @@ import (
 	"todo.mirumo.net/internal/datearg"
 	"todo.mirumo.net/internal/project"
 	"todo.mirumo.net/internal/task"
+	"todo.mirumo.net/internal/theme"
 	"todo.mirumo.net/internal/urgency"
 )
 
 var (
 	styleCursor = lipgloss.NewStyle().Bold(true)
 	styleDim    = lipgloss.NewStyle().Faint(true)
-	styleErr    = lipgloss.NewStyle().Foreground(lipgloss.Color("1"))
+	styleErr    = lipgloss.NewStyle().Foreground(lipgloss.Color(theme.Red.Hex()))
 	styleHint   = lipgloss.NewStyle().Faint(true)
 )
 

@@ -1,8 +1,11 @@
 package urgency
 
 import (
+	"math"
 	"testing"
 	"time"
+
+	"todo.mirumo.net/internal/theme"
 )
 
 func now() time.Time { return time.Date(2026, 8, 29, 15, 0, 0, 0, time.Local) }
@@ -56,23 +59,40 @@ func TestDateOnlyDueMeansEndOfDay(t *testing.T) {
 	}
 }
 
-func TestColorRampsGreenToRed(t *testing.T) {
-	r, g, b := Color(0)
-	if r != 0 || g == 0 || b != 0 {
-		t.Errorf("level 0 = (%d,%d,%d), want green", r, g, b)
+func TestColorRunsThePaletteRamp(t *testing.T) {
+	if got := Color(0); got != theme.Green {
+		t.Errorf("level 0 = %v, want the Macchiato green", got)
 	}
-	r, g, b = Color(1)
-	if r != 255 || g != 0 || b != 0 {
-		t.Errorf("level 1 = (%d,%d,%d), want pure red", r, g, b)
+	if got := Color(1); got != theme.Red {
+		t.Errorf("level 1 = %v, want the Macchiato red", got)
 	}
-	r, g, _ = Color(0.5)
-	if r == 0 || g == 0 {
-		t.Errorf("halfway = (%d,%d,_), want a blend of both", r, g)
+	// The stops are green, yellow, peach, red, so a third of the way along
+	// lands on yellow.
+	if got := Color(1.0 / 3); got != theme.Yellow {
+		t.Errorf("level 1/3 = %v, want the Macchiato yellow", got)
+	}
+	if got := Color(2.0 / 3); got != theme.Peach {
+		t.Errorf("level 2/3 = %v, want the Macchiato peach", got)
+	}
+}
+
+// Redness should never fall as a deadline approaches.
+func TestColorGetsSteadilyRedder(t *testing.T) {
+	prev := math.MinInt
+	for i := 0; i <= 20; i++ {
+		c := Color(float64(i) / 20)
+		// Green sits below zero on this measure, so the starting point cannot
+		// be a hand-picked sentinel.
+		redness := int(c.R) - int(c.G)
+		if redness < prev {
+			t.Fatalf("level %.2f went back towards green: %v", float64(i)/20, c)
+		}
+		prev = redness
 	}
 }
 
 func TestANSIIsTruecolor(t *testing.T) {
-	if got := ANSI(1); got != "\x1b[38;2;255;0;0m" {
-		t.Errorf("= %q, want a truecolor escape", got)
+	if got := ANSI(1); got != "\x1b[38;2;237;135;150m" {
+		t.Errorf("= %q, want a truecolor escape for the Macchiato red", got)
 	}
 }

@@ -83,14 +83,14 @@ func TestWriteListColorsByUrgency(t *testing.T) {
 	WriteList(&buf, ts, now, true)
 	lines := strings.Split(strings.TrimRight(buf.String(), "\n"), "\n")
 
-	const pureRed = "\x1b[38;2;255;0;0m"
-	if !strings.HasPrefix(lines[0], pureRed) {
+	const macchiatoRed = "\x1b[38;2;237;135;150m"
+	if !strings.HasPrefix(lines[0], macchiatoRed) {
 		t.Errorf("an overdue task should be fully red: %q", lines[0])
 	}
-	if !strings.HasPrefix(lines[1], pureRed) {
+	if !strings.HasPrefix(lines[1], macchiatoRed) {
 		t.Errorf("twelve hours out should be fully red: %q", lines[1])
 	}
-	if !strings.HasPrefix(lines[2], "\x1b[38;2;") || strings.HasPrefix(lines[2], pureRed) {
+	if !strings.HasPrefix(lines[2], "\x1b[38;2;") || strings.HasPrefix(lines[2], macchiatoRed) {
 		t.Errorf("mid ramp should be coloured but not red: %q", lines[2])
 	}
 	for _, i := range []int{3, 4} {

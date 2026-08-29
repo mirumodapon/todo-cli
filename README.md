@@ -108,11 +108,15 @@ principle that the more explicit request carries.
 export CLICOLOR_FORCE=1   # always colour, without typing -c
 ```
 
-Colour tracks how soon a task is due: green three days out, ramping through
-yellow and orange, fully red once twelve hours or less remain, and red for
-anything overdue. Beyond three days nothing is coloured, so colour marks what
-is actually close instead of decorating the whole list. A due date with no time
-of day counts as the end of that day.
+Colour tracks how soon a task is due: green three days out, through yellow and
+peach, red once twelve hours or less remain, and red for anything overdue.
+Beyond three days nothing is coloured, so colour marks what is actually close
+instead of decorating the whole list. A due date with no time of day counts as
+the end of that day.
+
+The shades come from [Catppuccin Macchiato](https://catppuccin.com/palette/).
+The ramp blends between palette entries rather than between arbitrary values,
+so every step along it belongs to the same set.
 
 Due dates read as a date, except for today, which reads as `today` or as the
 time of day when the task has one.
@@ -177,6 +181,8 @@ Dependencies point inward, and the inner packages perform no IO.
 |---|---|
 | `internal/argparse` | Argument parsing. |
 | `internal/task` | Domain types, validation, filter description. |
+| `internal/theme` | The Catppuccin Macchiato colours the interface draws with. |
+| `internal/urgency` | Turns time-until-due into a colour. |
 | `internal/datearg` | Due date parsing and display. |
 | `internal/project` | Turns a directory into a project path. |
 | `internal/store` | The `Store` interface and its SQLite implementation. |

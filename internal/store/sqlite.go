@@ -3,10 +3,13 @@ package store
 import (
 	"database/sql"
 	"errors"
+	"fmt"
+	"strings"
 	"time"
 
 	_ "modernc.org/sqlite"
 
+	"todo.mirumo.net/internal/datearg"
 	"todo.mirumo.net/internal/task"
 )
 
@@ -188,9 +191,97 @@ func (s *sqlStore) Get(id int64) (task.Task, error) {
 	return t, nil
 }
 
-// 以下方法在 Task 6、Task 7 實作。
 func (s *sqlStore) List(f task.Filter, now time.Time) ([]task.Task, error) {
-	return nil, errors.New("尚未實作")
+	var where []string
+	var args []any
+
+	switch {
+	case f.OnlyDone:
+		where = append(where, `done_at IS NOT NULL`)
+	case !f.IncludeDone:
+		where = append(where, `done_at IS NULL`)
+	}
+	if f.Project != nil {
+		where = append(where, `project = ?`)
+		args = append(args, *f.Project)
+	}
+	if f.Priority != nil {
+		where = append(where, `priority = ?`)
+		args = append(args, int(*f.Priority))
+	}
+	if f.Search != "" {
+		where = append(where, `LOWER(title) LIKE ?`)
+		args = append(args, "%"+strings.ToLower(f.Search)+"%")
+	}
+	today := datearg.Day(now).Format(dateLayout)
+	switch f.DueRange {
+	case task.DueToday:
+		where = append(where, `due = ?`)
+		args = append(args, today)
+	case task.DueOverdue:
+		where = append(where, `due IS NOT NULL AND due < ?`)
+		args = append(args, today)
+	case task.DueWeek:
+		where = append(where, `due IS NOT NULL AND due <= ?`)
+		args = append(args, datearg.Day(now).AddDate(0, 0, 7).Format(dateLayout))
+	case task.DueOn:
+		where = append(where, `due = ?`)
+		args = append(args, datearg.Day(f.DueOn).Format(dateLayout))
+	}
+	if tags := task.NormalizeTags(f.Tags); len(tags) > 0 {
+		ph := strings.TrimSuffix(strings.Repeat("?,", len(tags)), ",")
+		where = append(where, fmt.Sprintf(
+			`(SELECT COUNT(DISTINCT g.name) FROM task_tags tt JOIN tags g ON g.id = tt.tag_id
+			  WHERE tt.task_id = tasks.id AND g.name IN (%s)) = ?`, ph))
+		for _, tg := range tags {
+			args = append(args, tg)
+		}
+		args = append(args, len(tags))
+	}
+
+	// 無期限者一律排在有期限者之後：SQLite 中 (due IS NULL) 為 0/1，升冪即可。
+	order := `(due IS NULL), due ASC, priority DESC, id ASC`
+	switch f.Sort {
+	case task.SortPriority:
+		order = `priority DESC, (due IS NULL), due ASC, id ASC`
+	case task.SortCreated:
+		order = `created_at ASC, id ASC`
+	}
+
+	q := `SELECT ` + taskCols + ` FROM tasks`
+	if len(where) > 0 {
+		q += ` WHERE ` + strings.Join(where, ` AND `)
+	}
+	q += ` ORDER BY ` + order
+
+	rows, err := s.db.Query(q, args...)
+	if err != nil {
+		return nil, err
+	}
+	var out []task.Task
+	for rows.Next() {
+		t, err := scanTask(rows)
+		if err != nil {
+			rows.Close()
+			return nil, err
+		}
+		out = append(out, t)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return nil, err
+	}
+	rows.Close()
+
+	// 清單規模是個人待辦，逐筆載入標籤的 N+1 成本可忽略，換來的是簡單。
+	for i := range out {
+		tags, err := s.loadTags(out[i].ID)
+		if err != nil {
+			return nil, err
+		}
+		out[i].Tags = tags
+	}
+	return out, nil
 }
 
 func (s *sqlStore) Update(t task.Task) error { return errors.New("尚未實作") }

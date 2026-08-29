@@ -101,6 +101,12 @@ todo ls -c | less -R        # force colour through a pipe
 Colour is on when the output is a terminal and off when it is redirected.
 `NO_COLOR` turns the default off; an explicit `-c` still wins.
 
+Colour tracks how soon a task is due: green three days out, ramping through
+yellow and orange, fully red once twelve hours or less remain, and red for
+anything overdue. Beyond three days nothing is coloured, so colour marks what
+is actually close instead of decorating the whole list. A due date with no time
+of day counts as the end of that day.
+
 Due dates read as a date, except for today, which reads as `today` or as the
 time of day when the task has one.
 

@@ -10,6 +10,7 @@ import (
 	"todo.mirumo.net/internal/datearg"
 	"todo.mirumo.net/internal/project"
 	"todo.mirumo.net/internal/task"
+	"todo.mirumo.net/internal/urgency"
 )
 
 var (
@@ -49,6 +50,19 @@ func (m Model) taskLine(t task.Task) string {
 	return strings.Join(parts, " ")
 }
 
+// urgencyStyle paints a row by how soon it is due, on the same ramp the CLI
+// uses. Rows that are not close to due keep the plain style.
+func (m Model) urgencyStyle(t task.Task) lipgloss.Style {
+	if t.Due == nil {
+		return lipgloss.NewStyle()
+	}
+	level, ok := urgency.Level(*t.Due, t.DueHasTime, m.now())
+	if !ok {
+		return lipgloss.NewStyle()
+	}
+	return lipgloss.NewStyle().Foreground(lipgloss.Color(urgency.Hex(level)))
+}
+
 func (m Model) viewList() string {
 	var b strings.Builder
 	b.WriteString(m.header() + "\n\n")
@@ -66,6 +80,8 @@ func (m Model) viewList() string {
 			line = styleCursor.Render(line)
 		case t.Done():
 			line = styleDim.Render(line)
+		default:
+			line = m.urgencyStyle(t).Render(line)
 		}
 		b.WriteString(line + "\n")
 	}

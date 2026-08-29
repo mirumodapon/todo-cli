@@ -66,20 +66,39 @@ func TestWriteListEmpty(t *testing.T) {
 	}
 }
 
-func TestWriteListColorMarksOverdueAndDone(t *testing.T) {
+func TestWriteListColorsByUrgency(t *testing.T) {
 	now := time.Date(2026, 8, 29, 15, 0, 0, 0, time.Local)
 	done := now
+	soon := time.Date(2026, 8, 30, 3, 0, 0, 0, time.Local) // twelve hours out
+	ramp := time.Date(2026, 8, 31, 9, 0, 0, 0, time.Local) // 42 hours out, mid ramp
 	ts := []task.Task{
 		{ID: 1, Title: "overdue", Due: day(2026, 8, 1)},
-		{ID: 2, Title: "done", DoneAt: &done},
+		{ID: 2, Title: "soon", Due: &soon, DueHasTime: true},
+		{ID: 3, Title: "mid ramp", Due: &ramp, DueHasTime: true},
+		{ID: 4, Title: "far off", Due: day(2026, 12, 25)},
+		{ID: 5, Title: "no due date"},
+		{ID: 6, Title: "done", DoneAt: &done},
 	}
 	var buf bytes.Buffer
 	WriteList(&buf, ts, now, true)
 	lines := strings.Split(strings.TrimRight(buf.String(), "\n"), "\n")
-	if !strings.HasPrefix(lines[0], "\x1b[31m") {
-		t.Errorf("an overdue task should be red: %q", lines[0])
+
+	const pureRed = "\x1b[38;2;255;0;0m"
+	if !strings.HasPrefix(lines[0], pureRed) {
+		t.Errorf("an overdue task should be fully red: %q", lines[0])
 	}
-	if !strings.HasPrefix(lines[1], "\x1b[2m") {
-		t.Errorf("a done task should be dimmed: %q", lines[1])
+	if !strings.HasPrefix(lines[1], pureRed) {
+		t.Errorf("twelve hours out should be fully red: %q", lines[1])
+	}
+	if !strings.HasPrefix(lines[2], "\x1b[38;2;") || strings.HasPrefix(lines[2], pureRed) {
+		t.Errorf("mid ramp should be coloured but not red: %q", lines[2])
+	}
+	for _, i := range []int{3, 4} {
+		if strings.Contains(lines[i], "\x1b[") {
+			t.Errorf("nothing far off or undated should be coloured: %q", lines[i])
+		}
+	}
+	if !strings.HasPrefix(lines[5], "\x1b[2m") {
+		t.Errorf("a done task should be dimmed: %q", lines[5])
 	}
 }

@@ -11,13 +11,12 @@ import (
 	"todo.mirumo.net/internal/datearg"
 	"todo.mirumo.net/internal/project"
 	"todo.mirumo.net/internal/task"
+	"todo.mirumo.net/internal/urgency"
 )
 
 const (
-	ansiReset  = "\x1b[0m"
-	ansiDim    = "\x1b[2m"
-	ansiRed    = "\x1b[31m"
-	ansiYellow = "\x1b[33m"
+	ansiReset = "\x1b[0m"
+	ansiDim   = "\x1b[2m"
 )
 
 // pad aligns by terminal display width. CJK characters take two cells, which len() and text/tabwriter both get wrong.
@@ -52,16 +51,22 @@ func toRow(t task.Task, now time.Time) row {
 	return r
 }
 
+// colorize paints a row by how soon it is due: green three days out, ramping
+// to red at twelve hours and staying there. Anything further out is left
+// plain, so colour marks what is actually close rather than decorating
+// everything. Done tasks are dimmed and take no urgency colour.
 func colorize(line string, t task.Task, now time.Time) string {
-	switch {
-	case t.Done():
+	if t.Done() {
 		return ansiDim + line + ansiReset
-	case t.Due != nil && datearg.Day(*t.Due).Before(datearg.Day(now)):
-		return ansiRed + line + ansiReset
-	case t.Priority == task.PriHigh:
-		return ansiYellow + line + ansiReset
 	}
-	return line
+	if t.Due == nil {
+		return line
+	}
+	level, ok := urgency.Level(*t.Due, t.DueHasTime, now)
+	if !ok {
+		return line
+	}
+	return urgency.ANSI(level) + line + ansiReset
 }
 
 // WriteList prints an aligned task list. With color false it emits no ANSI codes at all.

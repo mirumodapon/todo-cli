@@ -73,15 +73,25 @@ func (m Model) viewList() string {
 }
 
 func (m Model) header() string {
-	return fmt.Sprintf("todo — %d 筆", len(m.tasks))
+	h := fmt.Sprintf("todo — %d 筆", len(m.tasks))
+	if m.filter.Search != "" {
+		h += "  搜尋：" + m.filter.Search
+	}
+	if m.filter.IncludeDone {
+		h += "  含已完成"
+	}
+	return h
 }
 
 func (m Model) footer() string {
+	if m.mode == modeSearch {
+		return m.search.View()
+	}
 	if m.err != nil {
 		return styleErr.Render("錯誤：" + m.err.Error())
 	}
 	if m.status != "" {
 		return m.status
 	}
-	return styleHint.Render("j/k 移動 · space 完成 · q 離開")
+	return styleHint.Render("j/k 移動 · space 完成 · d 刪除 · / 搜尋 · s 排序 · A 含已完成 · esc 清除 · q 離開")
 }

@@ -9,9 +9,10 @@ import (
 // 所有與資料庫往來的動作都包成 tea.Cmd，結果以 msg 回到 Update。
 // Update 本身不碰 IO，維持純函式，測試只需要餵 msg。
 type (
-	tasksMsg []task.Task
-	errMsg   struct{ err error }
-	savedMsg struct{ note string }
+	tasksMsg   []task.Task
+	errMsg     struct{ err error }
+	savedMsg   struct{ note string }
+	deletedMsg struct{ t task.Task }
 )
 
 func (m Model) loadCmd() tea.Cmd {
@@ -36,5 +37,30 @@ func (m Model) toggleCmd(t task.Task) tea.Cmd {
 			note = "已取消完成「" + t.Title + "」"
 		}
 		return savedMsg{note: note}
+	}
+}
+
+// deleteCmd 先完整取回再刪除——undo 需要包含標籤的整份資料。
+func (m Model) deleteCmd(t task.Task) tea.Cmd {
+	s := m.store
+	return func() tea.Msg {
+		full, err := s.Get(t.ID)
+		if err != nil {
+			return errMsg{err}
+		}
+		if err := s.Delete(t.ID); err != nil {
+			return errMsg{err}
+		}
+		return deletedMsg{t: full}
+	}
+}
+
+func (m Model) restoreCmd(t task.Task) tea.Cmd {
+	s := m.store
+	return func() tea.Msg {
+		if err := s.Restore(t); err != nil {
+			return errMsg{err}
+		}
+		return savedMsg{note: "已復原「" + t.Title + "」"}
 	}
 }

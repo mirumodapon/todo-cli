@@ -52,6 +52,7 @@ func (a *App) commands() map[string]func([]string) error {
 	return map[string]func([]string) error{
 		"add":    a.cmdAdd,
 		"ls":     a.cmdLs,
+		"edit":   a.cmdEdit,
 		"done":   a.cmdDone,
 		"undone": a.cmdUndone,
 		"rm":     a.cmdRm,

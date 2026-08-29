@@ -17,7 +17,7 @@ func TestProjectPickerFiltersByProject(t *testing.T) {
 			t.Errorf("the menu is missing %q:\n%s", want, v)
 		}
 	}
-	// Row 0 is the clear-filter entry, row 1 is uncategorised, row 2 is work.
+	// Row 0 is the clear-filter entry, row 1 is uncategorized, row 2 is work.
 	m = press(t, m, "j")
 	m = press(t, m, "j")
 	m = press(t, m, "enter")

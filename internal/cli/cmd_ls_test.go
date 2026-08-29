@@ -39,6 +39,20 @@ func TestLsDefaultsToOpenOnly(t *testing.T) {
 	}
 }
 
+func TestLsDefaultsToUncategorized(t *testing.T) {
+	app, out, _ := newApp(t)
+	seedCLI(t, app)
+
+	out.Reset()
+	app.Run([]string{"ls"})
+	if strings.Contains(out.String(), "work one") {
+		t.Errorf("the default must not show tasks that belong to a project: %q", out.String())
+	}
+	if !strings.Contains(out.String(), "today one") {
+		t.Errorf("the default should show uncategorized tasks: %q", out.String())
+	}
+}
+
 func TestLsFilterByProjectAndNoProject(t *testing.T) {
 	app, out, _ := newApp(t)
 	seedCLI(t, app)
@@ -49,6 +63,7 @@ func TestLsFilterByProjectAndNoProject(t *testing.T) {
 		t.Errorf("-p work = %q", out.String())
 	}
 
+	// --no-project states the default explicitly.
 	out.Reset()
 	app.Run([]string{"ls", "--no-project"})
 	if strings.Contains(out.String(), "work one") {
@@ -59,13 +74,32 @@ func TestLsFilterByProjectAndNoProject(t *testing.T) {
 	}
 }
 
-func TestLsRejectsConflictingProjectFlags(t *testing.T) {
-	app, _, errBuf := newApp(t)
-	if code := app.Run([]string{"ls", "-p", "work", "--no-project"}); code != 1 {
-		t.Errorf("exit code = %d, want 1", code)
+func TestLsAllProjects(t *testing.T) {
+	app, out, _ := newApp(t)
+	seedCLI(t, app)
+
+	out.Reset()
+	app.Run([]string{"ls", "--all-projects"})
+	s := out.String()
+	if !strings.Contains(s, "work one") || !strings.Contains(s, "today one") {
+		t.Errorf("--all-projects should span every project: %q", s)
 	}
-	if !strings.Contains(errBuf.String(), "cannot be used together") {
-		t.Errorf("stderr = %q", errBuf.String())
+}
+
+func TestLsRejectsConflictingProjectFlags(t *testing.T) {
+	cases := [][]string{
+		{"ls", "-p", "work", "--no-project"},
+		{"ls", "-p", "work", "--all-projects"},
+		{"ls", "--no-project", "--all-projects"},
+	}
+	for _, args := range cases {
+		app, _, errBuf := newApp(t)
+		if code := app.Run(args); code != 1 {
+			t.Errorf("%v exit code = %d, want 1", args, code)
+		}
+		if !strings.Contains(errBuf.String(), "cannot be used together") {
+			t.Errorf("%v stderr = %q", args, errBuf.String())
+		}
 	}
 }
 

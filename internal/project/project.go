@@ -27,7 +27,7 @@ func Current(dir string) (string, error) {
 	return abs, nil
 }
 
-// Label returns the short display name. An empty path means uncategorised and is returned as is.
+// Label returns the short display name. An empty path means uncategorized and is returned as is.
 func Label(path string) string {
 	if path == "" {
 		return ""

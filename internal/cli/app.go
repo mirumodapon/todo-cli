@@ -58,7 +58,7 @@ func (c command) help() string {
 func (a *App) commandList() []command {
 	return []command{
 		{"add", "add <title>", "Add a task.", addFlags, a.cmdAdd},
-		{"ls", "ls", "List tasks. Shows open tasks only unless -a or --done is given.", lsFlags, a.cmdLs},
+		{"ls", "ls", "List uncategorized open tasks; -p selects a project, -a includes done ones.", lsFlags, a.cmdLs},
 		{"done", "done <id>...", "Mark tasks as done.", nil, a.cmdDone},
 		{"undone", "undone <id>...", "Mark tasks as not done.", nil, a.cmdUndone},
 		{"edit", "edit <id> [new title]", "Change a task. Only the fields you pass are touched.", addFlags, a.cmdEdit},

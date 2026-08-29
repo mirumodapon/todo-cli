@@ -46,7 +46,7 @@ func (p Priority) String() string {
 	return ""
 }
 
-// Task is one todo item. An empty Project means globally uncategorised.
+// Task is one todo item. An empty Project means globally uncategorized.
 type Task struct {
 	ID        int64
 	Title     string
@@ -120,7 +120,7 @@ const (
 )
 
 // Filter describes one query. A nil Project means no project filtering;
-// a pointer to an empty string means uncategorised tasks only.
+// a pointer to an empty string means uncategorized tasks only.
 type Filter struct {
 	Project     *string
 	Tags        []string

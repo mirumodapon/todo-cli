@@ -13,7 +13,8 @@ import (
 func lsFlags() *argparse.Set {
 	return argparse.New(
 		argparse.Spec{Long: "project", Short: "p", Kind: argparse.OptionalString, Usage: "Only this project; uses the current directory when given no value"},
-		argparse.Spec{Long: "no-project", Kind: argparse.Bool, Usage: "Only uncategorised tasks"},
+		argparse.Spec{Long: "no-project", Kind: argparse.Bool, Usage: "Only uncategorized tasks (the default)"},
+		argparse.Spec{Long: "all-projects", Kind: argparse.Bool, Usage: "Every task, whatever its project"},
 		argparse.Spec{Long: "tag", Short: "t", Kind: argparse.StringSlice, Usage: "Tag; repeatable, matches tasks having all of them"},
 		argparse.Spec{Long: "due", Short: "d", Kind: argparse.String, Usage: "today, week, overdue, or a date"},
 		argparse.Spec{Long: "pri", Kind: argparse.String, Usage: "Priority: low, med, high"},
@@ -38,15 +39,33 @@ func (a *App) cmdLs(args []string) error {
 		OnlyDone:    r.Bool("done"),
 		Tags:        r.Strings("tag"),
 	}
-	if r.Bool("no-project") && r.Changed("project") {
-		return errors.New("-p and --no-project cannot be used together")
+	// The three project selectors are mutually exclusive; honouring one silently
+	// would hide the fact that the others were ignored.
+	given := 0
+	for _, on := range []bool{r.Changed("project"), r.Bool("no-project"), r.Bool("all-projects")} {
+		if on {
+			given++
+		}
 	}
-	if r.Bool("no-project") {
+	if given > 1 {
+		return errors.New("-p, --no-project, and --all-projects cannot be used together")
+	}
+	switch {
+	case r.Bool("all-projects"):
+		f.Project = nil
+	case r.Bool("no-project"):
 		empty := ""
 		f.Project = &empty
-	} else if p, ok, err := a.resolveProject(r); err != nil {
-		return err
-	} else if ok {
+	default:
+		p, ok, err := a.resolveProject(r)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			// Default to uncategorized tasks. Reaching a project's tasks needs
+			// -p, so the plain list stays about what is not tied to a directory.
+			p = ""
+		}
 		f.Project = &p
 	}
 	if r.Changed("pri") {

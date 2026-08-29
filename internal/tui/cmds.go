@@ -92,3 +92,19 @@ func (m Model) tagsCmd() tea.Cmd {
 		return tagsMsg(ts)
 	}
 }
+
+func (m Model) saveCmd(t task.Task, editing bool) tea.Cmd {
+	s := m.store
+	return func() tea.Msg {
+		if editing {
+			if err := s.Update(t); err != nil {
+				return errMsg{err}
+			}
+			return savedMsg{note: "已更新「" + t.Title + "」"}
+		}
+		if _, err := s.Add(t); err != nil {
+			return errMsg{err}
+		}
+		return savedMsg{note: "已新增「" + t.Title + "」"}
+	}
+}

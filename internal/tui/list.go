@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
@@ -93,5 +94,32 @@ func (m Model) footer() string {
 	if m.status != "" {
 		return m.status
 	}
-	return styleHint.Render("j/k 移動 · space 完成 · d 刪除 · / 搜尋 · P/T 過濾 · s 排序 · A 含已完成 · esc 清除 · q 離開")
+	return styleHint.Render("a 新增 · e 編輯 · space 完成 · d 刪除 · / 搜尋 · P/T 過濾 · ? 說明 · q 離開")
+}
+
+func itoa(n int64) string { return strconv.FormatInt(n, 10) }
+
+func viewHelp() string {
+	rows := [][2]string{
+		{"j / k / ↑ / ↓", "移動"},
+		{"g / G", "跳到頂 / 底"},
+		{"space", "切換完成"},
+		{"a / e", "新增 / 編輯"},
+		{"d", "刪除"},
+		{"u", "復原最近一次刪除"},
+		{"/", "搜尋標題"},
+		{"P / T", "依專案 / 標籤過濾"},
+		{"A", "切換是否顯示已完成"},
+		{"s", "循環排序"},
+		{"esc", "清除所有過濾"},
+		{"?", "這份說明"},
+		{"q", "離開"},
+	}
+	var b strings.Builder
+	b.WriteString("按鍵說明\n\n")
+	for _, r := range rows {
+		b.WriteString("  " + pad(r[0], 16) + r[1] + "\n")
+	}
+	b.WriteString("\n" + styleHint.Render("按任意鍵返回"))
+	return b.String()
 }

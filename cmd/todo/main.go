@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
+	"runtime/debug"
 	"time"
 
 	"todo.mirumo.net/internal/cli"
@@ -12,10 +14,27 @@ import (
 	"todo.mirumo.net/internal/tui"
 )
 
+// version is empty for ordinary builds, where the value is recovered from the
+// build info instead. Release builds may stamp it:
+//
+//	go build -ldflags "-X main.version=v1.2.3" ./cmd/todo
+var version = ""
+
 func main() { os.Exit(run()) }
 
 // run wraps the whole flow so deferred calls still run; os.Exit skips them.
 func run() int {
+	// Answered before anything touches the filesystem: asking a program its
+	// version should not create a database directory.
+	if wantsVersion(os.Args[1:]) {
+		bi, ok := debug.ReadBuildInfo()
+		fmt.Printf("todo %s\n", versionString(version, bi, ok))
+		if ok {
+			fmt.Printf("built with %s for %s/%s\n", bi.GoVersion, runtime.GOOS, runtime.GOARCH)
+		}
+		return 0
+	}
+
 	dbFlag, args, err := cli.SplitGlobal(os.Args[1:])
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %s\n", err)
@@ -87,4 +106,60 @@ func isTTY(f *os.File) bool {
 		return false
 	}
 	return fi.Mode()&os.ModeCharDevice != 0
+}
+
+// wantsVersion reports whether --version appears as a flag, wherever it sits,
+// matching how -h is accepted after a subcommand. Anything after -- is an
+// argument rather than a flag.
+func wantsVersion(args []string) bool {
+	for _, a := range args {
+		if a == "--" {
+			return false
+		}
+		if a == "--version" {
+			return true
+		}
+	}
+	return false
+}
+
+// versionString works out what to report.
+//
+// A stamped version wins. Otherwise VCS information decides: its presence
+// means the binary came from a working tree, so the revision is the honest
+// answer — Go synthesises a pseudo-version for such builds, and reporting
+// v0.0.0-20260830064323-6b4db23794f0+dirty helps nobody. Only a build with no
+// VCS information, which is what "go install module@version" produces, falls
+// back to the module version.
+func versionString(stamped string, bi *debug.BuildInfo, ok bool) string {
+	if stamped != "" {
+		return stamped
+	}
+	if !ok {
+		return "unknown"
+	}
+
+	var revision string
+	var modified bool
+	for _, s := range bi.Settings {
+		switch s.Key {
+		case "vcs.revision":
+			revision = s.Value
+		case "vcs.modified":
+			modified = s.Value == "true"
+		}
+	}
+	if revision == "" {
+		if v := bi.Main.Version; v != "" && v != "(devel)" {
+			return v
+		}
+		return "devel"
+	}
+	if len(revision) > 7 {
+		revision = revision[:7]
+	}
+	if modified {
+		return fmt.Sprintf("devel (%s, modified)", revision)
+	}
+	return fmt.Sprintf("devel (%s)", revision)
 }

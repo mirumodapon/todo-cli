@@ -37,6 +37,13 @@ make build            # produces ./bin/todo
 There is no cgo: the SQLite driver is pure Go, so a plain `go build` is enough
 on any platform Go targets.
 
+`todo --version` reports the revision it was built from. Release builds can
+stamp a version instead:
+
+```sh
+go build -ldflags "-X main.version=v1.2.3" ./cmd/todo
+```
+
 ## Commands
 
 ```
@@ -52,6 +59,7 @@ todo tui                        Open the interactive interface
 ```
 
 `todo --help` lists them; `todo <command> --help` explains one.
+`todo --version` reports the build.
 
 ### Fields
 

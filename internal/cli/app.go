@@ -116,6 +116,7 @@ func (a *App) usage() string {
 	b.WriteString("\nGlobal flags:\n")
 	b.WriteString("  --db <path>           Database file (default ~/.todo/todo.db, or $TODO_DB)\n")
 	b.WriteString("  -h, --help            Show help\n")
+	b.WriteString("  --version             Show the version\n")
 	b.WriteString("\nRun \"todo <command> --help\" for details on one command.\n")
 	return b.String()
 }

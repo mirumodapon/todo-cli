@@ -131,7 +131,8 @@ the hours left in it.
 
 | Key | Action |
 |---|---|
-| `j` `k` `↑` `↓` `g` `G` | Move |
+| `j` / `k` / `↑` / `↓` | Move |
+| `g` / `G` | Jump to top / bottom |
 | `space` | Toggle done (asks first) |
 | `a` / `e` | Add / edit |
 | `d` | Delete (asks first) |
@@ -142,12 +143,16 @@ the hours left in it.
 | `s` | Cycle sort order |
 | `D` | Switch between time remaining and dates |
 | `esc` | Back to the uncategorized default |
-| `?` | Key help |
+| `?` | This help |
 | `q` | Quit |
 
 Completing and deleting both ask before they touch anything, and only `y`
 accepts, so a mistyped key cannot confirm. A delete can still be taken back
 with `u` for as long as the TUI is open.
+
+In the add and edit form, `tab` and `shift+tab` move between fields, `ctrl+p`
+fills in the current directory's project, `enter` saves and `esc` cancels. In
+the project and tag menus, `j` and `k` move, `enter` selects and `esc` closes.
 
 The header names what you are looking at (`uncategorized`, a project, or
 `all projects`), so the current filter is never invisible state. `P` lists each

@@ -148,26 +148,29 @@ func (m Model) footer() string {
 
 func itoa(n int64) string { return strconv.FormatInt(n, 10) }
 
+// helpRows is the one list of keys. The README quotes it, and a test checks
+// the two agree, so the documentation cannot drift from the bindings.
+var helpRows = [][2]string{
+	{"j / k / ↑ / ↓", "Move"},
+	{"g / G", "Jump to top / bottom"},
+	{"space", "Toggle done (asks first)"},
+	{"a / e", "Add / edit"},
+	{"d", "Delete (asks first)"},
+	{"u", "Undo the last delete"},
+	{"/", "Search titles"},
+	{"P / T", "Filter by project / tag"},
+	{"A", "Show or hide done tasks"},
+	{"s", "Cycle sort order"},
+	{"D", "Switch between time remaining and dates"},
+	{"esc", "Back to the uncategorized default"},
+	{"?", "This help"},
+	{"q", "Quit"},
+}
+
 func viewHelp() string {
-	rows := [][2]string{
-		{"j / k / ↑ / ↓", "Move"},
-		{"g / G", "Jump to top / bottom"},
-		{"space", "Toggle done (asks first)"},
-		{"a / e", "Add / edit"},
-		{"d", "Delete (asks first)"},
-		{"u", "Undo the last delete"},
-		{"/", "Search titles"},
-		{"P / T", "Filter by project / tag"},
-		{"A", "Show or hide done tasks"},
-		{"s", "Cycle sort order"},
-		{"D", "Switch between time remaining and dates"},
-		{"esc", "Clear all filters"},
-		{"?", "This help"},
-		{"q", "Quit"},
-	}
 	var b strings.Builder
 	b.WriteString("Keys\n\n")
-	for _, r := range rows {
+	for _, r := range helpRows {
 		b.WriteString("  " + pad(r[0], 16) + r[1] + "\n")
 	}
 	b.WriteString("\n" + styleHint.Render("Press any key to go back"))

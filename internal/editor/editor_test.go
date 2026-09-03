@@ -92,3 +92,25 @@ func TestEditRemovesItsTempFile(t *testing.T) {
 		t.Errorf("%s should have been removed after the edit", seen)
 	}
 }
+
+// Discard removes a directory, which is not a thing to be casual about: it only
+// touches the ones this package made.
+func TestDiscardOnlyRemovesOurOwnTempDirs(t *testing.T) {
+	keep := filepath.Join(t.TempDir(), "precious")
+	if err := os.WriteFile(keep, []byte("hello"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	Discard(keep)
+	if _, err := os.Stat(keep); err != nil {
+		t.Errorf("Discard should not have touched %s: %v", keep, err)
+	}
+
+	path, err := WriteTemp("description", "x")
+	if err != nil {
+		t.Fatal(err)
+	}
+	Discard(path)
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Errorf("its own temp file should be gone, got %v", err)
+	}
+}

@@ -2,11 +2,15 @@ package tui
 
 import (
 	"errors"
+	"os"
 	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+
+	"todo.mirumo.net/internal/editor"
+	"todo.mirumo.net/internal/task"
 )
 
 // withDesc gives the first task a description and reloads.
@@ -83,39 +87,50 @@ func TestDetailViewWrapsWithoutTrailingSpaces(t *testing.T) {
 	}
 }
 
-// fakeEditor stands in for the user's editor: it records what it was handed and
-// returns text without spawning anything.
+// fakeEditor stands in for the user's editor: it records the file it was handed
+// and returns one, without spawning anything.
 func fakeEditor(m Model, out string, err error, saw *string) Model {
-	m.edit = func(text string, apply func(string, error) tea.Msg) tea.Cmd {
+	m.edit = func(text string, apply func(string, string, error) tea.Msg) tea.Cmd {
 		*saw = text
-		return func() tea.Msg { return apply(out, err) }
+		return func() tea.Msg { return apply(out, "", err) }
 	}
 	return m
 }
 
-func TestDetailViewEditsTheDescriptionInAnEditor(t *testing.T) {
+// edited builds the file an editor would return for these fields.
+func edited(title, pri, desc string) string {
+	return "title: " + title + "\npriority: " + pri + "\n\n" + desc
+}
+
+func TestEditsTheWholeTaskInAnEditor(t *testing.T) {
 	m, _ := newModel(t)
 	m = withDesc(t, m, "before")
 	var saw string
-	m = fakeEditor(m, "from the editor", nil, &saw)
+	m = fakeEditor(m, edited("renamed", "low", "after"), nil, &saw)
 
 	m = press(t, m, "enter")
 	m = press(t, m, "E")
 
-	if saw != "before" {
-		t.Errorf("the editor should open on the current description, got %q", saw)
+	// The file the editor opened carries every field, not just the description.
+	for _, want := range []string{"title: first", "priority: high", "tags: urgent", "before"} {
+		if !strings.Contains(saw, want) {
+			t.Errorf("the file is missing %q:\n%s", want, saw)
+		}
 	}
 	back, err := m.store.Get(m.tasks[0].ID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if back.Desc != "from the editor" {
-		t.Errorf("desc = %q, what the editor returned should be saved", back.Desc)
+	if back.Title != "renamed" || back.Priority != task.PriLow || back.Desc != "after" {
+		t.Errorf("every edited field should be saved: %+v", back)
+	}
+	if len(back.Tags) != 1 || back.Tags[0] != "urgent" {
+		t.Errorf("tags = %v, a field the file kept should survive", back.Tags)
 	}
 	if m.mode != modeDetail {
 		t.Errorf("the view should stay open on the task, mode = %v", m.mode)
 	}
-	if !strings.Contains(m.View(), "from the editor") {
+	if !strings.Contains(m.View(), "after") {
 		t.Errorf("the new text should be on screen:\n%s", m.View())
 	}
 }
@@ -137,23 +152,47 @@ func TestAFailingEditorIsReportedNotSaved(t *testing.T) {
 	}
 }
 
+// A file that will not parse must not throw away what was typed into it.
+func TestAnUnparsableFileIsKeptAndReported(t *testing.T) {
+	m, _ := newModel(t)
+	path, err := editor.WriteTemp("task", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m.edit = func(text string, apply func(string, string, error) tea.Msg) tea.Cmd {
+		return func() tea.Msg { return apply("colour: red\n\nhours of typing", path, nil) }
+	}
+
+	m = press(t, m, "E")
+	if m.err == nil || !strings.Contains(m.err.Error(), "colour") {
+		t.Fatalf("the parse failure should be reported, got %v", m.err)
+	}
+	if !strings.Contains(m.err.Error(), path) {
+		t.Errorf("the error should say where the text is: %v", m.err)
+	}
+	if _, err := os.Stat(path); err != nil {
+		t.Errorf("the file should still be there: %v", err)
+	}
+	editor.Discard(path)
+}
+
 // E works from the list too: the form is for the five short fields, and e there
 // still opens it.
-func TestEditsTheDescriptionFromTheList(t *testing.T) {
+func TestEditsTheTaskFromTheList(t *testing.T) {
 	m, _ := newModel(t)
 	m = withDesc(t, m, "before")
 	var saw string
-	m = fakeEditor(m, "from the editor", nil, &saw)
+	m = fakeEditor(m, edited("renamed", "low", "after"), nil, &saw)
 
 	m = press(t, m, "E")
 	if m.mode != modeList {
 		t.Errorf("E should not leave the list, mode = %v", m.mode)
 	}
-	if saw != "before" {
-		t.Errorf("the editor should open on the current description, got %q", saw)
+	if !strings.Contains(saw, "title: first") {
+		t.Errorf("the editor should open on the current task, got %q", saw)
 	}
-	if back, _ := m.store.Get(m.tasks[0].ID); back.Desc != "from the editor" {
-		t.Errorf("desc = %q", back.Desc)
+	if back, _ := m.store.Get(m.tasks[0].ID); back.Title != "renamed" {
+		t.Errorf("title = %q", back.Title)
 	}
 }
 

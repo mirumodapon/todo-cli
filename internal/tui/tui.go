@@ -147,7 +147,7 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.status, m.err = msg.note, nil
 		return m, m.loadCmd()
 
-	case descMsg:
+	case editedMsg:
 		// The view stays open on the task so the new text is there to read.
 		return m, m.saveCmd(msg.t, true)
 
@@ -219,10 +219,10 @@ func (m Model) updateList(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m.openForm(t, true), nil
 		}
 	// Uppercase for the longer edit: e opens the form over the five short
-	// fields, E hands the description to a real editor.
+	// fields, E hands the whole task, description included, to a real editor.
 	case "E":
 		if t, ok := m.current(); ok {
-			return m, m.editDescCmd(t)
+			return m, m.editTaskCmd(t)
 		}
 	case "enter":
 		if _, ok := m.current(); ok {

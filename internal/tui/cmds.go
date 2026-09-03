@@ -14,8 +14,8 @@ type (
 	errMsg     struct{ err error }
 	savedMsg   struct{ note string }
 	deletedMsg struct{ t task.Task }
-	// descMsg carries a task whose description came back from the editor.
-	descMsg struct{ t task.Task }
+	// editedMsg carries a task that came back from the user's editor.
+	editedMsg struct{ t task.Task }
 )
 
 func (m Model) loadCmd() tea.Cmd {

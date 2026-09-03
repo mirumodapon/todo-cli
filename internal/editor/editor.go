@@ -10,6 +10,10 @@ import (
 	"strings"
 )
 
+// tempPrefix names the directories this package creates, and is what Discard
+// checks before removing one.
+const tempPrefix = "todo-"
+
 // Command builds the command that opens path for editing. VISUAL wins over
 // EDITOR, and vi is the fallback: a machine without vi is rarer than a user who
 // never set either variable.
@@ -32,7 +36,7 @@ func Command(path string) *exec.Cmd {
 // for the editor's benefit: descriptions are prose, and most editors soft-wrap
 // and highlight markdown without being asked.
 func WriteTemp(name, content string) (string, error) {
-	dir, err := os.MkdirTemp("", "todo-")
+	dir, err := os.MkdirTemp("", tempPrefix)
 	if err != nil {
 		return "", err
 	}
@@ -44,17 +48,26 @@ func WriteTemp(name, content string) (string, error) {
 	return path, nil
 }
 
-// ReadTemp reads an edited file and removes it. The trailing newline an editor
-// leaves is the file format rather than part of the text, so it is trimmed;
-// nothing else is. In particular no line is treated as a comment, because a
-// description may legitimately start with #.
-func ReadTemp(path string) (string, error) {
+// Read reads an edited file without removing it, so a caller that cannot make
+// sense of the result can leave the text where the user can get it back. The
+// trailing newline an editor leaves is the file format rather than part of the
+// text, so it is trimmed; nothing else is.
+func Read(path string) (string, error) {
 	b, err := os.ReadFile(path)
-	os.RemoveAll(filepath.Dir(path))
 	if err != nil {
 		return "", err
 	}
 	return strings.TrimRight(string(b), " \t\r\n"), nil
+}
+
+// Discard removes the temporary directory a WriteTemp file lives in. It refuses
+// to touch anything else: this runs with a path that has been through a caller's
+// hands, and "remove the parent directory" is not a thing to be casual about.
+func Discard(path string) {
+	dir := filepath.Dir(path)
+	if strings.HasPrefix(filepath.Base(dir), tempPrefix) {
+		os.RemoveAll(dir)
+	}
 }
 
 // Edit runs the whole cycle. An editor that exits non-zero aborts the edit
@@ -67,8 +80,10 @@ func Edit(name, content string) (string, error) {
 	c := Command(path)
 	c.Stdin, c.Stdout, c.Stderr = os.Stdin, os.Stdout, os.Stderr
 	if err := c.Run(); err != nil {
-		os.RemoveAll(filepath.Dir(path))
+		Discard(path)
 		return "", fmt.Errorf("editor: %w", err)
 	}
-	return ReadTemp(path)
+	text, err := Read(path)
+	Discard(path)
+	return text, err
 }

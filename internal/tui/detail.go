@@ -2,8 +2,6 @@ package tui
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -13,6 +11,7 @@ import (
 	"todo.mirumo.net/internal/editor"
 	"todo.mirumo.net/internal/project"
 	"todo.mirumo.net/internal/task"
+	"todo.mirumo.net/internal/taskfile"
 )
 
 const stampLayout = "2006-01-02 15:04"
@@ -50,16 +49,28 @@ func (m Model) detailRows(t task.Task) [][2]string {
 	return rows
 }
 
-// editDescCmd hands one task's description to the editor. The result comes back
-// as a descMsg, so the write itself still happens in a cmd like every other.
-func (m Model) editDescCmd(t task.Task) tea.Cmd {
+// editTaskCmd hands the whole task to the editor as a text file. The result
+// comes back as an editedMsg, so the write still happens in a cmd like every
+// other one.
+func (m Model) editTaskCmd(t task.Task) tea.Cmd {
 	now := m.now()
-	return m.edit(t.Desc, func(s string, err error) tea.Msg {
+	return m.edit(taskfile.Format(t), func(text, path string, err error) tea.Msg {
 		if err != nil {
+			editor.Discard(path)
 			return errMsg{err}
 		}
-		t.Desc, t.UpdatedAt = s, now
-		return descMsg{t}
+		next, err := taskfile.Parse(text, t, now)
+		if err != nil {
+			// The file stays where it is: a typo in one field is no reason to
+			// throw away the paragraph underneath it.
+			if path != "" {
+				return errMsg{fmt.Errorf("%w — your edit is kept at %s", err, path)}
+			}
+			return errMsg{err}
+		}
+		editor.Discard(path)
+		next.UpdatedAt = now
+		return editedMsg{next}
 	})
 }
 
@@ -71,10 +82,10 @@ func (m Model) updateDetail(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.mode = modeList
 		return m, nil
 	}
-	return m, m.editDescCmd(t)
+	return m, m.editTaskCmd(t)
 }
 
-var detailHint = styleHint.Render("E edit the description in $EDITOR · any other key goes back")
+var detailHint = styleHint.Render("E edit the task in $EDITOR · any other key goes back")
 
 func (m Model) viewDetail() string {
 	t, ok := m.current()
@@ -114,22 +125,24 @@ func (m Model) viewDetail() string {
 }
 
 // editorFunc hands text to an editor and returns the cmd that produces the
-// result. apply turns that result into the msg Update will see.
-type editorFunc func(text string, apply func(string, error) tea.Msg) tea.Cmd
+// result. apply turns that result into the msg Update will see; it is handed
+// the file's path as well, so it can leave the text on disk when it cannot make
+// sense of what came back.
+type editorFunc func(text string, apply func(text, path string, err error) tea.Msg) tea.Cmd
 
 // execEditor is the real one. Bubble Tea has to give the terminal up while the
 // editor owns it, which is what tea.ExecProcess does: it suspends the
 // interface, runs the command, and restores the screen afterwards.
-func execEditor(text string, apply func(string, error) tea.Msg) tea.Cmd {
-	path, err := editor.WriteTemp("description", text)
+func execEditor(text string, apply func(text, path string, err error) tea.Msg) tea.Cmd {
+	path, err := editor.WriteTemp("task", text)
 	if err != nil {
-		return func() tea.Msg { return apply("", err) }
+		return func() tea.Msg { return apply("", "", err) }
 	}
 	return tea.ExecProcess(editor.Command(path), func(runErr error) tea.Msg {
 		if runErr != nil {
-			os.RemoveAll(filepath.Dir(path))
-			return apply("", runErr)
+			return apply("", path, runErr)
 		}
-		return apply(editor.ReadTemp(path))
+		edited, err := editor.Read(path)
+		return apply(edited, path, err)
 	})
 }

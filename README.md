@@ -185,7 +185,7 @@ and it has no columns to keep narrow. Several ids at once are fine:
 | `enter` | Show the full task |
 | `space` | Toggle done (asks first) |
 | `a` / `e` | Add / edit |
-| `E` | Edit the description in $EDITOR |
+| `E` | Edit the whole task in $EDITOR |
 | `d` | Delete (asks first) |
 | `u` | Undo the last delete |
 | `/` | Search titles |
@@ -204,11 +204,28 @@ with `u` for as long as the TUI is open.
 `enter` opens the task under the cursor in full, the same fields `todo details`
 prints. Any key but `E` closes it again.
 
-`E` hands that task's description to `$EDITOR`, from the list or from the
-detail view: the interface steps aside while the editor owns the terminal and
-comes back when it exits. Lowercase `e` opens the form, which covers the five
-short fields; a description is prose and belongs in a real editor, so the form
-does not touch it.
+`E` hands the whole task to `$EDITOR`, from the list or from the detail view:
+the interface steps aside while the editor owns the terminal and comes back when
+it exits. The file is a mail header — fields, a blank line, then the description:
+
+```
+# Fields above the blank line, description below it. # starts a comment.
+# Removing a line leaves that field alone; emptying its value clears it.
+title: renew the passport
+project: /Users/me/Projects/home
+tags: admin, paperwork
+due: 2026-09-12
+priority: high
+
+form DS-82, two photos
+```
+
+Because the description lives below the blank line, it can contain anything at
+all — including lines that look like fields, or start with `#`. A file that
+will not parse is not thrown away: the error says where the text was left.
+
+Lowercase `e` still opens the form over the five short fields, and the form
+still leaves the description alone.
 
 `ctrl+n` and `ctrl+p` move everywhere, including the places where `j` and `k`
 are text: while searching they walk the results without leaving the field, and

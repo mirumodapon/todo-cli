@@ -265,6 +265,9 @@ func (s *sqlStore) List(f task.Filter, now time.Time) ([]task.Task, error) {
 		}
 		args = append(args, len(tags))
 	}
+	if f.Untagged {
+		where = append(where, `NOT EXISTS (SELECT 1 FROM task_tags tt WHERE tt.task_id = tasks.id)`)
+	}
 
 	// Undated tasks always sort after dated ones: (due IS NULL) is 0 or 1, so ascending works.
 	order := `(due IS NULL), due ASC, priority DESC, id ASC`

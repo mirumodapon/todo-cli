@@ -141,8 +141,11 @@ const (
 // Filter describes one query. A nil Project means no project filtering;
 // a pointer to an empty string means uncategorized tasks only.
 type Filter struct {
-	Project     *string
-	Tags        []string
+	Project *string
+	Tags    []string
+	// Untagged narrows to tasks with no tags at all, which no entry in Tags
+	// can express.
+	Untagged    bool
 	DueRange    DueRange
 	DueOn       time.Time
 	Priority    *Priority

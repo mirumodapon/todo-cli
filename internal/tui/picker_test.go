@@ -3,6 +3,9 @@ package tui
 import (
 	"strings"
 	"testing"
+
+	"todo.mirumo.net/internal/store"
+	"todo.mirumo.net/internal/task"
 )
 
 func TestProjectPickerFiltersByProject(t *testing.T) {
@@ -66,7 +69,8 @@ func TestTagPicker(t *testing.T) {
 	if !strings.Contains(m.View(), "@urgent") {
 		t.Errorf("the tag menu should list @urgent:\n%s", m.View())
 	}
-	// Tags sort by name: row 1 is @misc, row 2 is @urgent.
+	// Row 1 is untagged, then tags sort by name: row 2 is @misc, row 3 is @urgent.
+	m = press(t, m, "j")
 	m = press(t, m, "j")
 	m = press(t, m, "j")
 	m = press(t, m, "enter")
@@ -110,5 +114,89 @@ func TestEscReturnsToTheUncategorizedDefault(t *testing.T) {
 	}
 	if len(m.tasks) != 3 {
 		t.Errorf("got %d, want the 3 uncategorized tasks", len(m.tasks))
+	}
+}
+
+// The uncategorized scope is where the interface starts, so it has to be
+// reachable from the menu even when nothing is in it yet.
+func TestProjectPickerOffersUncategorizedWhenEmpty(t *testing.T) {
+	s, err := store.OpenSQLite(":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { s.Close() })
+	if _, err := s.Add(task.Task{Title: "work one", Project: "/p/work", CreatedAt: refTime(), UpdatedAt: refTime()}); err != nil {
+		t.Fatal(err)
+	}
+	m := New(s, refTime, t.TempDir())
+	m, msg := run(t, m, m.Init())
+	m, _ = send(t, m, msg)
+
+	m = press(t, m, "P")
+	if !strings.Contains(m.View(), "(uncategorized)") {
+		t.Fatalf("the menu should always offer uncategorized:\n%s", m.View())
+	}
+	m = press(t, m, "j")
+	m = press(t, m, "enter")
+	if m.filter.Project == nil || *m.filter.Project != "" {
+		t.Errorf("filter.Project = %v, want a pointer to an empty string", m.filter.Project)
+	}
+}
+
+func TestTagPickerOffersUntagged(t *testing.T) {
+	m, _ := newModel(t)
+	m = press(t, m, "T")
+	if !strings.Contains(m.View(), "(untagged)") {
+		t.Fatalf("the tag menu should offer untagged:\n%s", m.View())
+	}
+	// Row 0 is all tags, row 1 is untagged.
+	m = press(t, m, "j")
+	m = press(t, m, "enter")
+	if !m.filter.Untagged {
+		t.Error("picking untagged should set the filter")
+	}
+	// Of the three uncategorized tasks, only first carries a tag.
+	if len(m.tasks) != 2 {
+		t.Errorf("untagged should leave second and third, got %d", len(m.tasks))
+	}
+	if !strings.Contains(m.View(), "untagged") {
+		t.Errorf("the header should name the filter:\n%s", m.View())
+	}
+}
+
+func TestTagPickerReplacesUntagged(t *testing.T) {
+	m, _ := newModel(t)
+	m = press(t, m, "T")
+	m = press(t, m, "j")
+	m = press(t, m, "enter") // untagged
+	m = press(t, m, "T")
+	m = press(t, m, "j")
+	m = press(t, m, "j")
+	m = press(t, m, "j")
+	m = press(t, m, "enter") // @urgent
+	if m.filter.Untagged {
+		t.Error("picking a tag should clear the untagged filter")
+	}
+	if len(m.tasks) != 1 || m.tasks[0].Title != "first" {
+		t.Errorf("picking @urgent should leave only first, got %d", len(m.tasks))
+	}
+	m = press(t, m, "T")
+	m = press(t, m, "enter") // All tags
+	if m.filter.Untagged || m.filter.Tags != nil {
+		t.Error("All tags should clear both tag filters")
+	}
+}
+
+// The header is where the current filter stops being invisible state, and a
+// tag filter used to leave no trace there at all.
+func TestHeaderNamesTheTagFilter(t *testing.T) {
+	m, _ := newModel(t)
+	m = press(t, m, "T")
+	m = press(t, m, "j")
+	m = press(t, m, "j")
+	m = press(t, m, "j")
+	m = press(t, m, "enter")
+	if !strings.Contains(m.header(), "@urgent") {
+		t.Errorf("the header should name the tag filter, got %q", m.header())
 	}
 }

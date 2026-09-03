@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -18,13 +19,16 @@ const (
 	pickTag
 )
 
-// pickerItem is one row of the menu. The entry with clear set means no filtering.
-// note is optional trailing detail, such as a project's open task count.
+// pickerItem is one row of the menu. The entry with clear set means no
+// filtering, and the one with none set means the absence of a value: no
+// project, no tags. note is optional trailing detail, such as a project's
+// open task count.
 type pickerItem struct {
 	label string
 	note  string
 	value string
 	clear bool
+	none  bool
 }
 
 type pickerState struct {
@@ -35,6 +39,12 @@ type pickerState struct {
 
 func projectItems(ps []store.ProjectCount) []pickerItem {
 	items := []pickerItem{{label: "All projects", clear: true}}
+	// Projects only reports paths some task already uses, but uncategorized is
+	// where the list starts and must stay reachable even when it is empty.
+	// The query orders by path, and the empty one sorts first.
+	if !slices.ContainsFunc(ps, func(p store.ProjectCount) bool { return p.Path == "" }) {
+		ps = append([]store.ProjectCount{{}}, ps...)
+	}
 	for _, p := range ps {
 		label := project.Label(p.Path)
 		if label == "" {
@@ -44,13 +54,19 @@ func projectItems(ps []store.ProjectCount) []pickerItem {
 			label: label,
 			note:  fmt.Sprintf("%d open", p.Open),
 			value: p.Path,
+			none:  p.Path == "",
 		})
 	}
 	return items
 }
 
 func tagItems(tags []string) []pickerItem {
-	items := []pickerItem{{label: "All tags", clear: true}}
+	// A tag can never name the tasks that have none, so untagged is its own
+	// entry rather than something the list of tags could contain.
+	items := []pickerItem{
+		{label: "All tags", clear: true},
+		{label: "(untagged)", none: true},
+	}
 	for _, t := range tags {
 		items = append(items, pickerItem{label: "@" + t, value: t})
 	}
@@ -86,10 +102,13 @@ func (m Model) updatePicker(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.filter.Project = &v
 			}
 		case pickTag:
-			if it.clear {
-				m.filter.Tags = nil
-			} else {
-				m.filter.Tags = []string{it.value}
+			switch {
+			case it.clear:
+				m.filter.Tags, m.filter.Untagged = nil, false
+			case it.none:
+				m.filter.Tags, m.filter.Untagged = nil, true
+			default:
+				m.filter.Tags, m.filter.Untagged = []string{it.value}, false
 			}
 		}
 		m.mode = modeList

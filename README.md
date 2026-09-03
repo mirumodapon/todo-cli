@@ -168,9 +168,14 @@ In the add and edit form, `tab` and `shift+tab` also move between fields,
 cancels. In the project and tag menus, `j` and `k` move, `enter` selects and
 `esc` closes.
 
+Both menus open with an entry that clears the filter, followed by the tasks
+that have no value at all — `(uncategorized)` and `(untagged)`. Neither can be
+named by a project path or a tag, and uncategorized is offered even when it is
+empty, since that is where the list starts.
+
 The header names what you are looking at (`uncategorized`, a project, or
-`all projects`), so the current filter is never invisible state. `P` lists each
-project with how much is open in it.
+`all projects`, plus any tag), so the current filter is never invisible state.
+`P` lists each project with how much is open in it.
 
 ## Data
 

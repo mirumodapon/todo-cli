@@ -141,6 +141,11 @@ func (m Model) header() string {
 		unit = "task"
 	}
 	h := fmt.Sprintf("todo — %d %s · %s", len(m.tasks), unit, m.scope())
+	if m.filter.Untagged {
+		h += "  untagged"
+	} else if len(m.filter.Tags) > 0 {
+		h += "  @" + strings.Join(m.filter.Tags, " @")
+	}
 	if m.filter.Search != "" {
 		h += "  search: " + m.filter.Search
 	}

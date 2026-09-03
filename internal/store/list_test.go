@@ -102,6 +102,18 @@ func TestListFilterByTagsIsAnd(t *testing.T) {
 	assertTitles(t, got, "undated one")
 }
 
+// Having no tags is a filter of its own: an untagged task cannot be reached
+// through any tag, so without this it is only findable by clearing filters.
+func TestListFilterUntagged(t *testing.T) {
+	s := newStore(t)
+	seed(t, s)
+	got, err := s.List(task.Filter{Untagged: true}, ref())
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertTitles(t, got, "overdue one", "next week one")
+}
+
 func TestListDueRanges(t *testing.T) {
 	s := newStore(t)
 	seed(t, s)

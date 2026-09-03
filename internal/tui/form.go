@@ -167,10 +167,8 @@ func (m Model) viewForm() string {
 		}
 		b.WriteString(marker + pad(fieldLabels[i], labelWidth) + in.View() + "\n")
 	}
-	b.WriteString("\n")
 	if m.form.errText != "" {
-		b.WriteString(styleErr.Render(m.form.errText) + "\n")
+		b.WriteString("\n" + styleErr.Render(m.form.errText) + "\n")
 	}
-	b.WriteString(styleHint.Render("tab/ctrl+n next field · ctrl+r fill current directory · enter save · esc cancel"))
-	return b.String()
+	return m.screen(b.String(), styleHint.Render("tab/ctrl+n next field · ctrl+r fill current directory · enter save · esc cancel"))
 }

@@ -42,10 +42,18 @@ type Model struct {
 	// undo keeps a single level: the last deleted item, discarded when the TUI exits.
 	undo *task.Task
 
+	// offset is the first task row on screen, so a long list can scroll under
+	// a header and hint that stay put.
+	offset int
+
 	status        string
 	err           error
 	width, height int
 }
+
+// listHeight is how many task rows fit: the frame less the header, the blank
+// line under it, and the blank line above the hint.
+func (m Model) listHeight() int { return max(1, m.height-4) }
 
 // defaultFilter is what the list starts on and what esc returns to:
 // uncategorized tasks only, matching what a plain "todo ls" prints.
@@ -89,7 +97,30 @@ func (m Model) current() (task.Task, bool) {
 	return m.tasks[m.cursor], true
 }
 
+// Update wraps update so that every path through it — a key, a reload, a
+// window resize — leaves the cursor on screen. Adjusting the scroll at each
+// site that moves the cursor would only be a rule waiting to be forgotten.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	next, cmd := m.update(msg)
+	m = next.(Model)
+	m.scrollIntoView()
+	return m, cmd
+}
+
+// scrollIntoView shifts the window by as little as it takes to show the cursor,
+// so rows stay where the eye left them.
+func (m *Model) scrollIntoView() {
+	h := m.listHeight()
+	if m.cursor < m.offset {
+		m.offset = m.cursor
+	}
+	if m.cursor >= m.offset+h {
+		m.offset = m.cursor - h + 1
+	}
+	m.offset = max(0, min(m.offset, len(m.tasks)-h))
+}
+
+func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
@@ -268,7 +299,7 @@ func (m Model) View() string {
 	case modeForm:
 		return m.viewForm()
 	case modeHelp:
-		return viewHelp()
+		return m.viewHelp()
 	}
 	return m.viewList()
 }

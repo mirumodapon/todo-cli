@@ -89,17 +89,37 @@ func (m Model) rowStyle(t task.Task) lipgloss.Style {
 	return lipgloss.NewStyle().Foreground(lipgloss.Color(urgency.Hex(level)))
 }
 
+// screen frames a page: the content at the top, the hint on the very last row,
+// and blank rows between them. The hint is a fixed landmark, so it must not
+// float up under a short list or drift down out of sight under a long one.
+func (m Model) screen(body, footer string) string {
+	// A hint wider than the terminal would wrap onto a second line and push
+	// itself off the bottom, so it is clipped rather than wrapped.
+	footer = lipgloss.NewStyle().MaxWidth(m.width).Render(footer)
+	rows := strings.Split(strings.TrimRight(body, "\n"), "\n")
+	if n := m.height - 1 - len(rows); n > 0 {
+		rows = append(rows, make([]string, n)...)
+	}
+	// Bodies that manage their own scrolling never reach this, but one that
+	// overflows is clipped so the frame still ends with the hint.
+	if len(rows) > m.height-1 {
+		rows = rows[:max(0, m.height-1)]
+	}
+	return strings.Join(rows, "\n") + "\n" + footer
+}
+
 func (m Model) viewList() string {
 	var b strings.Builder
 	b.WriteString(m.header() + "\n\n")
 	if len(m.tasks) == 0 {
 		b.WriteString(styleDim.Render("No matching tasks") + "\n")
 	}
-	for i, t := range m.tasks {
+	end := min(len(m.tasks), m.offset+m.listHeight())
+	for i := m.offset; i < end; i++ {
+		t := m.tasks[i]
 		b.WriteString(m.marker(i) + m.rowStyle(t).Render(m.taskLine(t)) + "\n")
 	}
-	b.WriteString("\n" + m.footer())
-	return b.String()
+	return m.screen(b.String(), m.footer())
 }
 
 // scope names what the list is currently showing, so the project filter is
@@ -143,7 +163,9 @@ func (m Model) footer() string {
 	if m.status != "" {
 		return m.status
 	}
-	return styleHint.Render("a add · e edit · space toggle · d delete · / search · P/T filter · D dates · ? help · q quit")
+	// Kept inside 80 columns: a hint that wraps breaks the frame. The rest of
+	// the bindings live one ? away.
+	return styleHint.Render("a add · e edit · space done · d delete · / search · P/T filter · ? help · q quit")
 }
 
 func itoa(n int64) string { return strconv.FormatInt(n, 10) }
@@ -168,7 +190,7 @@ var helpRows = [][2]string{
 	{"q", "Quit"},
 }
 
-func viewHelp() string {
+func (m Model) viewHelp() string {
 	var b strings.Builder
 	// As in the form, the key column is derived rather than hard-coded, so a
 	// longer binding cannot run into its description.
@@ -180,6 +202,5 @@ func viewHelp() string {
 	for _, r := range helpRows {
 		b.WriteString("  " + pad(r[0], w+2) + r[1] + "\n")
 	}
-	b.WriteString("\n" + styleHint.Render("Press any key to go back"))
-	return b.String()
+	return m.screen(b.String(), styleHint.Render("Press any key to go back"))
 }

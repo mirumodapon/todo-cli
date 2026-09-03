@@ -1,57 +1,57 @@
-# todo CLI + TUI 實作計畫
+# todo CLI + TUI implementation plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 建出一個純本機的待辦事項工具 `todo`，CLI 為主要介面、`todo tui` 進入 Bubble Tea 瀏覽模式，資料存於 `~/.todo/todo.db`。
+**Goal:** Build `todo`, a purely local task tool: the CLI is the main interface, `todo tui` enters a Bubble Tea browsing mode, and the data lives in `~/.todo/todo.db`.
 
-**Architecture:** 由外向內分層，內層零 IO。`argparse`、`task`、`datearg`、`project` 是純函式層；`store` 定義 `Store` 介面並以 SQLite 實作；`cli` 與 `tui` 只依賴 `Store` 介面，彼此不互相 import（`cli` 透過注入的 `RunTUI` 函式呼叫 TUI）；`cmd/todo` 負責組裝。
+**Architecture:** Layered from the outside in, with no IO in the inner layers. `argparse`, `task`, `datearg` and `project` are pure functions; `store` defines the `Store` interface and implements it over SQLite; `cli` and `tui` depend only on `Store` and never import each other (`cli` calls the TUI through an injected `RunTUI` function); `cmd/todo` does the wiring.
 
-**Tech Stack:** Go 1.26、Bubble Tea + Bubbles + Lip Gloss、`modernc.org/sqlite`（純 Go，免 cgo）、自寫參數解析。
+**Tech Stack:** Go 1.26, Bubble Tea + Bubbles + Lip Gloss, `modernc.org/sqlite` (pure Go, no cgo), hand-written argument parsing.
 
-設計文件：`docs/superpowers/specs/2026-08-29-todo-cli-tui-design.md`
+Design document: `docs/superpowers/specs/2026-08-29-todo-cli-tui-design.md`
 
 ## Global Constraints
 
-- Go 1.26；module path `todo.mirumo.net`；binary 名 `todo`
-- 依賴只允許這四個：`github.com/charmbracelet/bubbletea@v1`、`github.com/charmbracelet/bubbles@v0`、`github.com/charmbracelet/lipgloss@v1`、`modernc.org/sqlite@v1`。不得引入 Cobra、pflag，也不得使用標準庫 `flag`
-- 資料庫預設路徑 `~/.todo/todo.db`，目錄權限 0700；`--db <path>` flag 與 `TODO_DB` 環境變數可覆寫
-- **任何測試都不得讀寫 `~/.todo`**。需要真實檔案時用 `t.TempDir()`；store 測試用 `:memory:`
-- 使用者可見的訊息、錯誤、TUI 文案一律繁體中文
-- 每個 task 都是 TDD：先寫失敗的測試 → 確認失敗 → 最小實作 → 確認通過 → commit
-- commit 用 `git commit --no-gpg-sign`（此環境的 pinentry 無法在非 TTY 下啟動）
-- 時間格式：時間戳存 RFC3339，截止日存 `YYYY-MM-DD`
-- 空字串的 `project` 是合法的一等狀態，代表「全域未分類」，不是缺漏
+- Go 1.26; module path `todo.mirumo.net`; binary named `todo`
+- Only these four dependencies are allowed: `github.com/charmbracelet/bubbletea@v1`, `github.com/charmbracelet/bubbles@v0`, `github.com/charmbracelet/lipgloss@v1`, `modernc.org/sqlite@v1`. No Cobra, no pflag, and no stdlib `flag`
+- The database defaults to `~/.todo/todo.db` with the directory at mode 0700; the `--db <path>` flag and the `TODO_DB` environment variable override it
+- **No test may read or write `~/.todo`**. Use `t.TempDir()` when real files are needed; store tests use `:memory:`
+- Every user-facing message, error and piece of TUI text is in Traditional Chinese
+- Every task is TDD: write a failing test -> confirm it fails -> minimal implementation -> confirm it passes -> commit
+- Commit with `git commit --no-gpg-sign` (pinentry cannot start without a TTY in this environment)
+- Time formats: timestamps are stored as RFC3339, due dates as `YYYY-MM-DD`
+- An empty `project` is a legitimate first-class state meaning "uncategorized, global", not a missing value
 
 ---
 
 ## File Structure
 
-| 檔案 | 職責 |
+| File | Responsibility |
 |---|---|
 | `go.mod` | module `todo.mirumo.net` |
-| `internal/argparse/argparse.go` | GNU 風格參數解析，支援可選值 flag |
-| `internal/task/task.go` | `Task`、`Priority`、`Filter`、`SortBy`、驗證 |
-| `internal/datearg/datearg.go` | 日期字串解析與人類化顯示 |
-| `internal/project/project.go` | 由目錄推導專案路徑（往上找 `.git`） |
-| `internal/store/store.go` | `Store` 介面、`ProjectCount`、`ErrNotFound` |
-| `internal/store/sqlite.go` | SQLite 實作與 schema |
-| `internal/cli/app.go` | `App`、`Run` dispatch、`SplitGlobal`、usage |
-| `internal/cli/format.go` | 清單輸出排版與顏色 |
+| `internal/argparse/argparse.go` | GNU-style argument parsing, including optional-value flags |
+| `internal/task/task.go` | `Task`, `Priority`, `Filter`, `SortBy`, validation |
+| `internal/datearg/datearg.go` | Date parsing and human-readable display |
+| `internal/project/project.go` | Derives a project path from a directory (walking up for `.git`) |
+| `internal/store/store.go` | The `Store` interface, `ProjectCount`, `ErrNotFound` |
+| `internal/store/sqlite.go` | The SQLite implementation and its schema |
+| `internal/cli/app.go` | `App`, `Run` dispatch, `SplitGlobal`, usage |
+| `internal/cli/format.go` | List layout and colour |
 | `internal/cli/cmd_add.go` | `add` |
 | `internal/cli/cmd_ls.go` | `ls` |
 | `internal/cli/cmd_mark.go` | `done` / `undone` / `rm` |
 | `internal/cli/cmd_edit.go` | `edit` |
 | `internal/cli/cmd_meta.go` | `projects` / `tags` |
-| `internal/tui/tui.go` | 根 Model、Init/Update/View、`Run` |
-| `internal/tui/cmds.go` | `tea.Cmd` 與 msg 型別 |
-| `internal/tui/list.go` | 清單渲染 |
-| `internal/tui/picker.go` | 專案 / 標籤選單 |
-| `internal/tui/form.go` | 新增 / 編輯表單 |
-| `cmd/todo/main.go` | 組裝與離開碼 |
+| `internal/tui/tui.go` | The root Model, Init/Update/View, `Run` |
+| `internal/tui/cmds.go` | The `tea.Cmd`s and msg types |
+| `internal/tui/list.go` | List rendering |
+| `internal/tui/picker.go` | The project / tag menus |
+| `internal/tui/form.go` | The add / edit form |
+| `cmd/todo/main.go` | Wiring and the exit code |
 
 ---
 
-### Task 1: 專案骨架與參數解析
+### Task 1: Project skeleton and argument parsing
 
 **Files:**
 - Create: `go.mod`
@@ -59,19 +59,19 @@
 - Test: `internal/argparse/argparse_test.go`
 
 **Interfaces:**
-- Consumes: 無
-- Produces: `argparse.Kind`（`Bool` / `String` / `StringSlice` / `OptionalString`）、`argparse.Spec{Long, Short string; Kind Kind; Usage string}`、`argparse.New(...Spec) *Set`、`(*Set).Parse([]string) (*Result, error)`、`(*Result).Changed(long string) bool`、`.Bool(long string) bool`、`.String(long string) string`、`.Strings(long string) []string`、`.Optional(long string) (string, bool)`、`.Args() []string`、`(*Set).Usage() string`
+- Consumes: nothing
+- Produces: `argparse.Kind` (`Bool` / `String` / `StringSlice` / `OptionalString`), `argparse.Spec{Long, Short string; Kind Kind; Usage string}`, `argparse.New(...Spec) *Set`, `(*Set).Parse([]string) (*Result, error)`, `(*Result).Changed(long string) bool`, `.Bool(long string) bool`, `.String(long string) string`, `.Strings(long string) []string`, `.Optional(long string) (string, bool)`, `.Args() []string`, `(*Set).Usage() string`
 
-- [ ] **Step 1: 建立 module 骨架**
+- [ ] **Step 1: Create the module skeleton**
 
 ```bash
 go mod init todo.mirumo.net
 mkdir -p internal/argparse internal/task internal/datearg internal/project internal/store internal/cli internal/tui cmd/todo
 ```
 
-- [ ] **Step 2: 寫失敗的測試**
+- [ ] **Step 2: Write the failing test**
 
-建立 `internal/argparse/argparse_test.go`：
+Create `internal/argparse/argparse_test.go`:
 
 ```go
 package argparse
@@ -83,29 +83,29 @@ import (
 
 func specs() *Set {
 	return New(
-		Spec{Long: "all", Short: "a", Kind: Bool, Usage: "含已完成"},
-		Spec{Long: "due", Short: "d", Kind: String, Usage: "截止日"},
-		Spec{Long: "tag", Short: "t", Kind: StringSlice, Usage: "標籤，可重複"},
-		Spec{Long: "project", Short: "p", Kind: OptionalString, Usage: "專案"},
+		Spec{Long: "all", Short: "a", Kind: Bool, Usage: "including done"},
+		Spec{Long: "due", Short: "d", Kind: String, Usage: "Due date"},
+		Spec{Long: "tag", Short: "t", Kind: StringSlice, Usage: "Tag; repeatable"},
+		Spec{Long: "project", Short: "p", Kind: OptionalString, Usage: "Project"},
 	)
 }
 
 func TestParseLongAndShortForms(t *testing.T) {
-	r, err := specs().Parse([]string{"買牛奶", "--due", "2026-09-01", "-a", "-t", "購物", "--tag=家務"})
+	r, err := specs().Parse([]string{"buy milk", "--due", "2026-09-01", "-a", "-t", "shopping", "--tag=chores"})
 	if err != nil {
-		t.Fatalf("非預期錯誤：%v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
-	if got := r.Args(); len(got) != 1 || got[0] != "買牛奶" {
-		t.Errorf("位置參數 = %v，預期 [買牛奶]", got)
+	if got := r.Args(); len(got) != 1 || got[0] != "buy milk" {
+		t.Errorf("positional args = %v, want [buy milk]", got)
 	}
 	if !r.Bool("all") {
-		t.Error("--all 應為 true")
+		t.Error("--all should be true")
 	}
 	if got := r.String("due"); got != "2026-09-01" {
-		t.Errorf("due = %q，預期 2026-09-01", got)
+		t.Errorf("due = %q, want 2026-09-01", got)
 	}
-	if got := r.Strings("tag"); len(got) != 2 || got[0] != "購物" || got[1] != "家務" {
-		t.Errorf("tag = %v，預期 [購物 家務]", got)
+	if got := r.Strings("tag"); len(got) != 2 || got[0] != "shopping" || got[1] != "chores" {
+		t.Errorf("tag = %v, want [shopping chores]", got)
 	}
 }
 
@@ -117,25 +117,25 @@ func TestOptionalStringThreeStates(t *testing.T) {
 		hasValue bool
 		value    string
 	}{
-		{"沒給", []string{"x"}, false, false, ""},
-		{"給了但無值", []string{"x", "-p"}, true, false, ""},
-		{"無值且後面接別的 flag", []string{"x", "-p", "-a"}, true, false, ""},
-		{"空格式給值", []string{"x", "-p", "work"}, true, true, "work"},
-		{"等號式給值", []string{"x", "--project=work"}, true, true, "work"},
-		{"等號式給空值", []string{"x", "-p="}, true, true, ""},
+		{"absent", []string{"x"}, false, false, ""},
+		{"given without a value", []string{"x", "-p"}, true, false, ""},
+		{"no value, another flag next", []string{"x", "-p", "-a"}, true, false, ""},
+		{"value after a space", []string{"x", "-p", "work"}, true, true, "work"},
+		{"value after an equals sign", []string{"x", "--project=work"}, true, true, "work"},
+		{"empty value after an equals sign", []string{"x", "-p="}, true, true, ""},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			r, err := specs().Parse(c.args)
 			if err != nil {
-				t.Fatalf("非預期錯誤：%v", err)
+				t.Fatalf("unexpected error: %v", err)
 			}
 			if r.Changed("project") != c.changed {
-				t.Errorf("Changed = %v，預期 %v", r.Changed("project"), c.changed)
+				t.Errorf("Changed = %v, want %v", r.Changed("project"), c.changed)
 			}
 			v, has := r.Optional("project")
 			if has != c.hasValue || v != c.value {
-				t.Errorf("Optional = (%q, %v)，預期 (%q, %v)", v, has, c.value, c.hasValue)
+				t.Errorf("Optional = (%q, %v), want (%q, %v)", v, has, c.value, c.hasValue)
 			}
 		})
 	}
@@ -144,23 +144,23 @@ func TestOptionalStringThreeStates(t *testing.T) {
 func TestStringFlagAcceptsEmptyValue(t *testing.T) {
 	r, err := specs().Parse([]string{"--due", ""})
 	if err != nil {
-		t.Fatalf("非預期錯誤：%v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 	if !r.Changed("due") || r.String("due") != "" {
-		t.Error("--due \"\" 應視為「有給且值為空」")
+		t.Error("--due \"\" should count as given with an empty value")
 	}
 }
 
 func TestDoubleDashEndsFlags(t *testing.T) {
 	r, err := specs().Parse([]string{"--", "-a", "--due"})
 	if err != nil {
-		t.Fatalf("非預期錯誤：%v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 	if got := r.Args(); len(got) != 2 || got[0] != "-a" || got[1] != "--due" {
-		t.Errorf("位置參數 = %v，預期 [-a --due]", got)
+		t.Errorf("positional args = %v, want [-a --due]", got)
 	}
 	if r.Bool("all") {
-		t.Error("-- 之後不應再解析 flag")
+		t.Error("nothing after -- should be parsed as a flag")
 	}
 }
 
@@ -170,16 +170,16 @@ func TestErrors(t *testing.T) {
 		args []string
 		want string
 	}{
-		{"未知長 flag", []string{"--nope"}, "未知的 flag：--nope"},
-		{"未知短 flag", []string{"-z"}, "未知的 flag：-z"},
-		{"字串 flag 缺值", []string{"--due"}, "flag --due 需要一個值"},
-		{"布林 flag 不接受值", []string{"--all=1"}, "flag --all 不接受值"},
+		{"unknown long flag", []string{"--nope"}, "unknown flag --nope"},
+		{"unknown short flag", []string{"-z"}, "unknown flag -z"},
+		{"string flag with no value", []string{"--due"}, "flag --due needs a value"},
+		{"bool flag given a value", []string{"--all=1"}, "flag --all takes no value"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			_, err := specs().Parse(c.args)
 			if err == nil || !strings.Contains(err.Error(), c.want) {
-				t.Errorf("err = %v，預期含 %q", err, c.want)
+				t.Errorf("err = %v, want it to contain %q", err, c.want)
 			}
 		})
 	}
@@ -187,28 +187,28 @@ func TestErrors(t *testing.T) {
 
 func TestUsageListsFlags(t *testing.T) {
 	u := specs().Usage()
-	for _, want := range []string{"-a, --all", "-d, --due", "含已完成"} {
+	for _, want := range []string{"-a, --all", "-d, --due", "including done"} {
 		if !strings.Contains(u, want) {
-			t.Errorf("Usage 缺少 %q，實際：\n%s", want, u)
+			t.Errorf("Usage is missing %q, got:\n%s", want, u)
 		}
 	}
 }
 ```
 
-- [ ] **Step 3: 執行測試確認失敗**
+- [ ] **Step 3: Run the test and confirm it fails**
 
 Run: `go test ./internal/argparse/`
-Expected: FAIL，編譯錯誤 `undefined: New`
+Expected: FAIL, a compile error `undefined: New`
 
-- [ ] **Step 4: 實作**
+- [ ] **Step 4: Implement**
 
-建立 `internal/argparse/argparse.go`：
+Create `internal/argparse/argparse.go`:
 
 ```go
-// Package argparse 提供 GNU 風格的命令列參數解析。
+// Package argparse provides GNU-style command line argument parsing.
 //
-// 不使用 pflag 或標準庫 flag 的原因：本工具的 -p/--project 需要「可選值」——
-// 不給值代表當前目錄，給值代表指定專案名。兩個現成庫都不支援這種 flag。
+// Neither pflag nor the stdlib flag is used: -p/--project needs an optional value —
+// no value means the current directory, a value names a project. Neither library has it.
 package argparse
 
 import (
@@ -216,21 +216,21 @@ import (
 	"strings"
 )
 
-// Kind 決定一個 flag 如何吃掉後續的 token。
+// Kind decides how a flag consumes the tokens after it.
 type Kind int
 
 const (
-	// Bool 永不吃下一個 token。
+	// Bool never consumes the next token.
 	Bool Kind = iota
-	// String 必須有值，缺值視為錯誤。
+	// String requires a value; a missing one is an error.
 	String
-	// StringSlice 同 String，但可重複出現、累積成清單。
+	// StringSlice is String, but may repeat and accumulates a list.
 	StringSlice
-	// OptionalString 的下一個 token 若存在且不以 "-" 開頭就吃掉，否則視為「有給但無值」。
+	// OptionalString consumes the next token if it exists and does not start with "-", otherwise it counts as given without a value.
 	OptionalString
 )
 
-// Spec 描述一個 flag。Short 不含前導的 "-"，可為空字串。
+// Spec describes one flag. Short carries no leading "-" and may be empty.
 type Spec struct {
 	Long  string
 	Short string
@@ -238,10 +238,10 @@ type Spec struct {
 	Usage string
 }
 
-// Set 是一個子指令的 flag 定義集合。
+// Set is one subcommand's flag definitions.
 type Set struct{ specs []Spec }
 
-// New 建立 Set。
+// New builds a Set.
 func New(specs ...Spec) *Set { return &Set{specs: specs} }
 
 type value struct {
@@ -251,22 +251,22 @@ type value struct {
 	strs     []string
 }
 
-// Result 是一次解析的結果。
+// Result is the outcome of one parse.
 type Result struct {
 	vals map[string]*value
 	args []string
 }
 
-// Changed 回報該 flag 有沒有出現在命令列上。
+// Changed reports whether the flag appeared on the command line.
 func (r *Result) Changed(long string) bool {
 	v, ok := r.vals[long]
 	return ok && v.set
 }
 
-// Bool 回傳布林 flag 是否出現。
+// Bool reports whether a bool flag was given.
 func (r *Result) Bool(long string) bool { return r.Changed(long) }
 
-// String 回傳字串 flag 的值；沒給時為空字串（用 Changed 區分）。
+// String returns a string flag's value, empty when it was not given (Changed tells the two apart).
 func (r *Result) String(long string) string {
 	if v, ok := r.vals[long]; ok {
 		return v.str
@@ -274,7 +274,7 @@ func (r *Result) String(long string) string {
 	return ""
 }
 
-// Strings 回傳可重複 flag 累積的值。
+// Strings returns the values a repeatable flag accumulated.
 func (r *Result) Strings(long string) []string {
 	if v, ok := r.vals[long]; ok {
 		return v.strs
@@ -282,8 +282,8 @@ func (r *Result) Strings(long string) []string {
 	return nil
 }
 
-// Optional 回傳可選值 flag 的值與「有沒有帶值」。
-// 三態判讀：Changed 為 false 是沒給；Changed 為 true 但 hasValue 為 false 是給了但無值。
+// Optional returns an optional-value flag's value and whether it carried one.
+// The three states: Changed false is absent; Changed true with hasValue false is given without a value.
 func (r *Result) Optional(long string) (string, bool) {
 	v, ok := r.vals[long]
 	if !ok || !v.set {
@@ -292,10 +292,10 @@ func (r *Result) Optional(long string) (string, bool) {
 	return v.str, v.hasValue
 }
 
-// Args 回傳位置參數。
+// Args returns the positional arguments.
 func (r *Result) Args() []string { return r.args }
 
-// Usage 產生 flag 說明文字。
+// Usage renders the flag help text.
 func (s *Set) Usage() string {
 	var b strings.Builder
 	for _, sp := range s.specs {
@@ -327,7 +327,7 @@ func cut(s string) (name, val string, has bool) {
 	return s, "", false
 }
 
-// Parse 解析 args（不含程式名與子指令名）。
+// Parse parses args (without the program name or the subcommand name).
 func (s *Set) Parse(args []string) (*Result, error) {
 	r := &Result{vals: map[string]*value{}}
 	for _, sp := range s.specs {
@@ -343,7 +343,7 @@ func (s *Set) Parse(args []string) (*Result, error) {
 			name, inline, hasInline := cut(a[2:])
 			sp, ok := s.find(name, true)
 			if !ok {
-				return nil, fmt.Errorf("未知的 flag：--%s", name)
+				return nil, fmt.Errorf("unknown flag --%s", name)
 			}
 			used, err := s.assign(r, sp, inline, hasInline, args, i)
 			if err != nil {
@@ -354,7 +354,7 @@ func (s *Set) Parse(args []string) (*Result, error) {
 			name, inline, hasInline := cut(a[1:])
 			sp, ok := s.find(name, false)
 			if !ok {
-				return nil, fmt.Errorf("未知的 flag：-%s", name)
+				return nil, fmt.Errorf("unknown flag -%s", name)
 			}
 			used, err := s.assign(r, sp, inline, hasInline, args, i)
 			if err != nil {
@@ -369,21 +369,21 @@ func (s *Set) Parse(args []string) (*Result, error) {
 	return r, nil
 }
 
-// assign 套用一個 flag，回傳吃掉幾個 token。
+// assign applies one flag and reports how many tokens it consumed.
 func (s *Set) assign(r *Result, sp Spec, inline string, hasInline bool, args []string, i int) (int, error) {
 	v := r.vals[sp.Long]
 	v.set = true
 	switch sp.Kind {
 	case Bool:
 		if hasInline {
-			return 0, fmt.Errorf("flag --%s 不接受值", sp.Long)
+			return 0, fmt.Errorf("flag --%s takes no value", sp.Long)
 		}
 		return 1, nil
 	case String, StringSlice:
 		val, used := inline, 1
 		if !hasInline {
 			if i+1 >= len(args) {
-				return 0, fmt.Errorf("flag --%s 需要一個值", sp.Long)
+				return 0, fmt.Errorf("flag --%s needs a value", sp.Long)
 			}
 			val, used = args[i+1], 2
 		}
@@ -408,33 +408,33 @@ func (s *Set) assign(r *Result, sp Spec, inline string, hasInline bool, args []s
 }
 ```
 
-- [ ] **Step 5: 執行測試確認通過**
+- [ ] **Step 5: Run the test and confirm it passes**
 
 Run: `go test ./internal/argparse/ -v`
-Expected: PASS，全部 case 綠燈
+Expected: PASS, every case green
 
 - [ ] **Step 6: Commit**
 
 ```bash
 git add go.mod internal/argparse/
-git commit --no-gpg-sign -m "feat(argparse): GNU 風格參數解析，支援可選值 flag"
+git commit --no-gpg-sign -m "feat(argparse): GNU-style argument parsing with optional-value flags"
 ```
 
 ---
 
-### Task 2: 領域型別
+### Task 2: Domain types
 
 **Files:**
 - Create: `internal/task/task.go`
 - Test: `internal/task/task_test.go`
 
 **Interfaces:**
-- Consumes: 無
-- Produces: `task.Priority`（`PriNone`/`PriLow`/`PriMed`/`PriHigh`）、`task.ParsePriority(string) (Priority, error)`、`(Priority).String() string`、`(Priority).Label() string`、`task.Task{ID int64; Title, Project string; Due *time.Time; Priority Priority; DoneAt *time.Time; Tags []string; CreatedAt, UpdatedAt time.Time}`、`(Task).Done() bool`、`task.ValidateTitle(string) (string, error)`、`task.SortBy`（`SortDue`/`SortPriority`/`SortCreated`）、`task.ParseSortBy(string) (SortBy, error)`、`task.DueRange`（`DueAny`/`DueToday`/`DueWeek`/`DueOverdue`/`DueOn`）、`task.Filter`、`task.NormalizeTags([]string) []string`
+- Consumes: nothing
+- Produces: `task.Priority` (`PriNone`/`PriLow`/`PriMed`/`PriHigh`), `task.ParsePriority(string) (Priority, error)`, `(Priority).String() string`, `(Priority).Label() string`, `task.Task{ID int64; Title, Project string; Due *time.Time; Priority Priority; DoneAt *time.Time; Tags []string; CreatedAt, UpdatedAt time.Time}`, `(Task).Done() bool`, `task.ValidateTitle(string) (string, error)`, `task.SortBy` (`SortDue`/`SortPriority`/`SortCreated`), `task.ParseSortBy(string) (SortBy, error)`, `task.DueRange` (`DueAny`/`DueToday`/`DueWeek`/`DueOverdue`/`DueOn`), `task.Filter`, `task.NormalizeTags([]string) []string`
 
-- [ ] **Step 1: 寫失敗的測試**
+- [ ] **Step 1: Write the failing test**
 
-建立 `internal/task/task_test.go`：
+Create `internal/task/task_test.go`:
 
 ```go
 package task
@@ -460,48 +460,48 @@ func TestParsePriority(t *testing.T) {
 	for _, c := range cases {
 		got, err := ParsePriority(c.in)
 		if (err != nil) != c.wantErr {
-			t.Errorf("ParsePriority(%q) err = %v，預期錯誤 = %v", c.in, err, c.wantErr)
+			t.Errorf("ParsePriority(%q) err = %v, want an error = %v", c.in, err, c.wantErr)
 			continue
 		}
 		if err == nil && got != c.want {
-			t.Errorf("ParsePriority(%q) = %v，預期 %v", c.in, got, c.want)
+			t.Errorf("ParsePriority(%q) = %v, want %v", c.in, got, c.want)
 		}
 	}
 }
 
 func TestPriorityOrderingIsAscending(t *testing.T) {
 	if !(PriNone < PriLow && PriLow < PriMed && PriMed < PriHigh) {
-		t.Error("Priority 必須由低到高遞增，SQL 才能用 ORDER BY priority DESC")
+		t.Error("Priority must increase from low to high, so SQL can ORDER BY priority DESC")
 	}
 }
 
 func TestValidateTitle(t *testing.T) {
-	got, err := ValidateTitle("  買牛奶  ")
+	got, err := ValidateTitle("  buy milk  ")
 	if err != nil {
-		t.Fatalf("非預期錯誤：%v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
-	if got != "買牛奶" {
-		t.Errorf("= %q，預期去掉頭尾空白的 買牛奶", got)
+	if got != "buy milk" {
+		t.Errorf("= %q, want buy milk with the surrounding spaces trimmed", got)
 	}
 	if _, err := ValidateTitle("   "); err == nil {
-		t.Error("全空白的標題應該報錯")
+		t.Error("a title of nothing but spaces should be an error")
 	}
 }
 
 func TestDone(t *testing.T) {
 	if (Task{}).Done() {
-		t.Error("DoneAt 為 nil 時 Done() 應為 false")
+		t.Error("Done() should be false while DoneAt is nil")
 	}
 	now := time.Now()
 	if !(Task{DoneAt: &now}).Done() {
-		t.Error("DoneAt 非 nil 時 Done() 應為 true")
+		t.Error("Done() should be true once DoneAt is set")
 	}
 }
 
 func TestNormalizeTags(t *testing.T) {
-	got := NormalizeTags([]string{" 購物 ", "家務", "購物", ""})
-	if len(got) != 2 || got[0] != "購物" || got[1] != "家務" {
-		t.Errorf("= %v，預期 [購物 家務]：去空白、去重、去空字串、保留出現順序", got)
+	got := NormalizeTags([]string{" shopping ", "chores", "shopping", ""})
+	if len(got) != 2 || got[0] != "shopping" || got[1] != "chores" {
+		t.Errorf("= %v, want [shopping chores]: trimmed, deduplicated, empties dropped, first-seen order kept", got)
 	}
 }
 
@@ -513,22 +513,22 @@ func TestParseSortBy(t *testing.T) {
 		}
 	}
 	if _, err := ParseSortBy("title"); err == nil {
-		t.Error("未知的排序欄位應該報錯")
+		t.Error("an unknown sort field should be an error")
 	}
 }
 ```
 
-- [ ] **Step 2: 執行測試確認失敗**
+- [ ] **Step 2: Run the test and confirm it fails**
 
 Run: `go test ./internal/task/`
-Expected: FAIL，`undefined: ParsePriority`
+Expected: FAIL, `undefined: ParsePriority`
 
-- [ ] **Step 3: 實作**
+- [ ] **Step 3: Implement**
 
-建立 `internal/task/task.go`：
+Create `internal/task/task.go`:
 
 ```go
-// Package task 定義待辦事項的領域型別。此套件不做任何 IO。
+// Package task defines the domain types of a task. It does no IO.
 package task
 
 import (
@@ -538,7 +538,7 @@ import (
 	"time"
 )
 
-// Priority 是優先度。數值由低到高遞增，SQL 可直接 ORDER BY。
+// Priority is how urgent a task is. The values increase from low to high, so SQL can ORDER BY them directly.
 type Priority int
 
 const (
@@ -548,7 +548,7 @@ const (
 	PriHigh
 )
 
-// ParsePriority 解析使用者輸入。空字串代表未設定。
+// ParsePriority parses what the user typed. An empty string means unset.
 func ParsePriority(s string) (Priority, error) {
 	switch strings.ToLower(strings.TrimSpace(s)) {
 	case "":
@@ -560,10 +560,10 @@ func ParsePriority(s string) (Priority, error) {
 	case "high":
 		return PriHigh, nil
 	}
-	return PriNone, fmt.Errorf("看不懂的優先度：%q（可用 low、med、high）", s)
+	return PriNone, fmt.Errorf("unrecognised priority %q (use low, med or high)", s)
 }
 
-// String 回傳 CLI 用的英文代號。
+// String returns the code the CLI uses.
 func (p Priority) String() string {
 	switch p {
 	case PriLow:
@@ -576,20 +576,20 @@ func (p Priority) String() string {
 	return ""
 }
 
-// Label 回傳顯示用的中文標記。
+// Label returns the label shown to the reader.
 func (p Priority) Label() string {
 	switch p {
 	case PriLow:
-		return "低"
+		return "Low"
 	case PriMed:
-		return "中"
+		return "Med"
 	case PriHigh:
-		return "高"
+		return "High"
 	}
 	return ""
 }
 
-// Task 是一條待辦事項。Project 為空字串代表全域未分類。
+// Task is one task. An empty Project means globally uncategorized.
 type Task struct {
 	ID        int64
 	Title     string
@@ -602,19 +602,19 @@ type Task struct {
 	UpdatedAt time.Time
 }
 
-// Done 回報是否已完成。
+// Done reports whether the task is finished.
 func (t Task) Done() bool { return t.DoneAt != nil }
 
-// ValidateTitle 去掉頭尾空白並確認非空。
+// ValidateTitle trims the surrounding spaces and rejects what is left empty.
 func ValidateTitle(s string) (string, error) {
 	s = strings.TrimSpace(s)
 	if s == "" {
-		return "", errors.New("標題不能是空的")
+		return "", errors.New("a title cannot be empty")
 	}
 	return s, nil
 }
 
-// NormalizeTags 去空白、去空字串、去重，並保留首次出現的順序。
+// NormalizeTags trims, drops empties and duplicates, and keeps first-seen order.
 func NormalizeTags(tags []string) []string {
 	seen := map[string]bool{}
 	out := make([]string, 0, len(tags))
@@ -629,7 +629,7 @@ func NormalizeTags(tags []string) []string {
 	return out
 }
 
-// SortBy 是清單排序方式。
+// SortBy is how a list is ordered.
 type SortBy int
 
 const (
@@ -638,7 +638,7 @@ const (
 	SortCreated
 )
 
-// ParseSortBy 解析 -s 的值。
+// ParseSortBy parses the value of -s.
 func ParseSortBy(s string) (SortBy, error) {
 	switch strings.ToLower(strings.TrimSpace(s)) {
 	case "", "due":
@@ -648,10 +648,10 @@ func ParseSortBy(s string) (SortBy, error) {
 	case "created":
 		return SortCreated, nil
 	}
-	return SortDue, fmt.Errorf("看不懂的排序：%q（可用 due、pri、created）", s)
+	return SortDue, fmt.Errorf("unrecognised sort %q (use due, pri or created)", s)
 }
 
-// DueRange 是截止日的過濾範圍。
+// DueRange is the due-date range a query narrows to.
 type DueRange int
 
 const (
@@ -662,8 +662,8 @@ const (
 	DueOn
 )
 
-// Filter 描述一次查詢。Project 為 nil 代表不依專案過濾；
-// 指向空字串則代表「只看全域未分類」。
+// Filter describes one query. A nil Project means no project filter;
+// a pointer to an empty string means only the globally uncategorized ones.
 type Filter struct {
 	Project     *string
 	Tags        []string
@@ -677,7 +677,7 @@ type Filter struct {
 }
 ```
 
-- [ ] **Step 4: 執行測試確認通過**
+- [ ] **Step 4: Run the test and confirm it passes**
 
 Run: `go test ./internal/task/ -v`
 Expected: PASS
@@ -686,24 +686,24 @@ Expected: PASS
 
 ```bash
 git add internal/task/
-git commit --no-gpg-sign -m "feat(task): 待辦事項領域型別與驗證"
+git commit --no-gpg-sign -m "feat(task): task domain types and validation"
 ```
 
 ---
 
-### Task 3: 日期解析與顯示
+### Task 3: Date parsing and display
 
 **Files:**
 - Create: `internal/datearg/datearg.go`
 - Test: `internal/datearg/datearg_test.go`
 
 **Interfaces:**
-- Consumes: 無
-- Produces: `datearg.Parse(s string, now time.Time) (time.Time, error)`、`datearg.Format(due, now time.Time) string`、`datearg.Day(t time.Time) time.Time`
+- Consumes: nothing
+- Produces: `datearg.Parse(s string, now time.Time) (time.Time, error)`, `datearg.Format(due, now time.Time) string`, `datearg.Day(t time.Time) time.Time`
 
-- [ ] **Step 1: 寫失敗的測試**
+- [ ] **Step 1: Write the failing test**
 
-建立 `internal/datearg/datearg_test.go`：
+Create `internal/datearg/datearg_test.go`:
 
 ```go
 package datearg
@@ -713,7 +713,7 @@ import (
 	"time"
 )
 
-// 2026-08-29 是星期六。
+// 2026-08-29 is a Saturday.
 func ref() time.Time {
 	return time.Date(2026, 8, 29, 15, 4, 5, 0, time.Local)
 }
@@ -726,8 +726,8 @@ func TestParse(t *testing.T) {
 		{"today", "2026-08-29"},
 		{"tomorrow", "2026-08-30"},
 		{"yesterday", "2026-08-28"},
-		{"sat", "2026-08-29"},  // 當天就是週六，指向今天
-		{"mon", "2026-08-31"},  // 未來七天內第一個週一
+		{"sat", "2026-08-29"},  // today is Saturday, so it means today
+		{"mon", "2026-08-31"},  // the first Monday within the next seven days
 		{"+3d", "2026-09-01"},
 		{"+2w", "2026-09-12"},
 		{"2026-12-25", "2026-12-25"},
@@ -736,11 +736,11 @@ func TestParse(t *testing.T) {
 	for _, c := range cases {
 		got, err := Parse(c.in, ref())
 		if err != nil {
-			t.Errorf("Parse(%q) 非預期錯誤：%v", c.in, err)
+			t.Errorf("Parse(%q) unexpected error: %v", c.in, err)
 			continue
 		}
 		if got.Format("2006-01-02") != c.want {
-			t.Errorf("Parse(%q) = %s，預期 %s", c.in, got.Format("2006-01-02"), c.want)
+			t.Errorf("Parse(%q) = %s, want %s", c.in, got.Format("2006-01-02"), c.want)
 		}
 	}
 }
@@ -751,14 +751,14 @@ func TestParseReturnsMidnight(t *testing.T) {
 		t.Fatal(err)
 	}
 	if got.Hour() != 0 || got.Minute() != 0 || got.Second() != 0 {
-		t.Errorf("= %v，預期當日零時", got)
+		t.Errorf("= %v, want midnight that day", got)
 	}
 }
 
 func TestParseRejectsGarbage(t *testing.T) {
 	for _, in := range []string{"someday", "2026-13-45", "+3x", "", "+d"} {
 		if _, err := Parse(in, ref()); err == nil {
-			t.Errorf("Parse(%q) 應該報錯", in)
+			t.Errorf("Parse(%q) should be an error", in)
 		}
 	}
 }
@@ -768,12 +768,12 @@ func TestFormat(t *testing.T) {
 		due  string
 		want string
 	}{
-		{"2026-08-27", "逾期 2 天"},
-		{"2026-08-28", "逾期 1 天"},
-		{"2026-08-29", "今天"},
-		{"2026-08-30", "明天"},
-		{"2026-08-31", "週一"},
-		{"2026-09-04", "週五"},
+		{"2026-08-27", "2d overdue"},
+		{"2026-08-28", "1d overdue"},
+		{"2026-08-29", "today"},
+		{"2026-08-30", "tomorrow"},
+		{"2026-08-31", "Mon"},
+		{"2026-09-04", "Fri"},
 		{"2026-09-05", "09-05"},
 		{"2027-01-02", "2027-01-02"},
 	}
@@ -783,23 +783,23 @@ func TestFormat(t *testing.T) {
 			t.Fatal(err)
 		}
 		if got := Format(due, ref()); got != c.want {
-			t.Errorf("Format(%s) = %q，預期 %q", c.due, got, c.want)
+			t.Errorf("Format(%s) = %q, want %q", c.due, got, c.want)
 		}
 	}
 }
 ```
 
-- [ ] **Step 2: 執行測試確認失敗**
+- [ ] **Step 2: Run the test and confirm it fails**
 
 Run: `go test ./internal/datearg/`
-Expected: FAIL，`undefined: Parse`
+Expected: FAIL, `undefined: Parse`
 
-- [ ] **Step 3: 實作**
+- [ ] **Step 3: Implement**
 
-建立 `internal/datearg/datearg.go`：
+Create `internal/datearg/datearg.go`:
 
 ```go
-// Package datearg 負責截止日的輸入解析與人類化顯示。
+// Package datearg parses due dates and renders them for people to read.
 package datearg
 
 import (
@@ -810,7 +810,7 @@ import (
 	"time"
 )
 
-// Day 把時間截成當地時區的當日零時。
+// Day truncates a time to midnight that day in the local zone.
 func Day(t time.Time) time.Time {
 	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
 }
@@ -821,10 +821,10 @@ var weekdays = map[string]time.Weekday{
 	"fri": time.Friday, "sat": time.Saturday,
 }
 
-var zhWeekday = [7]string{"週日", "週一", "週二", "週三", "週四", "週五", "週六"}
+var weekdayName = [7]string{"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"}
 
-// Parse 解析使用者輸入的截止日，回傳當地時區的當日零時。
-// 接受 today / tomorrow / yesterday、星期簡稱、+3d、+2w、YYYY-MM-DD。
+// Parse parses a due date the user typed and returns midnight that day, local time.
+// It accepts today / tomorrow / yesterday, weekday abbreviations, +3d, +2w and YYYY-MM-DD.
 func Parse(s string, now time.Time) (time.Time, error) {
 	s = strings.ToLower(strings.TrimSpace(s))
 	base := Day(now)
@@ -837,7 +837,7 @@ func Parse(s string, now time.Time) (time.Time, error) {
 		return base.AddDate(0, 0, -1), nil
 	}
 	if wd, ok := weekdays[s]; ok {
-		// 未來七天內（含今天）第一個符合的日子。
+		// The first matching day within the next seven, today included.
 		for i := 0; i < 7; i++ {
 			if d := base.AddDate(0, 0, i); d.Weekday() == wd {
 				return d, nil
@@ -858,22 +858,22 @@ func Parse(s string, now time.Time) (time.Time, error) {
 	if t, err := time.ParseInLocation("2006-01-02", s, now.Location()); err == nil {
 		return t, nil
 	}
-	return time.Time{}, fmt.Errorf("看不懂的日期：%q（可用 today、tomorrow、fri、+3d、2026-09-01）", s)
+	return time.Time{}, fmt.Errorf("unrecognised date %q (try today, tomorrow, fri, +3d, 2026-09-01)", s)
 }
 
-// Format 產生顯示用字串：逾期 N 天 / 今天 / 明天 / 週五 / 09-05 / 2027-01-02。
+// Format renders a due date: Nd overdue / today / tomorrow / Fri / 09-05 / 2027-01-02.
 func Format(due, now time.Time) string {
 	d, base := Day(due), Day(now)
 	diff := int(math.Round(d.Sub(base).Hours() / 24))
 	switch {
 	case diff < 0:
-		return fmt.Sprintf("逾期 %d 天", -diff)
+		return fmt.Sprintf("%dd overdue", -diff)
 	case diff == 0:
-		return "今天"
+		return "today"
 	case diff == 1:
-		return "明天"
+		return "tomorrow"
 	case diff < 7:
-		return zhWeekday[int(d.Weekday())]
+		return weekdayName[int(d.Weekday())]
 	case d.Year() == base.Year():
 		return d.Format("01-02")
 	default:
@@ -882,7 +882,7 @@ func Format(due, now time.Time) string {
 }
 ```
 
-- [ ] **Step 4: 執行測試確認通過**
+- [ ] **Step 4: Run the test and confirm it passes**
 
 Run: `go test ./internal/datearg/ -v`
 Expected: PASS
@@ -891,24 +891,24 @@ Expected: PASS
 
 ```bash
 git add internal/datearg/
-git commit --no-gpg-sign -m "feat(datearg): 截止日解析與人類化顯示"
+git commit --no-gpg-sign -m "feat(datearg): due date parsing and human-readable display"
 ```
 
 ---
 
-### Task 4: 專案路徑推導
+### Task 4: Deriving the project path
 
 **Files:**
 - Create: `internal/project/project.go`
 - Test: `internal/project/project_test.go`
 
 **Interfaces:**
-- Consumes: 無
-- Produces: `project.Current(dir string) (string, error)`、`project.Label(path string) string`
+- Consumes: nothing
+- Produces: `project.Current(dir string) (string, error)`, `project.Label(path string) string`
 
-- [ ] **Step 1: 寫失敗的測試**
+- [ ] **Step 1: Write the failing test**
 
-建立 `internal/project/project_test.go`：
+Create `internal/project/project_test.go`:
 
 ```go
 package project
@@ -935,7 +935,7 @@ func TestCurrentFindsGitRoot(t *testing.T) {
 	want, _ := filepath.EvalSymlinks(root)
 	gotResolved, _ := filepath.EvalSymlinks(got)
 	if gotResolved != want {
-		t.Errorf("= %q，預期 repo 根 %q", gotResolved, want)
+		t.Errorf("= %q, want the repository root %q", gotResolved, want)
 	}
 }
 
@@ -946,17 +946,17 @@ func TestCurrentFallsBackToDir(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !filepath.IsAbs(got) {
-		t.Errorf("= %q，預期絕對路徑", got)
+		t.Errorf("= %q, want an absolute path", got)
 	}
 	gotResolved, _ := filepath.EvalSymlinks(got)
 	want, _ := filepath.EvalSymlinks(dir)
 	if gotResolved != want {
-		t.Errorf("= %q，沒有 .git 時應回傳目錄本身 %q", gotResolved, want)
+		t.Errorf("= %q, with no .git it should return the directory itself %q", gotResolved, want)
 	}
 }
 
 func TestCurrentAcceptsGitFile(t *testing.T) {
-	// git worktree 的 .git 是檔案不是目錄。
+	// A git worktree's .git is a file, not a directory.
 	root := t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, ".git"), []byte("gitdir: /elsewhere\n"), 0o644); err != nil {
 		t.Fatal(err)
@@ -969,31 +969,31 @@ func TestCurrentAcceptsGitFile(t *testing.T) {
 	gotResolved, _ := filepath.EvalSymlinks(got)
 	want, _ := filepath.EvalSymlinks(root)
 	if gotResolved != want {
-		t.Errorf("= %q，.git 是檔案時仍應視為 repo 根 %q", gotResolved, want)
+		t.Errorf("= %q, a .git file should still count as the repository root %q", gotResolved, want)
 	}
 }
 
 func TestLabel(t *testing.T) {
 	if got := Label("/Users/me/Projects/todo.mirumo.net"); got != "todo.mirumo.net" {
-		t.Errorf("= %q，預期 basename", got)
+		t.Errorf("= %q, want the basename", got)
 	}
 	if got := Label(""); got != "" {
-		t.Errorf("= %q，空字串應原樣回傳（全域未分類）", got)
+		t.Errorf("= %q, an empty string should come back unchanged (globally uncategorized)", got)
 	}
 }
 ```
 
-- [ ] **Step 2: 執行測試確認失敗**
+- [ ] **Step 2: Run the test and confirm it fails**
 
 Run: `go test ./internal/project/`
-Expected: FAIL，`undefined: Current`
+Expected: FAIL, `undefined: Current`
 
-- [ ] **Step 3: 實作**
+- [ ] **Step 3: Implement**
 
-建立 `internal/project/project.go`：
+Create `internal/project/project.go`:
 
 ```go
-// Package project 由檔案系統位置推導待辦事項所屬的專案。
+// Package project derives the project a task belongs to from a filesystem location.
 package project
 
 import (
@@ -1001,15 +1001,15 @@ import (
 	"path/filepath"
 )
 
-// Current 從 dir 往上找 .git；找到就回傳該目錄，找不到則回傳 dir 本身。
-// 一律回傳絕對路徑——目錄名會撞（兩個 repo 都可能有 docs/），路徑才唯一。
+// Current walks up from dir looking for .git; it returns that directory when one is found, and dir itself otherwise.
+// The path is always absolute — directory names collide (two repositories can both have docs/), only paths are unique.
 func Current(dir string) (string, error) {
 	abs, err := filepath.Abs(dir)
 	if err != nil {
 		return "", err
 	}
 	for d := abs; ; {
-		// git worktree 的 .git 是檔案，一般 repo 是目錄，兩種都算。
+		// A git worktree's .git is a file and an ordinary repository's is a directory; both count.
 		if _, err := os.Stat(filepath.Join(d, ".git")); err == nil {
 			return d, nil
 		}
@@ -1022,7 +1022,7 @@ func Current(dir string) (string, error) {
 	return abs, nil
 }
 
-// Label 回傳顯示用的短名。空字串代表全域未分類，原樣回傳。
+// Label returns the short name to display. An empty string means globally uncategorized and comes back unchanged.
 func Label(path string) string {
 	if path == "" {
 		return ""
@@ -1031,7 +1031,7 @@ func Label(path string) string {
 }
 ```
 
-- [ ] **Step 4: 執行測試確認通過**
+- [ ] **Step 4: Run the test and confirm it passes**
 
 Run: `go test ./internal/project/ -v`
 Expected: PASS
@@ -1040,12 +1040,12 @@ Expected: PASS
 
 ```bash
 git add internal/project/
-git commit --no-gpg-sign -m "feat(project): 由當前目錄推導專案路徑"
+git commit --no-gpg-sign -m "feat(project): derive the project path from the current directory"
 ```
 
 ---
 
-### Task 5: Store 介面與 SQLite 基礎（schema、Add、Get、Close）
+### Task 5: The Store interface and the SQLite basics (schema, Add, Get, Close)
 
 **Files:**
 - Create: `internal/store/store.go`
@@ -1053,10 +1053,10 @@ git commit --no-gpg-sign -m "feat(project): 由當前目錄推導專案路徑"
 - Test: `internal/store/sqlite_test.go`
 
 **Interfaces:**
-- Consumes: `task.Task`、`task.Priority`、`task.Filter`
-- Produces: `store.Store` 介面、`store.ProjectCount{Path string; Open int}`、`store.ErrNotFound`、`store.OpenSQLite(path string) (Store, error)`
+- Consumes: `task.Task`, `task.Priority`, `task.Filter`
+- Produces: the `store.Store` interface, `store.ProjectCount{Path string; Open int}`, `store.ErrNotFound`, `store.OpenSQLite(path string) (Store, error)`
 
-`Store` 介面完整定義（本 task 建立，後兩個 task 補齊實作）：
+The whole `Store` interface (defined by this task, implemented by the two that follow):
 
 ```go
 type Store interface {
@@ -1073,15 +1073,15 @@ type Store interface {
 }
 ```
 
-- [ ] **Step 1: 加入 SQLite 依賴**
+- [ ] **Step 1: Add the SQLite dependency**
 
 ```bash
 go get modernc.org/sqlite@v1
 ```
 
-- [ ] **Step 2: 寫失敗的測試**
+- [ ] **Step 2: Write the failing test**
 
-建立 `internal/store/sqlite_test.go`：
+Create `internal/store/sqlite_test.go`:
 
 ```go
 package store
@@ -1101,12 +1101,12 @@ func day(y int, m time.Month, d int) *time.Time {
 	return &t
 }
 
-// newStore 開一個 in-memory 的 store，測試永不碰 ~/.todo。
+// newStore opens an in-memory store, so tests never touch ~/.todo.
 func newStore(t *testing.T) Store {
 	t.Helper()
 	s, err := OpenSQLite(":memory:")
 	if err != nil {
-		t.Fatalf("OpenSQLite：%v", err)
+		t.Fatalf("OpenSQLite: %v", err)
 	}
 	t.Cleanup(func() { s.Close() })
 	return s
@@ -1114,11 +1114,11 @@ func newStore(t *testing.T) Store {
 
 func sample() task.Task {
 	return task.Task{
-		Title:     "買牛奶",
+		Title:     "buy milk",
 		Project:   "/Users/me/Projects/home",
 		Due:       day(2026, 9, 1),
 		Priority:  task.PriHigh,
-		Tags:      []string{"購物", "家務"},
+		Tags:      []string{"shopping", "chores"},
 		CreatedAt: ref(),
 		UpdatedAt: ref(),
 	}
@@ -1128,51 +1128,51 @@ func TestAddAssignsIDAndRoundTrips(t *testing.T) {
 	s := newStore(t)
 	got, err := s.Add(sample())
 	if err != nil {
-		t.Fatalf("Add：%v", err)
+		t.Fatalf("Add: %v", err)
 	}
 	if got.ID == 0 {
-		t.Fatal("Add 應該回填 ID")
+		t.Fatal("Add should fill in the ID")
 	}
 	back, err := s.Get(got.ID)
 	if err != nil {
-		t.Fatalf("Get：%v", err)
+		t.Fatalf("Get: %v", err)
 	}
-	if back.Title != "買牛奶" || back.Project != "/Users/me/Projects/home" {
-		t.Errorf("標題/專案沒存對：%+v", back)
+	if back.Title != "buy milk" || back.Project != "/Users/me/Projects/home" {
+		t.Errorf("the title or project was not stored: %+v", back)
 	}
 	if back.Priority != task.PriHigh {
-		t.Errorf("priority = %v，預期 high", back.Priority)
+		t.Errorf("priority = %v, want high", back.Priority)
 	}
 	if back.Due == nil || back.Due.Format("2006-01-02") != "2026-09-01" {
-		t.Errorf("due = %v，預期 2026-09-01", back.Due)
+		t.Errorf("due = %v, want 2026-09-01", back.Due)
 	}
 	if back.Done() {
-		t.Error("新增的任務不該是已完成")
+		t.Error("a new task should not be done")
 	}
 	if len(back.Tags) != 2 {
-		t.Errorf("tags = %v，預期兩個", back.Tags)
+		t.Errorf("tags = %v, want two", back.Tags)
 	}
 }
 
 func TestAddAcceptsEmptyProjectAndNilDue(t *testing.T) {
 	s := newStore(t)
-	in := task.Task{Title: "繳房租", CreatedAt: ref(), UpdatedAt: ref()}
+	in := task.Task{Title: "pay rent", CreatedAt: ref(), UpdatedAt: ref()}
 	got, err := s.Add(in)
 	if err != nil {
-		t.Fatalf("Add：%v", err)
+		t.Fatalf("Add: %v", err)
 	}
 	back, err := s.Get(got.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if back.Project != "" {
-		t.Errorf("project = %q，全域未分類應為空字串", back.Project)
+		t.Errorf("project = %q, globally uncategorized should be an empty string", back.Project)
 	}
 	if back.Due != nil {
-		t.Errorf("due = %v，預期 nil", back.Due)
+		t.Errorf("due = %v, want nil", back.Due)
 	}
 	if len(back.Tags) != 0 {
-		t.Errorf("tags = %v，預期空", back.Tags)
+		t.Errorf("tags = %v, want none", back.Tags)
 	}
 }
 
@@ -1180,7 +1180,7 @@ func TestGetMissingReturnsErrNotFound(t *testing.T) {
 	s := newStore(t)
 	_, err := s.Get(999)
 	if !errors.Is(err, ErrNotFound) {
-		t.Errorf("err = %v，預期 ErrNotFound", err)
+		t.Errorf("err = %v, want ErrNotFound", err)
 	}
 }
 
@@ -1188,28 +1188,28 @@ func TestIDsAreNotReused(t *testing.T) {
 	s := newStore(t)
 	a, _ := s.Add(sample())
 	if err := s.Delete(a.ID); err != nil {
-		t.Fatalf("Delete：%v", err)
+		t.Fatalf("Delete: %v", err)
 	}
 	b, _ := s.Add(sample())
 	if b.ID == a.ID {
-		t.Errorf("id 被重用了（%d），AUTOINCREMENT 應該保證不重用", b.ID)
+		t.Errorf("the id was reused (%d); AUTOINCREMENT should guarantee it is not", b.ID)
 	}
 }
 ```
 
-（`TestIDsAreNotReused` 依賴 Task 7 的 `Delete`；本 task 先讓其餘測試通過，`Delete` 在 Task 7 補上前這個 case 會編譯失敗——所以本 task 的 `sqlite.go` 需先放上所有介面方法的骨架，未實作者回傳 `errors.New("尚未實作")`。）
+(`TestIDsAreNotReused` depends on `Delete` from Task 7; this task gets the other tests passing, and until Task 7 lands that case will not compile — so this task's `sqlite.go` first puts a skeleton of every interface method in place, the unimplemented ones returning `errors.New("not implemented yet")`.)
 
-- [ ] **Step 3: 執行測試確認失敗**
+- [ ] **Step 3: Run the test and confirm it fails**
 
 Run: `go test ./internal/store/`
-Expected: FAIL，`undefined: OpenSQLite`
+Expected: FAIL, `undefined: OpenSQLite`
 
-- [ ] **Step 4: 實作介面**
+- [ ] **Step 4: Implement the interface**
 
-建立 `internal/store/store.go`：
+Create `internal/store/store.go`:
 
 ```go
-// Package store 負責待辦事項的持久化。
+// Package store persists tasks.
 package store
 
 import (
@@ -1219,41 +1219,41 @@ import (
 	"todo.mirumo.net/internal/task"
 )
 
-// ErrNotFound 表示指定 id 的任務不存在。
-var ErrNotFound = errors.New("找不到該任務")
+// ErrNotFound means no task carries that id.
+var ErrNotFound = errors.New("task not found")
 
-// ProjectCount 是一個專案與它的未完成數。
+// ProjectCount is one project and how much is open in it.
 type ProjectCount struct {
 	Path string
 	Open int
 }
 
-// Store 是待辦事項的儲存介面。CLI 與 TUI 只認這個介面，
-// 測試時換成 :memory: 的實作，永不碰使用者的真實資料。
+// Store is the storage interface for tasks. The CLI and the TUI know only this
+// interface, so tests swap in a :memory: implementation and never touch the user's real data.
 type Store interface {
-	// Add 新增一筆並回傳含 ID 的結果。
+	// Add inserts one task and returns it with its ID.
 	Add(t task.Task) (task.Task, error)
-	// Get 依 id 取一筆，不存在時回傳 ErrNotFound。
+	// Get fetches one task by id, returning ErrNotFound when there is none.
 	Get(id int64) (task.Task, error)
-	// List 依 f 查詢；now 用於解析 today/week/overdue 這類相對條件。
+	// List queries by f; now resolves relative conditions such as today/week/overdue.
 	List(f task.Filter, now time.Time) ([]task.Task, error)
-	// Update 依 t.ID 覆寫全部欄位（含標籤）。
+	// Update overwrites every field of t.ID, tags included.
 	Update(t task.Task) error
-	// Delete 刪除一筆，連帶清掉它的標籤關聯。
+	// Delete removes one task along with its tag links.
 	Delete(id int64) error
-	// SetDone 設定或取消完成狀態。
+	// SetDone marks a task done or reopens it.
 	SetDone(id int64, done bool, now time.Time) error
-	// Restore 以 t.ID 原號重新插入，供 TUI 的刪除復原使用。
+	// Restore reinserts a task under its original t.ID, for the TUI's undo.
 	Restore(t task.Task) error
-	// Tags 列出至少被一個任務引用的標籤。
+	// Tags lists the tags at least one task references.
 	Tags() ([]string, error)
-	// Projects 列出所有專案與各自的未完成數。
+	// Projects lists every project with its open count.
 	Projects() ([]ProjectCount, error)
 	Close() error
 }
 ```
 
-建立 `internal/store/sqlite.go`：
+Create `internal/store/sqlite.go`:
 
 ```go
 package store
@@ -1298,14 +1298,14 @@ const taskCols = `id, title, project, due, priority, done_at, created_at, update
 
 type sqlStore struct{ db *sql.DB }
 
-// OpenSQLite 開啟（必要時建立）資料庫。path 可以是檔案路徑或 ":memory:"。
+// OpenSQLite opens the database, creating it when needed. path is a file path or ":memory:".
 func OpenSQLite(path string) (Store, error) {
 	db, err := sql.Open("sqlite", path)
 	if err != nil {
 		return nil, err
 	}
-	// 單一使用者的 CLI 不需要連線池；限制為一條連線，
-	// PRAGMA 才會確實套用在之後所有查詢上（SQLite 預設關閉外鍵）。
+	// A single-user CLI needs no connection pool; one connection is the limit, which is
+	// what makes the PRAGMA apply to every later query (SQLite defaults foreign keys off).
 	db.SetMaxOpenConns(1)
 	if _, err := db.Exec(`PRAGMA foreign_keys = ON`); err != nil {
 		db.Close()
@@ -1374,7 +1374,7 @@ func scanTask(sc scanner) (task.Task, error) {
 	return t, nil
 }
 
-// setTags 覆寫一筆任務的標籤關聯。
+// setTags overwrites one task's tag links.
 func (s *sqlStore) setTags(id int64, tags []string) error {
 	if _, err := s.db.Exec(`DELETE FROM task_tags WHERE task_id = ?`, id); err != nil {
 		return err
@@ -1446,11 +1446,11 @@ func (s *sqlStore) Get(id int64) (task.Task, error) {
 	return t, nil
 }
 
-// 以下四個方法在 Task 6、Task 7 實作。
+// The four methods below are implemented in Task 6 and Task 7.
 func (s *sqlStore) List(f task.Filter, now time.Time) ([]task.Task, error) {
-	return nil, errors.New("尚未實作")
+	return nil, errors.New("not implemented yet")
 }
-func (s *sqlStore) Update(t task.Task) error { return errors.New("尚未實作") }
+func (s *sqlStore) Update(t task.Task) error { return errors.New("not implemented yet") }
 func (s *sqlStore) Delete(id int64) error {
 	res, err := s.db.Exec(`DELETE FROM tasks WHERE id = ?`, id)
 	if err != nil {
@@ -1466,40 +1466,40 @@ func (s *sqlStore) Delete(id int64) error {
 	return nil
 }
 func (s *sqlStore) SetDone(id int64, done bool, now time.Time) error {
-	return errors.New("尚未實作")
+	return errors.New("not implemented yet")
 }
-func (s *sqlStore) Restore(t task.Task) error         { return errors.New("尚未實作") }
-func (s *sqlStore) Tags() ([]string, error)           { return nil, errors.New("尚未實作") }
-func (s *sqlStore) Projects() ([]ProjectCount, error) { return nil, errors.New("尚未實作") }
+func (s *sqlStore) Restore(t task.Task) error         { return errors.New("not implemented yet") }
+func (s *sqlStore) Tags() ([]string, error)           { return nil, errors.New("not implemented yet") }
+func (s *sqlStore) Projects() ([]ProjectCount, error) { return nil, errors.New("not implemented yet") }
 ```
 
-- [ ] **Step 5: 執行測試確認通過**
+- [ ] **Step 5: Run the test and confirm it passes**
 
 Run: `go test ./internal/store/ -v`
-Expected: PASS（五個 case 全綠）
+Expected: PASS (all five cases green)
 
 - [ ] **Step 6: Commit**
 
 ```bash
 git add go.mod go.sum internal/store/
-git commit --no-gpg-sign -m "feat(store): Store 介面與 SQLite schema、Add/Get/Delete"
+git commit --no-gpg-sign -m "feat(store): the Store interface, the SQLite schema, Add/Get/Delete"
 ```
 
 ---
 
-### Task 6: 查詢與過濾
+### Task 6: Queries and filtering
 
 **Files:**
-- Modify: `internal/store/sqlite.go`（取代 `List` 的骨架）
+- Modify: `internal/store/sqlite.go` (replacing the `List` skeleton)
 - Test: `internal/store/list_test.go`
 
 **Interfaces:**
-- Consumes: `task.Filter`、`task.SortBy`、`task.DueRange`、Task 5 的 `sqlStore`、`scanTask`、`loadTags`
-- Produces: 可用的 `(*sqlStore).List(f task.Filter, now time.Time) ([]task.Task, error)`
+- Consumes: `task.Filter`, `task.SortBy`, `task.DueRange`, and Task 5's `sqlStore`, `scanTask`, `loadTags`
+- Produces: a working `(*sqlStore).List(f task.Filter, now time.Time) ([]task.Task, error)`
 
-- [ ] **Step 1: 寫失敗的測試**
+- [ ] **Step 1: Write the failing test**
 
-建立 `internal/store/list_test.go`：
+Create `internal/store/list_test.go`:
 
 ```go
 package store
@@ -1511,7 +1511,7 @@ import (
 	"todo.mirumo.net/internal/task"
 )
 
-// seed 建立一組固定資料，並回傳 title -> id。
+// seed inserts a fixed set of tasks and returns title -> id.
 func seed(t *testing.T, s Store) map[string]int64 {
 	t.Helper()
 	ids := map[string]int64{}
@@ -1519,15 +1519,15 @@ func seed(t *testing.T, s Store) map[string]int64 {
 		ti.CreatedAt, ti.UpdatedAt = ref(), ref()
 		got, err := s.Add(ti)
 		if err != nil {
-			t.Fatalf("Add %q：%v", ti.Title, err)
+			t.Fatalf("Add %q: %v", ti.Title, err)
 		}
 		ids[ti.Title] = got.ID
 	}
-	add(task.Task{Title: "逾期的事", Due: day(2026, 8, 20), Priority: task.PriLow})
-	add(task.Task{Title: "今天的事", Due: day(2026, 8, 29), Priority: task.PriHigh, Tags: []string{"急"}})
-	add(task.Task{Title: "下週的事", Due: day(2026, 9, 10), Project: "/p/work"})
-	add(task.Task{Title: "沒期限的事", Priority: task.PriMed, Tags: []string{"急", "雜"}})
-	add(task.Task{Title: "工作上的事", Project: "/p/work", Tags: []string{"雜"}})
+	add(task.Task{Title: "overdue one", Due: day(2026, 8, 20), Priority: task.PriLow})
+	add(task.Task{Title: "today one", Due: day(2026, 8, 29), Priority: task.PriHigh, Tags: []string{"urgent"}})
+	add(task.Task{Title: "next week one", Due: day(2026, 9, 10), Project: "/p/work"})
+	add(task.Task{Title: "undated one", Priority: task.PriMed, Tags: []string{"urgent", "misc"}})
+	add(task.Task{Title: "work one", Project: "/p/work", Tags: []string{"misc"}})
 	return ids
 }
 
@@ -1543,11 +1543,11 @@ func assertTitles(t *testing.T, got []task.Task, want ...string) {
 	t.Helper()
 	g := titles(got)
 	if len(g) != len(want) {
-		t.Fatalf("= %v，預期 %v", g, want)
+		t.Fatalf("= %v, want %v", g, want)
 	}
 	for i := range want {
 		if g[i] != want[i] {
-			t.Fatalf("= %v，預期 %v", g, want)
+			t.Fatalf("= %v, want %v", g, want)
 		}
 	}
 }
@@ -1561,8 +1561,8 @@ func TestListDefaultsToOpenTasksSortedByDue(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// 有期限者由近到遠，無期限者排最後。
-	assertTitles(t, got, "逾期的事", "今天的事", "下週的事", "沒期限的事", "工作上的事")
+	// Dated tasks run from soonest to furthest, undated ones last.
+	assertTitles(t, got, "overdue one", "today one", "next week one", "undated one", "work one")
 }
 
 func TestListSortByPriority(t *testing.T) {
@@ -1572,8 +1572,8 @@ func TestListSortByPriority(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got[0].Title != "今天的事" || got[1].Title != "沒期限的事" {
-		t.Errorf("= %v，預期 high 在前、med 次之", titles(got))
+	if got[0].Title != "today one" || got[1].Title != "undated one" {
+		t.Errorf("= %v, want high first, then med", titles(got))
 	}
 }
 
@@ -1584,7 +1584,7 @@ func TestListFilterByProject(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assertTitles(t, got, "下週的事", "工作上的事")
+	assertTitles(t, got, "next week one", "work one")
 }
 
 func TestListFilterByEmptyProjectMeansUncategorized(t *testing.T) {
@@ -1594,17 +1594,17 @@ func TestListFilterByEmptyProjectMeansUncategorized(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assertTitles(t, got, "逾期的事", "今天的事", "沒期限的事")
+	assertTitles(t, got, "overdue one", "today one", "undated one")
 }
 
 func TestListFilterByTagsIsAnd(t *testing.T) {
 	s := newStore(t)
 	seed(t, s)
-	got, err := s.List(task.Filter{Tags: []string{"急", "雜"}}, ref())
+	got, err := s.List(task.Filter{Tags: []string{"urgent", "misc"}}, ref())
 	if err != nil {
 		t.Fatal(err)
 	}
-	assertTitles(t, got, "沒期限的事")
+	assertTitles(t, got, "undated one")
 }
 
 func TestListDueRanges(t *testing.T) {
@@ -1615,10 +1615,10 @@ func TestListDueRanges(t *testing.T) {
 		f    task.Filter
 		want []string
 	}{
-		{"today", task.Filter{DueRange: task.DueToday}, []string{"今天的事"}},
-		{"overdue", task.Filter{DueRange: task.DueOverdue}, []string{"逾期的事"}},
-		{"week", task.Filter{DueRange: task.DueWeek}, []string{"逾期的事", "今天的事"}},
-		{"on", task.Filter{DueRange: task.DueOn, DueOn: *day(2026, 9, 10)}, []string{"下週的事"}},
+		{"today", task.Filter{DueRange: task.DueToday}, []string{"today one"}},
+		{"overdue", task.Filter{DueRange: task.DueOverdue}, []string{"overdue one"}},
+		{"week", task.Filter{DueRange: task.DueWeek}, []string{"overdue one", "today one"}},
+		{"on", task.Filter{DueRange: task.DueOn, DueOn: *day(2026, 9, 10)}, []string{"next week one"}},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1646,44 +1646,44 @@ func TestListSearchIsCaseInsensitiveSubstring(t *testing.T) {
 func TestListDoneVisibility(t *testing.T) {
 	s := newStore(t)
 	ids := seed(t, s)
-	if err := s.SetDone(ids["今天的事"], true, ref()); err != nil {
+	if err := s.SetDone(ids["today one"], true, ref()); err != nil {
 		t.Fatal(err)
 	}
 	open, _ := s.List(task.Filter{}, ref())
 	if len(open) != 4 {
-		t.Errorf("預設應只列未完成，得到 %v", titles(open))
+		t.Errorf("the default should list only unfinished tasks, got %v", titles(open))
 	}
 	all, _ := s.List(task.Filter{IncludeDone: true}, ref())
 	if len(all) != 5 {
-		t.Errorf("IncludeDone 應列全部，得到 %v", titles(all))
+		t.Errorf("IncludeDone should list everything, got %v", titles(all))
 	}
 	done, _ := s.List(task.Filter{OnlyDone: true}, ref())
-	assertTitles(t, done, "今天的事")
+	assertTitles(t, done, "today one")
 }
 
 func TestListLoadsTags(t *testing.T) {
 	s := newStore(t)
 	seed(t, s)
-	got, err := s.List(task.Filter{Search: "沒期限"}, ref())
+	got, err := s.List(task.Filter{Search: "undated"}, ref())
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(got) != 1 || len(got[0].Tags) != 2 {
-		t.Errorf("清單項目應該帶著標籤，得到 %+v", got)
+		t.Errorf("listed tasks should carry their tags, got %+v", got)
 	}
 }
 
 var _ = time.Time{}
 ```
 
-- [ ] **Step 2: 執行測試確認失敗**
+- [ ] **Step 2: Run the test and confirm it fails**
 
 Run: `go test ./internal/store/ -run TestList`
-Expected: FAIL，`尚未實作`
+Expected: FAIL, `not implemented yet`
 
-- [ ] **Step 3: 實作**
+- [ ] **Step 3: Implement**
 
-在 `internal/store/sqlite.go` 中，把 `List` 的骨架換成下面這段，並在 import 補上 `"fmt"` 與 `"strings"`：
+In `internal/store/sqlite.go`, replace the `List` skeleton with the following and add `"fmt"` and `"strings"` to the imports:
 
 ```go
 func (s *sqlStore) List(f task.Filter, now time.Time) ([]task.Task, error) {
@@ -1734,7 +1734,7 @@ func (s *sqlStore) List(f task.Filter, now time.Time) ([]task.Task, error) {
 		args = append(args, len(tags))
 	}
 
-	// 無期限者一律排在有期限者之後：SQLite 中 (due IS NULL) 為 0/1，升冪即可。
+	// Undated tasks always sort after dated ones: in SQLite (due IS NULL) is 0 or 1, so ascending works.
 	order := `(due IS NULL), due ASC, priority DESC, id ASC`
 	switch f.Sort {
 	case task.SortPriority:
@@ -1768,7 +1768,7 @@ func (s *sqlStore) List(f task.Filter, now time.Time) ([]task.Task, error) {
 	}
 	rows.Close()
 
-	// 清單規模是個人待辦，逐筆載入標籤的 N+1 成本可忽略，換來的是簡單。
+	// The list is one person's tasks, so the N+1 cost of loading tags row by row is negligible, and simplicity is what it buys.
 	for i := range out {
 		tags, err := s.loadTags(out[i].ID)
 		if err != nil {
@@ -1780,7 +1780,7 @@ func (s *sqlStore) List(f task.Filter, now time.Time) ([]task.Task, error) {
 }
 ```
 
-import 區塊改成：
+The import block becomes:
 
 ```go
 import (
@@ -1797,35 +1797,35 @@ import (
 )
 ```
 
-- [ ] **Step 4: 執行測試確認通過**
+- [ ] **Step 4: Run the test and confirm it passes**
 
 Run: `go test ./internal/store/ -v`
-Expected: 除 `TestListDoneVisibility`（需要 Task 7 的 `SetDone`）外全部 PASS
+Expected: everything PASSes except `TestListDoneVisibility`, which needs `SetDone` from Task 7
 
-若 `TestListDoneVisibility` 因 `尚未實作` 失敗，先跳過：`go test ./internal/store/ -run 'TestList' -skip TestListDoneVisibility`，Task 7 完成後再全跑。
+If `TestListDoneVisibility` fails with `not implemented yet`, skip it for now: `go test ./internal/store/ -run 'TestList' -skip TestListDoneVisibility`, and run the lot once Task 7 lands.
 
 - [ ] **Step 5: Commit**
 
 ```bash
 git add internal/store/
-git commit --no-gpg-sign -m "feat(store): 清單查詢、過濾與排序"
+git commit --no-gpg-sign -m "feat(store): list queries, filtering and sorting"
 ```
 
 ---
 
-### Task 7: 變更操作與後設查詢
+### Task 7: Mutations and metadata queries
 
 **Files:**
-- Modify: `internal/store/sqlite.go`（取代 `Update`/`SetDone`/`Restore`/`Tags`/`Projects` 的骨架）
+- Modify: `internal/store/sqlite.go` (replacing the `Update`/`SetDone`/`Restore`/`Tags`/`Projects` skeletons)
 - Test: `internal/store/mutate_test.go`
 
 **Interfaces:**
-- Consumes: Task 5 與 Task 6 的全部
-- Produces: 完整可用的 `Store` 實作
+- Consumes: everything from Task 5 and Task 6
+- Produces: a complete, working `Store` implementation
 
-- [ ] **Step 1: 寫失敗的測試**
+- [ ] **Step 1: Write the failing test**
 
-建立 `internal/store/mutate_test.go`：
+Create `internal/store/mutate_test.go`:
 
 ```go
 package store
@@ -1841,55 +1841,55 @@ func TestSetDoneAndUndone(t *testing.T) {
 	s := newStore(t)
 	got, _ := s.Add(sample())
 	if err := s.SetDone(got.ID, true, ref()); err != nil {
-		t.Fatalf("SetDone：%v", err)
+		t.Fatalf("SetDone: %v", err)
 	}
 	back, _ := s.Get(got.ID)
 	if !back.Done() {
-		t.Fatal("應為已完成")
+		t.Fatal("it should be done")
 	}
 	if back.DoneAt.Format("2006-01-02") != "2026-08-29" {
-		t.Errorf("done_at = %v，預期記錄完成時間", back.DoneAt)
+		t.Errorf("done_at = %v, want the completion time recorded", back.DoneAt)
 	}
 	if err := s.SetDone(got.ID, false, ref()); err != nil {
 		t.Fatal(err)
 	}
 	back, _ = s.Get(got.ID)
 	if back.Done() {
-		t.Error("取消完成後 DoneAt 應為 nil")
+		t.Error("DoneAt should be nil once the task is reopened")
 	}
 }
 
 func TestSetDoneMissingID(t *testing.T) {
 	s := newStore(t)
 	if err := s.SetDone(42, true, ref()); !errors.Is(err, ErrNotFound) {
-		t.Errorf("err = %v，預期 ErrNotFound", err)
+		t.Errorf("err = %v, want ErrNotFound", err)
 	}
 }
 
 func TestUpdateOverwritesFieldsAndTags(t *testing.T) {
 	s := newStore(t)
 	got, _ := s.Add(sample())
-	got.Title = "買豆漿"
+	got.Title = "buy soy milk"
 	got.Project = ""
 	got.Due = nil
 	got.Priority = task.PriLow
-	got.Tags = []string{"早餐"}
+	got.Tags = []string{"breakfast"}
 	if err := s.Update(got); err != nil {
-		t.Fatalf("Update：%v", err)
+		t.Fatalf("Update: %v", err)
 	}
 	back, _ := s.Get(got.ID)
-	if back.Title != "買豆漿" || back.Project != "" || back.Due != nil || back.Priority != task.PriLow {
-		t.Errorf("欄位沒更新：%+v", back)
+	if back.Title != "buy soy milk" || back.Project != "" || back.Due != nil || back.Priority != task.PriLow {
+		t.Errorf("the fields were not updated: %+v", back)
 	}
-	if len(back.Tags) != 1 || back.Tags[0] != "早餐" {
-		t.Errorf("tags = %v，預期整組被取代成 [早餐]", back.Tags)
+	if len(back.Tags) != 1 || back.Tags[0] != "breakfast" {
+		t.Errorf("tags = %v, want the whole set replaced by [breakfast]", back.Tags)
 	}
 }
 
 func TestUpdateMissingID(t *testing.T) {
 	s := newStore(t)
 	if err := s.Update(task.Task{ID: 7, Title: "x", CreatedAt: ref(), UpdatedAt: ref()}); !errors.Is(err, ErrNotFound) {
-		t.Errorf("err = %v，預期 ErrNotFound", err)
+		t.Errorf("err = %v, want ErrNotFound", err)
 	}
 }
 
@@ -1900,15 +1900,15 @@ func TestDeleteRemovesTagLinks(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := s.Get(got.ID); !errors.Is(err, ErrNotFound) {
-		t.Errorf("err = %v，預期 ErrNotFound", err)
+		t.Errorf("err = %v, want ErrNotFound", err)
 	}
-	// 標籤本身留著無妨，但不該再被任何任務引用。
+	// The tag row itself may stay, but nothing should reference it any more.
 	tags, err := s.Tags()
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(tags) != 0 {
-		t.Errorf("Tags() = %v，預期空：只列被引用的標籤", tags)
+		t.Errorf("Tags() = %v, want none: only referenced tags are listed", tags)
 	}
 }
 
@@ -1920,14 +1920,14 @@ func TestRestoreReusesOriginalID(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := s.Restore(original); err != nil {
-		t.Fatalf("Restore：%v", err)
+		t.Fatalf("Restore: %v", err)
 	}
 	back, err := s.Get(original.ID)
 	if err != nil {
-		t.Fatalf("復原後應能用原 id 取回：%v", err)
+		t.Fatalf("the original id should fetch it back after a restore: %v", err)
 	}
 	if back.Title != original.Title || len(back.Tags) != len(original.Tags) {
-		t.Errorf("復原內容不符：%+v", back)
+		t.Errorf("the restored content does not match: %+v", back)
 	}
 }
 
@@ -1938,15 +1938,15 @@ func TestTagsListsOnlyReferenced(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(tags) != 2 || tags[0] != "急" || tags[1] != "雜" {
-		t.Errorf("= %v，預期 [急 雜] 依名稱排序", tags)
+	if len(tags) != 2 || tags[0] != "misc" || tags[1] != "urgent" {
+		t.Errorf("= %v, want [misc urgent] sorted by name", tags)
 	}
 }
 
 func TestProjectsCountsOpenTasks(t *testing.T) {
 	s := newStore(t)
 	ids := seed(t, s)
-	if err := s.SetDone(ids["工作上的事"], true, ref()); err != nil {
+	if err := s.SetDone(ids["work one"], true, ref()); err != nil {
 		t.Fatal(err)
 	}
 	ps, err := s.Projects()
@@ -1954,25 +1954,25 @@ func TestProjectsCountsOpenTasks(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(ps) != 2 {
-		t.Fatalf("= %+v，預期兩個專案（含空字串的未分類）", ps)
+		t.Fatalf("= %+v, want two projects (the empty-string uncategorized one included)", ps)
 	}
 	if ps[0].Path != "" || ps[0].Open != 3 {
-		t.Errorf("ps[0] = %+v，預期未分類 3 筆未完成", ps[0])
+		t.Errorf("ps[0] = %+v, want uncategorized with 3 open", ps[0])
 	}
 	if ps[1].Path != "/p/work" || ps[1].Open != 1 {
-		t.Errorf("ps[1] = %+v，預期 /p/work 1 筆未完成（另一筆已完成）", ps[1])
+		t.Errorf("ps[1] = %+v, want /p/work with 1 open (the other one is done)", ps[1])
 	}
 }
 ```
 
-- [ ] **Step 2: 執行測試確認失敗**
+- [ ] **Step 2: Run the test and confirm it fails**
 
 Run: `go test ./internal/store/ -run 'TestSetDone|TestUpdate|TestRestore|TestTags|TestProjects'`
-Expected: FAIL，`尚未實作`
+Expected: FAIL, `not implemented yet`
 
-- [ ] **Step 3: 實作**
+- [ ] **Step 3: Implement**
 
-在 `internal/store/sqlite.go` 把五個骨架方法換成：
+In `internal/store/sqlite.go`, replace the five skeleton methods with:
 
 ```go
 func (s *sqlStore) Update(t task.Task) error {
@@ -2015,7 +2015,7 @@ func (s *sqlStore) SetDone(id int64, done bool, now time.Time) error {
 	return nil
 }
 
-// Restore 以原 id 重新插入。AUTOINCREMENT 不重用號碼，該 id 必定仍空著。
+// Restore reinserts under the original id. AUTOINCREMENT never reuses numbers, so that id is guaranteed to still be free.
 func (s *sqlStore) Restore(t task.Task) error {
 	_, err := s.db.Exec(
 		`INSERT INTO tasks (id, title, project, due, priority, done_at, created_at, updated_at)
@@ -2028,7 +2028,7 @@ func (s *sqlStore) Restore(t task.Task) error {
 	return s.setTags(t.ID, t.Tags)
 }
 
-// Tags 只列出至少被一個任務引用的標籤；刪除任務留下的孤兒標籤不清理也不顯示。
+// Tags lists only the tags at least one task references; orphans left behind by a delete are neither cleaned up nor shown.
 func (s *sqlStore) Tags() ([]string, error) {
 	rows, err := s.db.Query(
 		`SELECT DISTINCT g.name FROM tags g JOIN task_tags tt ON tt.tag_id = g.id ORDER BY g.name`)
@@ -2067,21 +2067,21 @@ func (s *sqlStore) Projects() ([]ProjectCount, error) {
 }
 ```
 
-- [ ] **Step 4: 執行整包測試確認通過**
+- [ ] **Step 4: Run the whole package and confirm it passes**
 
 Run: `go test ./... -v`
-Expected: PASS，`internal/store` 全部 case 綠燈（含 Task 5 的 `TestIDsAreNotReused` 與 Task 6 的 `TestListDoneVisibility`）
+Expected: PASS, every case in `internal/store` green (including Task 5's `TestIDsAreNotReused` and Task 6's `TestListDoneVisibility`)
 
 - [ ] **Step 5: Commit**
 
 ```bash
 git add internal/store/
-git commit --no-gpg-sign -m "feat(store): 更新、完成切換、復原與後設查詢"
+git commit --no-gpg-sign -m "feat(store): updates, done toggling, restore and metadata queries"
 ```
 
 ---
 
-### Task 8: CLI 骨架、dispatch 與 `todo tui`
+### Task 8: The CLI skeleton, dispatch and `todo tui`
 
 **Files:**
 - Create: `internal/cli/app.go`
@@ -2089,14 +2089,14 @@ git commit --no-gpg-sign -m "feat(store): 更新、完成切換、復原與後�
 - Test: `internal/cli/helper_test.go`
 
 **Interfaces:**
-- Consumes: `store.Store`、`argparse.Result`、`project.Current`
-- Produces: `cli.App{Store store.Store; Out, Err io.Writer; Now func() time.Time; Cwd string; Color bool; RunTUI func() error}`、`(*App).Run(args []string) int`、`cli.SplitGlobal(args []string) (dbPath string, rest []string, err error)`、內部輔助 `(*App).commands()`、`parseIDs([]string) ([]int64, error)`、`(*App).resolveProject(*argparse.Result) (string, bool, error)`
+- Consumes: `store.Store`, `argparse.Result`, `project.Current`
+- Produces: `cli.App{Store store.Store; Out, Err io.Writer; Now func() time.Time; Cwd string; Color bool; RunTUI func() error}`, `(*App).Run(args []string) int`, `cli.SplitGlobal(args []string) (dbPath string, rest []string, err error)`, and the internal helpers `(*App).commands()`, `parseIDs([]string) ([]int64, error)`, `(*App).resolveProject(*argparse.Result) (string, bool, error)`
 
-**測試用 Store 的選擇**：spec 寫「假 Store」，實作上改用 `store.OpenSQLite(":memory:")`。理由是它更短、跑真實 SQL、仍然完全隔離（不碰檔案系統），維護成本比手寫 fake 低。這是對 spec 的刻意收斂，不是遺漏。
+**Choosing the Store for tests**: the spec says "a fake Store", but the implementation uses `store.OpenSQLite(":memory:")` instead. It is shorter, it runs real SQL, it is still completely isolated (nothing touches the filesystem), and it costs less to maintain than a hand-written fake. This is a deliberate narrowing of the spec, not an oversight.
 
-- [ ] **Step 1: 寫失敗的測試**
+- [ ] **Step 1: Write the failing test**
 
-建立 `internal/cli/helper_test.go`：
+Create `internal/cli/helper_test.go`:
 
 ```go
 package cli
@@ -2111,12 +2111,12 @@ import (
 
 func refTime() time.Time { return time.Date(2026, 8, 29, 15, 0, 0, 0, time.Local) }
 
-// newApp 建一個完全隔離的 App：in-memory 資料庫、緩衝輸出、固定時鐘、暫存目錄當 cwd。
+// newApp builds a completely isolated App: an in-memory database, buffered output, a fixed clock and a temporary directory as the cwd.
 func newApp(t *testing.T) (*App, *bytes.Buffer, *bytes.Buffer) {
 	t.Helper()
 	st, err := store.OpenSQLite(":memory:")
 	if err != nil {
-		t.Fatalf("OpenSQLite：%v", err)
+		t.Fatalf("OpenSQLite: %v", err)
 	}
 	t.Cleanup(func() { st.Close() })
 	out, errBuf := &bytes.Buffer{}, &bytes.Buffer{}
@@ -2128,7 +2128,7 @@ func newApp(t *testing.T) (*App, *bytes.Buffer, *bytes.Buffer) {
 }
 ```
 
-建立 `internal/cli/app_test.go`：
+Create `internal/cli/app_test.go`:
 
 ```go
 package cli
@@ -2142,13 +2142,13 @@ import (
 func TestRunNoArgsPrintsUsage(t *testing.T) {
 	app, out, _ := newApp(t)
 	if code := app.Run(nil); code != 0 {
-		t.Errorf("離開碼 = %d，預期 0", code)
+		t.Errorf("exit code = %d, want 0", code)
 	}
-	if !strings.Contains(out.String(), "用法：") {
-		t.Errorf("裸打 todo 應印出用法，實得：%q", out.String())
+	if !strings.Contains(out.String(), "Usage:") {
+		t.Errorf("a bare todo should print the usage, got: %q", out.String())
 	}
-	if strings.Contains(out.String(), "沒有符合的待辦") {
-		t.Error("裸打 todo 不該進入清單或 TUI")
+	if strings.Contains(out.String(), "No matching tasks") {
+		t.Error("a bare todo should enter neither the list nor the TUI")
 	}
 }
 
@@ -2156,31 +2156,31 @@ func TestRunHelp(t *testing.T) {
 	for _, arg := range []string{"-h", "--help", "help"} {
 		app, out, _ := newApp(t)
 		if code := app.Run([]string{arg}); code != 0 {
-			t.Errorf("%s 離開碼 = %d，預期 0", arg, code)
+			t.Errorf("%s exit code = %d, want 0", arg, code)
 		}
-		if !strings.Contains(out.String(), "用法：") {
-			t.Errorf("%s 沒印出用法", arg)
+		if !strings.Contains(out.String(), "Usage:") {
+			t.Errorf("%s printed no usage", arg)
 		}
 	}
 }
 
 func TestHelpFlagWorksAfterSubcommand(t *testing.T) {
-	// 子指令的 flag 集不認得 -h，必須在 dispatch 之前攔下來。
+	// A subcommand's flag set does not know -h, so it has to be caught before dispatch.
 	app, out, errBuf := newApp(t)
 	if code := app.Run([]string{"add", "-h"}); code != 0 {
-		t.Errorf("離開碼 = %d，預期 0；stderr = %q", code, errBuf.String())
+		t.Errorf("exit code = %d, want 0; stderr = %q", code, errBuf.String())
 	}
-	if !strings.Contains(out.String(), "用法：") {
-		t.Errorf("todo add -h 應印出用法，實得：%q", out.String())
+	if !strings.Contains(out.String(), "Usage:") {
+		t.Errorf("todo add -h should print the usage, got: %q", out.String())
 	}
 }
 
 func TestRunUnknownCommand(t *testing.T) {
 	app, _, errBuf := newApp(t)
 	if code := app.Run([]string{"frobnicate"}); code != 2 {
-		t.Errorf("離開碼 = %d，預期 2", code)
+		t.Errorf("exit code = %d, want 2", code)
 	}
-	if !strings.Contains(errBuf.String(), "未知的指令：frobnicate") {
+	if !strings.Contains(errBuf.String(), `unknown command "frobnicate"`) {
 		t.Errorf("stderr = %q", errBuf.String())
 	}
 }
@@ -2191,23 +2191,23 @@ func TestTUIOnlyOnExplicitSubcommand(t *testing.T) {
 	app.RunTUI = func() error { called = true; return nil }
 
 	if code := app.Run(nil); code != 0 || called {
-		t.Error("裸打 todo 不該啟動 TUI")
+		t.Error("a bare todo should not start the TUI")
 	}
 	if code := app.Run([]string{"tui"}); code != 0 {
-		t.Errorf("離開碼 = %d，預期 0", code)
+		t.Errorf("exit code = %d, want 0", code)
 	}
 	if !called {
-		t.Error("todo tui 應該啟動 TUI")
+		t.Error("todo tui should start the TUI")
 	}
 }
 
 func TestTUIErrorBecomesExitCode1(t *testing.T) {
 	app, _, errBuf := newApp(t)
-	app.RunTUI = func() error { return errors.New("終端機壞了") }
+	app.RunTUI = func() error { return errors.New("the terminal is broken") }
 	if code := app.Run([]string{"tui"}); code != 1 {
-		t.Errorf("離開碼 = %d，預期 1", code)
+		t.Errorf("exit code = %d, want 1", code)
 	}
-	if !strings.Contains(errBuf.String(), "終端機壞了") {
+	if !strings.Contains(errBuf.String(), "the terminal is broken") {
 		t.Errorf("stderr = %q", errBuf.String())
 	}
 }
@@ -2219,27 +2219,27 @@ func TestSplitGlobal(t *testing.T) {
 		wantDB string
 		wantRest []string
 	}{
-		{"沒有 --db", []string{"ls", "-a"}, "", []string{"ls", "-a"}},
-		{"空格式", []string{"--db", "/tmp/x.db", "ls"}, "/tmp/x.db", []string{"ls"}},
-		{"等號式", []string{"--db=/tmp/x.db", "ls"}, "/tmp/x.db", []string{"ls"}},
-		{"只有 --db", []string{"--db=/tmp/x.db"}, "/tmp/x.db", nil},
+		{"no --db", []string{"ls", "-a"}, "", []string{"ls", "-a"}},
+		{"value after a space", []string{"--db", "/tmp/x.db", "ls"}, "/tmp/x.db", []string{"ls"}},
+		{"value after an equals sign", []string{"--db=/tmp/x.db", "ls"}, "/tmp/x.db", []string{"ls"}},
+		{"nothing but --db", []string{"--db=/tmp/x.db"}, "/tmp/x.db", nil},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			db, rest, err := SplitGlobal(c.args)
 			if err != nil {
-				t.Fatalf("非預期錯誤：%v", err)
+				t.Fatalf("unexpected error: %v", err)
 			}
 			if db != c.wantDB {
-				t.Errorf("db = %q，預期 %q", db, c.wantDB)
+				t.Errorf("db = %q, want %q", db, c.wantDB)
 			}
 			if strings.Join(rest, " ") != strings.Join(c.wantRest, " ") {
-				t.Errorf("rest = %v，預期 %v", rest, c.wantRest)
+				t.Errorf("rest = %v, want %v", rest, c.wantRest)
 			}
 		})
 	}
 	if _, _, err := SplitGlobal([]string{"--db"}); err == nil {
-		t.Error("--db 缺值應該報錯")
+		t.Error("--db with no value should be an error")
 	}
 }
 
@@ -2250,23 +2250,23 @@ func TestParseIDs(t *testing.T) {
 	}
 	for _, bad := range [][]string{{}, {"x"}, {"0"}, {"-1"}} {
 		if _, err := parseIDs(bad); err == nil {
-			t.Errorf("parseIDs(%v) 應該報錯", bad)
+			t.Errorf("parseIDs(%v) should be an error", bad)
 		}
 	}
 }
 ```
 
-- [ ] **Step 2: 執行測試確認失敗**
+- [ ] **Step 2: Run the test and confirm it fails**
 
 Run: `go test ./internal/cli/`
-Expected: FAIL，`undefined: App`
+Expected: FAIL, `undefined: App`
 
-- [ ] **Step 3: 實作**
+- [ ] **Step 3: Implement**
 
-建立 `internal/cli/app.go`：
+Create `internal/cli/app.go`:
 
 ```go
-// Package cli 實作 todo 的命令列介面。
+// Package cli implements todo's command line interface.
 package cli
 
 import (
@@ -2282,7 +2282,7 @@ import (
 	"todo.mirumo.net/internal/store"
 )
 
-// App 持有一次執行所需的全部依賴。全部可注入，測試才能完全隔離。
+// App holds everything one run depends on. All of it is injectable, which is what makes tests isolated.
 type App struct {
 	Store store.Store
 	Out   io.Writer
@@ -2290,47 +2290,47 @@ type App struct {
 	Now   func() time.Time
 	Cwd   string
 	Color bool
-	// RunTUI 由 cmd/todo 注入。cli 不 import tui，兩者保持平行。
+	// RunTUI is injected by cmd/todo. cli does not import tui; the two stay parallel.
 	RunTUI func() error
 }
 
-const usageText = `todo — 本機待辦事項
+const usageText = `todo — a local task list
 
-用法：
-  todo <指令> [flags]
+Usage:
+  todo <command> [flags]
 
-指令：
-  add <標題>      新增一條待辦
-  ls              列出待辦
-  done <id>...    標記完成
-  undone <id>...  取消完成
-  edit <id>       修改欄位
-  rm <id>...      刪除
-  projects        列出專案與各自未完成數
-  tags            列出標籤
-  tui             進入互動介面
+Commands:
+  add <title>     Add a task
+  ls              List tasks
+  done <id>...    Mark tasks as done
+  undone <id>...  Mark tasks as not done
+  edit <id>       Change fields
+  rm <id>...      Delete tasks
+  projects        List projects with their open counts
+  tags            List tags
+  tui             Open the interactive interface
 
-全域 flag：
-  --db <路徑>     指定資料庫（預設 ~/.todo/todo.db，或環境變數 TODO_DB）
-  -h, --help      顯示這份說明
+Global flags:
+  --db <path>     Database file (default ~/.todo/todo.db, or $TODO_DB)
+  -h, --help      Show this help
 `
 
-// commands 是子指令表。每加一個子指令就在這裡登記一行。
+// commands is the subcommand table. Every new subcommand is one line here.
 func (a *App) commands() map[string]func([]string) error {
 	return map[string]func([]string) error{
 		"tui": a.cmdTUI,
 	}
 }
 
-// Run 執行一次命令，回傳行程離開碼：0 成功、1 執行失敗、2 用法錯誤。
+// Run executes one command and returns the process exit code: 0 success, 1 a failed run, 2 a usage error.
 func (a *App) Run(args []string) int {
 	if len(args) == 0 {
 		fmt.Fprint(a.Out, usageText)
 		return 0
 	}
 	name, rest := args[0], args[1:]
-	// -h 放在哪都算。子指令的 flag 集不認得 -h，
-	// 不先攔下來的話 todo add -h 會變成「未知的 flag」，那是很差的體驗。
+	// -h counts wherever it appears. A subcommand's flag set does not know it,
+	// so without catching it first todo add -h becomes "unknown flag", which is a poor experience.
 	for _, a2 := range args {
 		if a2 == "-h" || a2 == "--help" {
 			fmt.Fprint(a.Out, usageText)
@@ -2343,12 +2343,12 @@ func (a *App) Run(args []string) int {
 	}
 	cmd, ok := a.commands()[name]
 	if !ok {
-		fmt.Fprintf(a.Err, "未知的指令：%s\n\n", name)
+		fmt.Fprintf(a.Err, "unknown command %q\n\n", name)
 		fmt.Fprint(a.Err, usageText)
 		return 2
 	}
 	if err := cmd(rest); err != nil {
-		fmt.Fprintf(a.Err, "錯誤：%s\n", err)
+		fmt.Fprintf(a.Err, "error: %s\n", err)
 		return 1
 	}
 	return 0
@@ -2356,22 +2356,22 @@ func (a *App) Run(args []string) int {
 
 func (a *App) cmdTUI(args []string) error {
 	if len(args) > 0 {
-		return fmt.Errorf("todo tui 不接受參數，收到 %q", args[0])
+		return fmt.Errorf("todo tui takes no arguments, got %q", args[0])
 	}
 	if a.RunTUI == nil {
-		return errors.New("這個組建沒有啟用 TUI")
+		return errors.New("this build has no TUI")
 	}
 	return a.RunTUI()
 }
 
-// SplitGlobal 取出開頭連續的 --db，回傳剩下的參數。
-// 只掃描開頭：--db 是全域 flag，位置固定才不會與子指令的 flag 混淆。
+// SplitGlobal takes the leading run of --db and returns the rest of the arguments.
+// Only the start is scanned: --db is a global flag, and a fixed position is what keeps it from being confused with a subcommand's flags.
 func SplitGlobal(args []string) (dbPath string, rest []string, err error) {
 	for len(args) > 0 {
 		switch a := args[0]; {
 		case a == "--db":
 			if len(args) < 2 {
-				return "", nil, errors.New("flag --db 需要一個值")
+				return "", nil, errors.New("flag --db needs a value")
 			}
 			dbPath, args = args[1], args[2:]
 		case strings.HasPrefix(a, "--db="):
@@ -2385,21 +2385,21 @@ func SplitGlobal(args []string) (dbPath string, rest []string, err error) {
 
 func parseIDs(args []string) ([]int64, error) {
 	if len(args) == 0 {
-		return nil, errors.New("需要至少一個 id")
+		return nil, errors.New("at least one id is needed")
 	}
 	ids := make([]int64, 0, len(args))
 	for _, a := range args {
 		n, err := strconv.ParseInt(a, 10, 64)
 		if err != nil || n <= 0 {
-			return nil, fmt.Errorf("不是合法的 id：%q", a)
+			return nil, fmt.Errorf("not a valid id: %q", a)
 		}
 		ids = append(ids, n)
 	}
 	return ids, nil
 }
 
-// resolveProject 判讀 -p 的三態。
-// 回傳的 bool 代表「要不要動 project 欄位」，字串才是新值（可為空字串）。
+// resolveProject reads the three states of -p.
+// The bool it returns means "should the project field change at all"; the string is the new value, which may be empty.
 func (a *App) resolveProject(r *argparse.Result) (string, bool, error) {
 	if !r.Changed("project") {
 		return "", false, nil
@@ -2415,7 +2415,7 @@ func (a *App) resolveProject(r *argparse.Result) (string, bool, error) {
 }
 ```
 
-- [ ] **Step 4: 執行測試確認通過**
+- [ ] **Step 4: Run the test and confirm it passes**
 
 Run: `go test ./internal/cli/ -v`
 Expected: PASS
@@ -2424,7 +2424,7 @@ Expected: PASS
 
 ```bash
 git add internal/cli/
-git commit --no-gpg-sign -m "feat(cli): App 骨架、指令 dispatch 與 todo tui"
+git commit --no-gpg-sign -m "feat(cli): the App skeleton, command dispatch and todo tui"
 ```
 
 ---
@@ -2433,16 +2433,16 @@ git commit --no-gpg-sign -m "feat(cli): App 骨架、指令 dispatch 與 todo tu
 
 **Files:**
 - Create: `internal/cli/cmd_add.go`
-- Modify: `internal/cli/app.go`（在 `commands()` 加一行）
+- Modify: `internal/cli/app.go` (one more line in `commands()`)
 - Test: `internal/cli/cmd_add_test.go`
 
 **Interfaces:**
-- Consumes: `(*App).resolveProject`、`argparse`、`task`、`datearg`
-- Produces: `(*App).cmdAdd([]string) error`、`addFlags() *argparse.Set`（`edit` 會重用）
+- Consumes: `(*App).resolveProject`, `argparse`, `task`, `datearg`
+- Produces: `(*App).cmdAdd([]string) error`, `addFlags() *argparse.Set` (reused by `edit`)
 
-- [ ] **Step 1: 寫失敗的測試**
+- [ ] **Step 1: Write the failing test**
 
-建立 `internal/cli/cmd_add_test.go`：
+Create `internal/cli/cmd_add_test.go`:
 
 ```go
 package cli
@@ -2458,33 +2458,33 @@ import (
 
 func TestAddMinimal(t *testing.T) {
 	app, out, _ := newApp(t)
-	if code := app.Run([]string{"add", "  買牛奶  "}); code != 0 {
-		t.Fatalf("離開碼 = %d", code)
+	if code := app.Run([]string{"add", "  buy milk  "}); code != 0 {
+		t.Fatalf("exit code = %d", code)
 	}
-	if !strings.Contains(out.String(), "已新增 #1：買牛奶") {
+	if !strings.Contains(out.String(), "added #1: buy milk") {
 		t.Errorf("stdout = %q", out.String())
 	}
 	got, err := app.Store.Get(1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Title != "買牛奶" {
-		t.Errorf("標題 = %q，預期去掉頭尾空白", got.Title)
+	if got.Title != "buy milk" {
+		t.Errorf("title = %q, want the surrounding spaces trimmed", got.Title)
 	}
 	if got.Project != "" {
-		t.Errorf("project = %q，沒給 -p 就該是全域未分類", got.Project)
+		t.Errorf("project = %q, without -p it should be globally uncategorized", got.Project)
 	}
 }
 
 func TestAddAllFlags(t *testing.T) {
 	app, _, _ := newApp(t)
-	code := app.Run([]string{"add", "買牛奶", "-t", "購物", "--tag=家務", "-d", "tomorrow", "--pri", "high"})
+	code := app.Run([]string{"add", "buy milk", "-t", "shopping", "--tag=chores", "-d", "tomorrow", "--pri", "high"})
 	if code != 0 {
-		t.Fatalf("離開碼 = %d", code)
+		t.Fatalf("exit code = %d", code)
 	}
 	got, _ := app.Store.Get(1)
 	if got.Due == nil || got.Due.Format("2006-01-02") != "2026-08-30" {
-		t.Errorf("due = %v，預期 2026-08-30", got.Due)
+		t.Errorf("due = %v, want 2026-08-30", got.Due)
 	}
 	if got.Priority != task.PriHigh {
 		t.Errorf("priority = %v", got.Priority)
@@ -2500,37 +2500,37 @@ func TestAddProjectFromCwd(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(root, ".git"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if code := app.Run([]string{"add", "修 bug", "-p"}); code != 0 {
-		t.Fatalf("離開碼 = %d", code)
+	if code := app.Run([]string{"add", "fix a bug", "-p"}); code != 0 {
+		t.Fatalf("exit code = %d", code)
 	}
 	got, _ := app.Store.Get(1)
 	want, _ := filepath.EvalSymlinks(root)
 	gotResolved, _ := filepath.EvalSymlinks(got.Project)
 	if gotResolved != want {
-		t.Errorf("project = %q，預期當前 repo 根 %q", gotResolved, want)
+		t.Errorf("project = %q, want the current repository root %q", gotResolved, want)
 	}
 }
 
 func TestAddProjectExplicitName(t *testing.T) {
 	app, _, _ := newApp(t)
-	if code := app.Run([]string{"add", "修 bug", "-p", "work"}); code != 0 {
-		t.Fatalf("離開碼 = %d", code)
+	if code := app.Run([]string{"add", "fix a bug", "-p", "work"}); code != 0 {
+		t.Fatalf("exit code = %d", code)
 	}
 	got, _ := app.Store.Get(1)
 	if got.Project != "work" {
-		t.Errorf("project = %q，預期 work", got.Project)
+		t.Errorf("project = %q, want work", got.Project)
 	}
 }
 
 func TestAddMissingTitleExplainsTheFootgun(t *testing.T) {
 	app, _, errBuf := newApp(t)
-	// -p 吃掉了本該是標題的參數。
-	if code := app.Run([]string{"add", "-p", "買牛奶"}); code != 1 {
-		t.Fatalf("離開碼 = %d，預期 1", code)
+	// -p swallowed the argument that should have been the title.
+	if code := app.Run([]string{"add", "-p", "buy milk"}); code != 1 {
+		t.Fatalf("exit code = %d, want 1", code)
 	}
 	msg := errBuf.String()
-	if !strings.Contains(msg, "缺少標題") || !strings.Contains(msg, "--project=買牛奶") {
-		t.Errorf("錯誤訊息應指出被 -p 吃掉並給出修正寫法，實得：%q", msg)
+	if !strings.Contains(msg, "missing title") || !strings.Contains(msg, "--project=buy milk") {
+		t.Errorf("the error should say -p swallowed it and show the fix, got: %q", msg)
 	}
 }
 
@@ -2544,23 +2544,23 @@ func TestAddRejectsBadValues(t *testing.T) {
 	for _, args := range cases {
 		app, _, errBuf := newApp(t)
 		if code := app.Run(args); code == 0 {
-			t.Errorf("%v 應該失敗", args)
+			t.Errorf("%v should fail", args)
 		}
 		if errBuf.Len() == 0 {
-			t.Errorf("%v 應該印出錯誤訊息", args)
+			t.Errorf("%v should print an error", args)
 		}
 	}
 }
 ```
 
-- [ ] **Step 2: 執行測試確認失敗**
+- [ ] **Step 2: Run the test and confirm it fails**
 
 Run: `go test ./internal/cli/ -run TestAdd`
-Expected: FAIL，`未知的指令：add`
+Expected: FAIL, `unknown command "add"`
 
-- [ ] **Step 3: 實作**
+- [ ] **Step 3: Implement**
 
-建立 `internal/cli/cmd_add.go`：
+Create `internal/cli/cmd_add.go`:
 
 ```go
 package cli
@@ -2575,13 +2575,13 @@ import (
 	"todo.mirumo.net/internal/task"
 )
 
-// addFlags 是 add 與 edit 共用的欄位 flag。
+// addFlags is the field flag set add and edit share.
 func addFlags() *argparse.Set {
 	return argparse.New(
-		argparse.Spec{Long: "project", Short: "p", Kind: argparse.OptionalString, Usage: "專案；不給值時用當前目錄"},
-		argparse.Spec{Long: "tag", Short: "t", Kind: argparse.StringSlice, Usage: "標籤，可重複"},
-		argparse.Spec{Long: "due", Short: "d", Kind: argparse.String, Usage: "截止日：tomorrow、fri、+3d、2026-09-01"},
-		argparse.Spec{Long: "pri", Kind: argparse.String, Usage: "優先度：low、med、high"},
+		argparse.Spec{Long: "project", Short: "p", Kind: argparse.OptionalString, Usage: "Project; with no value, the current directory"},
+		argparse.Spec{Long: "tag", Short: "t", Kind: argparse.StringSlice, Usage: "Tag; repeatable"},
+		argparse.Spec{Long: "due", Short: "d", Kind: argparse.String, Usage: "Due date: tomorrow, fri, +3d, 2026-09-01"},
+		argparse.Spec{Long: "pri", Kind: argparse.String, Usage: "Priority: low, med, high"},
 	)
 }
 
@@ -2592,14 +2592,14 @@ func (a *App) cmdAdd(args []string) error {
 	}
 	pos := r.Args()
 	if len(pos) == 0 {
-		// 最常見的誤用：todo add -p "買牛奶"，標題被 -p 吃掉了。
+		// The most common mistake: todo add -p "buy milk", where -p swallows the title.
 		if v, has := r.Optional("project"); has {
-			return fmt.Errorf("缺少標題；看起來 %q 被當成 --project 的值。標題請放在 flag 前面（todo add %q -p），或用 --project=%s", v, v, v)
+			return fmt.Errorf("missing title: %q was taken as the value of --project. Put the title before the flags (todo add %q -p), or write --project=%s", v, v, v)
 		}
-		return errors.New("用法：todo add <標題> [flags]")
+		return errors.New("usage: todo add <title> [flags]")
 	}
 	if len(pos) > 1 {
-		return fmt.Errorf("只能有一個標題，收到 %d 個位置參數；含空白的標題請用引號包起來", len(pos))
+		return fmt.Errorf("only one title is allowed, got %d positional arguments; quote a title that contains spaces", len(pos))
 	}
 	title, err := task.ValidateTitle(pos[0])
 	if err != nil {
@@ -2633,12 +2633,12 @@ func (a *App) cmdAdd(args []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(a.Out, "已新增 #%d：%s\n", got.ID, got.Title)
+	fmt.Fprintf(a.Out, "added #%d: %s\n", got.ID, got.Title)
 	return nil
 }
 ```
 
-在 `internal/cli/app.go` 的 `commands()` 加入 `add`：
+Add `add` to `commands()` in `internal/cli/app.go`:
 
 ```go
 	return map[string]func([]string) error{
@@ -2647,7 +2647,7 @@ func (a *App) cmdAdd(args []string) error {
 	}
 ```
 
-- [ ] **Step 4: 執行測試確認通過**
+- [ ] **Step 4: Run the test and confirm it passes**
 
 Run: `go test ./internal/cli/ -v`
 Expected: PASS
@@ -2661,30 +2661,30 @@ git commit --no-gpg-sign -m "feat(cli): todo add"
 
 ---
 
-### Task 10: `todo ls` 與清單排版
+### Task 10: `todo ls` and the list layout
 
 **Files:**
 - Create: `internal/cli/format.go`
 - Create: `internal/cli/cmd_ls.go`
-- Modify: `internal/cli/app.go`（`commands()` 加一行）
+- Modify: `internal/cli/app.go` (one more line in `commands()`)
 - Test: `internal/cli/format_test.go`
 - Test: `internal/cli/cmd_ls_test.go`
 
 **Interfaces:**
-- Consumes: `store.Store.List`、`task.Filter`、`datearg.Format`、`project.Label`
-- Produces: `cli.WriteList(w io.Writer, ts []task.Task, now time.Time, color bool)`、內部 `pad(string, int) string`、`(*App).cmdLs([]string) error`
+- Consumes: `store.Store.List`, `task.Filter`, `datearg.Format`, `project.Label`
+- Produces: `cli.WriteList(w io.Writer, ts []task.Task, now time.Time, color bool)`, the internal `pad(string, int) string`, `(*App).cmdLs([]string) error`
 
-- [ ] **Step 1: 加入 Lip Gloss 依賴**
+- [ ] **Step 1: Add the Lip Gloss dependency**
 
 ```bash
 go get github.com/charmbracelet/lipgloss@v1
 ```
 
-只用它的 `lipgloss.Width`：中文字在終端機佔兩格，`len()` 與 `text/tabwriter` 都會算錯而導致欄位跑掉。
+Only `lipgloss.Width` is used: a Chinese character takes two cells in a terminal, and both `len()` and `text/tabwriter` get that wrong, which throws the columns off.
 
-- [ ] **Step 2: 寫失敗的測試**
+- [ ] **Step 2: Write the failing test**
 
-建立 `internal/cli/format_test.go`：
+Create `internal/cli/format_test.go`:
 
 ```go
 package cli
@@ -2704,45 +2704,45 @@ func day(y int, m time.Month, d int) *time.Time {
 }
 
 func TestPadUsesDisplayWidth(t *testing.T) {
-	// "買牛奶" 是 3 個 rune、9 個 byte、6 格寬。
+	// The Chinese title is 3 runes, 9 bytes and 6 display cells wide.
 	if got := pad("買牛奶", 8); got != "買牛奶  " {
-		t.Errorf("= %q，預期補到 8 格寬（兩個空白）", got)
+		t.Errorf("= %q, want it padded to 8 cells (two spaces)", got)
 	}
 	if got := pad("abc", 2); got != "abc" {
-		t.Errorf("= %q，超過寬度時應原樣回傳", got)
+		t.Errorf("= %q, anything wider than the column comes back unchanged", got)
 	}
 }
 
 func TestWriteListAlignsColumns(t *testing.T) {
 	now := time.Date(2026, 8, 29, 15, 0, 0, 0, time.Local)
 	ts := []task.Task{
-		{ID: 1, Title: "買牛奶", Due: day(2026, 8, 29), Priority: task.PriHigh, Tags: []string{"購物"}},
+		{ID: 1, Title: "買牛奶", Due: day(2026, 8, 29), Priority: task.PriHigh, Tags: []string{"shopping"}},
 		{ID: 12, Title: "繳房租", Project: "/p/home"},
 	}
 	var buf bytes.Buffer
 	WriteList(&buf, ts, now, false)
 	lines := strings.Split(strings.TrimRight(buf.String(), "\n"), "\n")
 	if len(lines) != 2 {
-		t.Fatalf("預期兩行，實得 %d 行：%q", len(lines), buf.String())
+		t.Fatalf("want two lines, got %d: %q", len(lines), buf.String())
 	}
-	if !strings.HasPrefix(lines[0], "1  [ ] !高 今天 買牛奶 ") {
-		t.Errorf("第一行 = %q", lines[0])
+	if !strings.HasPrefix(lines[0], "1  [ ] !High today 買牛奶 ") {
+		t.Errorf("line one = %q", lines[0])
 	}
-	if !strings.Contains(lines[0], "@購物") {
-		t.Errorf("第一行少了標籤：%q", lines[0])
+	if !strings.Contains(lines[0], "@shopping") {
+		t.Errorf("line one is missing the tag: %q", lines[0])
 	}
 	if !strings.HasPrefix(lines[1], "12 [ ] ") {
-		t.Errorf("第二行 = %q，id 欄應對齊到最寬的 id", lines[1])
+		t.Errorf("line two = %q, the id column should align to the widest id", lines[1])
 	}
 	if !strings.HasSuffix(lines[1], "home") {
-		t.Errorf("第二行應以專案 basename 收尾：%q", lines[1])
+		t.Errorf("line two should end with the project basename: %q", lines[1])
 	}
 	for _, l := range lines {
 		if strings.HasSuffix(l, " ") {
-			t.Errorf("不該有尾隨空白：%q", l)
+			t.Errorf("there should be no trailing whitespace: %q", l)
 		}
 		if strings.Contains(l, "\x1b[") {
-			t.Errorf("color=false 時不該輸出 ANSI 碼：%q", l)
+			t.Errorf("color=false must emit no ANSI codes: %q", l)
 		}
 	}
 }
@@ -2750,7 +2750,7 @@ func TestWriteListAlignsColumns(t *testing.T) {
 func TestWriteListEmpty(t *testing.T) {
 	var buf bytes.Buffer
 	WriteList(&buf, nil, time.Now(), false)
-	if !strings.Contains(buf.String(), "沒有符合的待辦") {
+	if !strings.Contains(buf.String(), "No matching tasks") {
 		t.Errorf("= %q", buf.String())
 	}
 }
@@ -2759,22 +2759,22 @@ func TestWriteListColorMarksOverdueAndDone(t *testing.T) {
 	now := time.Date(2026, 8, 29, 15, 0, 0, 0, time.Local)
 	done := now
 	ts := []task.Task{
-		{ID: 1, Title: "逾期", Due: day(2026, 8, 1)},
-		{ID: 2, Title: "完成", DoneAt: &done},
+		{ID: 1, Title: "overdue", Due: day(2026, 8, 1)},
+		{ID: 2, Title: "done", DoneAt: &done},
 	}
 	var buf bytes.Buffer
 	WriteList(&buf, ts, now, true)
 	lines := strings.Split(strings.TrimRight(buf.String(), "\n"), "\n")
 	if !strings.HasPrefix(lines[0], "\x1b[31m") {
-		t.Errorf("逾期該是紅色：%q", lines[0])
+		t.Errorf("an overdue task should be red: %q", lines[0])
 	}
 	if !strings.HasPrefix(lines[1], "\x1b[2m") {
-		t.Errorf("已完成該是暗色：%q", lines[1])
+		t.Errorf("a finished task should be dim: %q", lines[1])
 	}
 }
 ```
 
-建立 `internal/cli/cmd_ls_test.go`：
+Create `internal/cli/cmd_ls_test.go`:
 
 ```go
 package cli
@@ -2784,18 +2784,18 @@ import (
 	"testing"
 )
 
-// 先塞幾筆資料再測 ls。
+// Insert a few tasks before testing ls.
 func seedCLI(t *testing.T, app *App) {
 	t.Helper()
 	cases := [][]string{
-		{"add", "逾期的事", "-d", "2026-08-20"},
-		{"add", "今天的事", "-d", "today", "--pri", "high", "-t", "急"},
-		{"add", "工作的事", "-p", "work", "-t", "雜"},
-		{"add", "沒期限的事"},
+		{"add", "overdue one", "-d", "2026-08-20"},
+		{"add", "today one", "-d", "today", "--pri", "high", "-t", "urgent"},
+		{"add", "work one", "-p", "work", "-t", "misc"},
+		{"add", "undated one"},
 	}
 	for _, args := range cases {
 		if code := app.Run(args); code != 0 {
-			t.Fatalf("%v 失敗", args)
+			t.Fatalf("%v failed", args)
 		}
 	}
 }
@@ -2804,17 +2804,17 @@ func TestLsDefaultsToOpenOnly(t *testing.T) {
 	app, out, _ := newApp(t)
 	seedCLI(t, app)
 	if code := app.Run([]string{"done", "1"}); code != 0 {
-		t.Skip("done 尚未實作，Task 11 後再跑")
+		t.Skip("done is not implemented yet; run this again after Task 11")
 	}
 	out.Reset()
 	app.Run([]string{"ls"})
-	if strings.Contains(out.String(), "逾期的事") {
-		t.Errorf("預設不該列已完成：%q", out.String())
+	if strings.Contains(out.String(), "overdue one") {
+		t.Errorf("the default should not list done tasks: %q", out.String())
 	}
 	out.Reset()
 	app.Run([]string{"ls", "-a"})
-	if !strings.Contains(out.String(), "逾期的事") {
-		t.Errorf("-a 應含已完成：%q", out.String())
+	if !strings.Contains(out.String(), "overdue one") {
+		t.Errorf("-a should include done tasks: %q", out.String())
 	}
 }
 
@@ -2824,26 +2824,26 @@ func TestLsFilterByProjectAndNoProject(t *testing.T) {
 
 	out.Reset()
 	app.Run([]string{"ls", "-p", "work"})
-	if !strings.Contains(out.String(), "工作的事") || strings.Contains(out.String(), "今天的事") {
+	if !strings.Contains(out.String(), "work one") || strings.Contains(out.String(), "today one") {
 		t.Errorf("-p work = %q", out.String())
 	}
 
 	out.Reset()
 	app.Run([]string{"ls", "--no-project"})
-	if strings.Contains(out.String(), "工作的事") {
-		t.Errorf("--no-project 不該含有專案的項目：%q", out.String())
+	if strings.Contains(out.String(), "work one") {
+		t.Errorf("--no-project should exclude tasks that have one: %q", out.String())
 	}
-	if !strings.Contains(out.String(), "今天的事") {
-		t.Errorf("--no-project 應含未分類項目：%q", out.String())
+	if !strings.Contains(out.String(), "today one") {
+		t.Errorf("--no-project should include uncategorized tasks: %q", out.String())
 	}
 }
 
 func TestLsRejectsConflictingProjectFlags(t *testing.T) {
 	app, _, errBuf := newApp(t)
 	if code := app.Run([]string{"ls", "-p", "work", "--no-project"}); code != 1 {
-		t.Errorf("離開碼 = %d，預期 1", code)
+		t.Errorf("exit code = %d, want 1", code)
 	}
-	if !strings.Contains(errBuf.String(), "不能同時使用") {
+	if !strings.Contains(errBuf.String(), "cannot be used together") {
 		t.Errorf("stderr = %q", errBuf.String())
 	}
 }
@@ -2854,29 +2854,29 @@ func TestLsDueKeywordsAndTags(t *testing.T) {
 
 	out.Reset()
 	app.Run([]string{"ls", "-d", "today"})
-	if !strings.Contains(out.String(), "今天的事") || strings.Contains(out.String(), "逾期的事") {
+	if !strings.Contains(out.String(), "today one") || strings.Contains(out.String(), "overdue one") {
 		t.Errorf("-d today = %q", out.String())
 	}
 
 	out.Reset()
 	app.Run([]string{"ls", "-d", "overdue"})
-	if !strings.Contains(out.String(), "逾期的事") {
+	if !strings.Contains(out.String(), "overdue one") {
 		t.Errorf("-d overdue = %q", out.String())
 	}
 
 	out.Reset()
-	app.Run([]string{"ls", "-t", "急"})
-	if !strings.Contains(out.String(), "今天的事") || strings.Contains(out.String(), "工作的事") {
-		t.Errorf("-t 急 = %q", out.String())
+	app.Run([]string{"ls", "-t", "urgent"})
+	if !strings.Contains(out.String(), "today one") || strings.Contains(out.String(), "work one") {
+		t.Errorf("-t urgent = %q", out.String())
 	}
 }
 
 func TestLsRejectsPositionalArgs(t *testing.T) {
 	app, _, errBuf := newApp(t)
-	if code := app.Run([]string{"ls", "垃圾"}); code != 1 {
-		t.Errorf("離開碼 = %d，預期 1", code)
+	if code := app.Run([]string{"ls", "junk"}); code != 1 {
+		t.Errorf("exit code = %d, want 1", code)
 	}
-	if !strings.Contains(errBuf.String(), "不接受位置參數") {
+	if !strings.Contains(errBuf.String(), "takes no positional arguments") {
 		t.Errorf("stderr = %q", errBuf.String())
 	}
 }
@@ -2884,22 +2884,22 @@ func TestLsRejectsPositionalArgs(t *testing.T) {
 func TestLsBadSortAndPriority(t *testing.T) {
 	app, _, _ := newApp(t)
 	if code := app.Run([]string{"ls", "-s", "title"}); code == 0 {
-		t.Error("未知的排序應該失敗")
+		t.Error("an unknown sort should fail")
 	}
 	if code := app.Run([]string{"ls", "--pri", "urgent"}); code == 0 {
-		t.Error("未知的優先度應該失敗")
+		t.Error("an unknown priority should fail")
 	}
 }
 ```
 
-- [ ] **Step 3: 執行測試確認失敗**
+- [ ] **Step 3: Run the test and confirm it fails**
 
 Run: `go test ./internal/cli/ -run 'TestPad|TestWriteList|TestLs'`
-Expected: FAIL，`undefined: pad`
+Expected: FAIL, `undefined: pad`
 
-- [ ] **Step 4: 實作排版**
+- [ ] **Step 4: Implement the layout**
 
-建立 `internal/cli/format.go`：
+Create `internal/cli/format.go`:
 
 ```go
 package cli
@@ -2924,7 +2924,7 @@ const (
 	ansiYellow = "\x1b[33m"
 )
 
-// pad 依終端顯示寬度補空白。中文字佔兩格，len() 與 text/tabwriter 都會算錯。
+// pad pads to a terminal display width. A Chinese character takes two cells, which both len() and text/tabwriter get wrong.
 func pad(s string, w int) string {
 	if d := w - lipgloss.Width(s); d > 0 {
 		return s + strings.Repeat(" ", d)
@@ -2968,10 +2968,10 @@ func colorize(line string, t task.Task, now time.Time) string {
 	return line
 }
 
-// WriteList 輸出對齊的待辦清單。color 為 false 時完全不輸出 ANSI 碼。
+// WriteList prints an aligned task list. With color false it emits no ANSI codes at all.
 func WriteList(w io.Writer, ts []task.Task, now time.Time, color bool) {
 	if len(ts) == 0 {
-		fmt.Fprintln(w, "沒有符合的待辦")
+		fmt.Fprintln(w, "No matching tasks")
 		return
 	}
 	rows := make([]row, len(ts))
@@ -2997,9 +2997,9 @@ func WriteList(w io.Writer, ts []task.Task, now time.Time, color bool) {
 }
 ```
 
-- [ ] **Step 5: 實作 ls**
+- [ ] **Step 5: Implement ls**
 
-建立 `internal/cli/cmd_ls.go`：
+Create `internal/cli/cmd_ls.go`:
 
 ```go
 package cli
@@ -3016,21 +3016,21 @@ import (
 
 func (a *App) cmdLs(args []string) error {
 	set := argparse.New(
-		argparse.Spec{Long: "project", Short: "p", Kind: argparse.OptionalString, Usage: "只看某專案；不給值時用當前目錄"},
-		argparse.Spec{Long: "no-project", Kind: argparse.Bool, Usage: "只看全域未分類"},
-		argparse.Spec{Long: "tag", Short: "t", Kind: argparse.StringSlice, Usage: "標籤，可重複，取交集"},
-		argparse.Spec{Long: "due", Short: "d", Kind: argparse.String, Usage: "today、week、overdue 或一個日期"},
-		argparse.Spec{Long: "pri", Kind: argparse.String, Usage: "優先度：low、med、high"},
-		argparse.Spec{Long: "all", Short: "a", Kind: argparse.Bool, Usage: "含已完成"},
-		argparse.Spec{Long: "done", Kind: argparse.Bool, Usage: "只看已完成"},
-		argparse.Spec{Long: "sort", Short: "s", Kind: argparse.String, Usage: "排序：due、pri、created"},
+		argparse.Spec{Long: "project", Short: "p", Kind: argparse.OptionalString, Usage: "Only this project; with no value, the current directory"},
+		argparse.Spec{Long: "no-project", Kind: argparse.Bool, Usage: "Only globally uncategorized tasks"},
+		argparse.Spec{Long: "tag", Short: "t", Kind: argparse.StringSlice, Usage: "Tag; repeatable, intersected"},
+		argparse.Spec{Long: "due", Short: "d", Kind: argparse.String, Usage: "today, week, overdue or a date"},
+		argparse.Spec{Long: "pri", Kind: argparse.String, Usage: "Priority: low, med, high"},
+		argparse.Spec{Long: "all", Short: "a", Kind: argparse.Bool, Usage: "Include done tasks"},
+		argparse.Spec{Long: "done", Kind: argparse.Bool, Usage: "Only done tasks"},
+		argparse.Spec{Long: "sort", Short: "s", Kind: argparse.String, Usage: "Sort: due, pri, created"},
 	)
 	r, err := set.Parse(args)
 	if err != nil {
 		return err
 	}
 	if pos := r.Args(); len(pos) > 0 {
-		return fmt.Errorf("ls 不接受位置參數，收到 %q；要搜尋標題請用 todo tui 的 / 鍵", pos[0])
+		return fmt.Errorf("ls takes no positional arguments, got %q; to search titles use the / key in todo tui", pos[0])
 	}
 
 	f := task.Filter{
@@ -3039,7 +3039,7 @@ func (a *App) cmdLs(args []string) error {
 		Tags:        r.Strings("tag"),
 	}
 	if r.Bool("no-project") && r.Changed("project") {
-		return errors.New("-p 與 --no-project 不能同時使用")
+		return errors.New("-p and --no-project cannot be used together")
 	}
 	if r.Bool("no-project") {
 		empty := ""
@@ -3085,18 +3085,18 @@ func (a *App) cmdLs(args []string) error {
 }
 ```
 
-在 `commands()` 加入 `"ls": a.cmdLs,`。
+Add `"ls": a.cmdLs,` to `commands()`.
 
-- [ ] **Step 6: 執行測試確認通過**
+- [ ] **Step 6: Run the test and confirm it passes**
 
 Run: `go test ./internal/cli/ -v`
-Expected: PASS（`TestLsDefaultsToOpenOnly` 會 SKIP，Task 11 後轉綠）
+Expected: PASS (`TestLsDefaultsToOpenOnly` SKIPs, and turns green after Task 11)
 
 - [ ] **Step 7: Commit**
 
 ```bash
 git add go.mod go.sum internal/cli/
-git commit --no-gpg-sign -m "feat(cli): todo ls 與寬度正確的清單排版"
+git commit --no-gpg-sign -m "feat(cli): todo ls and a list layout with the right widths"
 ```
 
 ---
@@ -3105,16 +3105,16 @@ git commit --no-gpg-sign -m "feat(cli): todo ls 與寬度正確的清單排版"
 
 **Files:**
 - Create: `internal/cli/cmd_mark.go`
-- Modify: `internal/cli/app.go`（`commands()` 加三行）
+- Modify: `internal/cli/app.go` (three more lines in `commands()`)
 - Test: `internal/cli/cmd_mark_test.go`
 
 **Interfaces:**
-- Consumes: `parseIDs`、`store.Store.Get/SetDone/Delete`、`store.ErrNotFound`
-- Produces: `(*App).cmdDone`、`(*App).cmdUndone`、`(*App).cmdRm`
+- Consumes: `parseIDs`, `store.Store.Get/SetDone/Delete`, `store.ErrNotFound`
+- Produces: `(*App).cmdDone`, `(*App).cmdUndone`, `(*App).cmdRm`
 
-- [ ] **Step 1: 寫失敗的測試**
+- [ ] **Step 1: Write the failing test**
 
-建立 `internal/cli/cmd_mark_test.go`：
+Create `internal/cli/cmd_mark_test.go`:
 
 ```go
 package cli
@@ -3126,28 +3126,28 @@ import (
 
 func TestDoneAndUndone(t *testing.T) {
 	app, out, _ := newApp(t)
-	app.Run([]string{"add", "買牛奶"})
+	app.Run([]string{"add", "buy milk"})
 	out.Reset()
 
 	if code := app.Run([]string{"done", "1"}); code != 0 {
-		t.Fatalf("離開碼 = %d", code)
+		t.Fatalf("exit code = %d", code)
 	}
-	if !strings.Contains(out.String(), "已完成 #1：買牛奶") {
+	if !strings.Contains(out.String(), "done #1: buy milk") {
 		t.Errorf("stdout = %q", out.String())
 	}
 	got, _ := app.Store.Get(1)
 	if !got.Done() {
-		t.Error("應為已完成")
+		t.Error("it should be done")
 	}
 
 	out.Reset()
 	app.Run([]string{"undone", "1"})
-	if !strings.Contains(out.String(), "已取消完成 #1") {
+	if !strings.Contains(out.String(), "reopened #1") {
 		t.Errorf("stdout = %q", out.String())
 	}
 	got, _ = app.Store.Get(1)
 	if got.Done() {
-		t.Error("應為未完成")
+		t.Error("it should not be done")
 	}
 }
 
@@ -3157,35 +3157,35 @@ func TestDoneAcceptsMultipleIDs(t *testing.T) {
 	app.Run([]string{"add", "b"})
 	out.Reset()
 	if code := app.Run([]string{"done", "1", "2"}); code != 0 {
-		t.Fatalf("離開碼 = %d", code)
+		t.Fatalf("exit code = %d", code)
 	}
-	if strings.Count(out.String(), "已完成") != 2 {
-		t.Errorf("stdout = %q，預期兩行", out.String())
+	if strings.Count(out.String(), "done") != 2 {
+		t.Errorf("stdout = %q, want two lines", out.String())
 	}
 }
 
 func TestMarkMissingIDNamesTheID(t *testing.T) {
 	app, _, errBuf := newApp(t)
 	if code := app.Run([]string{"done", "42"}); code != 1 {
-		t.Fatalf("離開碼 = %d，預期 1", code)
+		t.Fatalf("exit code = %d, want 1", code)
 	}
 	if !strings.Contains(errBuf.String(), "#42") {
-		t.Errorf("錯誤訊息應指出是哪個 id：%q", errBuf.String())
+		t.Errorf("the error should name the id at fault: %q", errBuf.String())
 	}
 }
 
 func TestRm(t *testing.T) {
 	app, out, _ := newApp(t)
-	app.Run([]string{"add", "買牛奶"})
+	app.Run([]string{"add", "buy milk"})
 	out.Reset()
 	if code := app.Run([]string{"rm", "1"}); code != 0 {
-		t.Fatalf("離開碼 = %d", code)
+		t.Fatalf("exit code = %d", code)
 	}
-	if !strings.Contains(out.String(), "已刪除 #1：買牛奶") {
+	if !strings.Contains(out.String(), "deleted #1: buy milk") {
 		t.Errorf("stdout = %q", out.String())
 	}
 	if _, err := app.Store.Get(1); err == nil {
-		t.Error("應該被刪掉了")
+		t.Error("it should have been deleted")
 	}
 }
 
@@ -3193,23 +3193,23 @@ func TestMarkRequiresID(t *testing.T) {
 	for _, cmd := range []string{"done", "undone", "rm"} {
 		app, _, errBuf := newApp(t)
 		if code := app.Run([]string{cmd}); code != 1 {
-			t.Errorf("%s 沒給 id 時離開碼 = %d，預期 1", cmd, code)
+			t.Errorf("%s with no id: exit code = %d, want 1", cmd, code)
 		}
 		if errBuf.Len() == 0 {
-			t.Errorf("%s 應該印出錯誤", cmd)
+			t.Errorf("%s should print an error", cmd)
 		}
 	}
 }
 ```
 
-- [ ] **Step 2: 執行測試確認失敗**
+- [ ] **Step 2: Run the test and confirm it fails**
 
 Run: `go test ./internal/cli/ -run 'TestDone|TestRm|TestMark'`
-Expected: FAIL，`未知的指令：done`
+Expected: FAIL, `unknown command "done"`
 
-- [ ] **Step 3: 實作**
+- [ ] **Step 3: Implement**
 
-建立 `internal/cli/cmd_mark.go`：
+Create `internal/cli/cmd_mark.go`:
 
 ```go
 package cli
@@ -3224,19 +3224,19 @@ func (a *App) setDone(args []string, done bool) error {
 	if err != nil {
 		return err
 	}
-	verb := "已完成"
+	verb := "done"
 	if !done {
-		verb = "已取消完成"
+		verb = "reopened"
 	}
 	for _, id := range ids {
 		t, err := a.Store.Get(id)
 		if err != nil {
-			return fmt.Errorf("#%d：%w", id, err)
+			return fmt.Errorf("#%d: %w", id, err)
 		}
 		if err := a.Store.SetDone(id, done, a.Now()); err != nil {
-			return fmt.Errorf("#%d：%w", id, err)
+			return fmt.Errorf("#%d: %w", id, err)
 		}
-		fmt.Fprintf(a.Out, "%s #%d：%s\n", verb, id, t.Title)
+		fmt.Fprintf(a.Out, "%s #%d: %s\n", verb, id, t.Title)
 	}
 	return nil
 }
@@ -3247,21 +3247,21 @@ func (a *App) cmdRm(args []string) error {
 		return err
 	}
 	for _, id := range ids {
-		// 先取回來，刪除訊息才能帶上標題，讓使用者確認自己刪對了。
+		// Fetch it first, so the message can carry the title and the user can see they deleted the right thing.
 		t, err := a.Store.Get(id)
 		if err != nil {
-			return fmt.Errorf("#%d：%w", id, err)
+			return fmt.Errorf("#%d: %w", id, err)
 		}
 		if err := a.Store.Delete(id); err != nil {
-			return fmt.Errorf("#%d：%w", id, err)
+			return fmt.Errorf("#%d: %w", id, err)
 		}
-		fmt.Fprintf(a.Out, "已刪除 #%d：%s\n", id, t.Title)
+		fmt.Fprintf(a.Out, "deleted #%d: %s\n", id, t.Title)
 	}
 	return nil
 }
 ```
 
-在 `commands()` 加入：
+Add to `commands()`:
 
 ```go
 		"done":   a.cmdDone,
@@ -3269,16 +3269,16 @@ func (a *App) cmdRm(args []string) error {
 		"rm":     a.cmdRm,
 ```
 
-- [ ] **Step 4: 執行測試確認通過**
+- [ ] **Step 4: Run the test and confirm it passes**
 
 Run: `go test ./internal/cli/ -v`
-Expected: PASS，且 `TestLsDefaultsToOpenOnly` 不再 SKIP
+Expected: PASS, and `TestLsDefaultsToOpenOnly` no longer SKIPs
 
 - [ ] **Step 5: Commit**
 
 ```bash
 git add internal/cli/
-git commit --no-gpg-sign -m "feat(cli): done、undone、rm"
+git commit --no-gpg-sign -m "feat(cli): done, undone, rm"
 ```
 
 ---
@@ -3287,18 +3287,18 @@ git commit --no-gpg-sign -m "feat(cli): done、undone、rm"
 
 **Files:**
 - Create: `internal/cli/cmd_edit.go`
-- Modify: `internal/cli/app.go`（`commands()` 加一行）
+- Modify: `internal/cli/app.go` (one more line in `commands()`)
 - Test: `internal/cli/cmd_edit_test.go`
 
 **Interfaces:**
-- Consumes: `addFlags()`、`(*App).resolveProject`、`store.Store.Get/Update`
+- Consumes: `addFlags()`, `(*App).resolveProject`, `store.Store.Get/Update`
 - Produces: `(*App).cmdEdit([]string) error`
 
-**對 spec 的補充**：spec 的 `edit` 只列了 flag。實作再接受一個選用的第二位置參數當新標題（`todo edit 3 "新標題"`），否則 CLI 無法改標題，只能進 TUI 改——那是缺口不是設計。
+**An addition to the spec**: the spec's `edit` lists only flags. The implementation also takes an optional second positional argument as the new title (`todo edit 3 "new title"`), because otherwise the CLI cannot change a title at all and the TUI is the only way — that is a gap, not a design.
 
-- [ ] **Step 1: 寫失敗的測試**
+- [ ] **Step 1: Write the failing test**
 
-建立 `internal/cli/cmd_edit_test.go`：
+Create `internal/cli/cmd_edit_test.go`:
 
 ```go
 package cli
@@ -3312,80 +3312,80 @@ import (
 
 func TestEditOnlyTouchesGivenFlags(t *testing.T) {
 	app, out, _ := newApp(t)
-	app.Run([]string{"add", "買牛奶", "-d", "tomorrow", "--pri", "high", "-t", "購物", "-p", "work"})
+	app.Run([]string{"add", "buy milk", "-d", "tomorrow", "--pri", "high", "-t", "shopping", "-p", "work"})
 	out.Reset()
 
 	if code := app.Run([]string{"edit", "1", "--pri", "low"}); code != 0 {
-		t.Fatalf("離開碼 = %d", code)
+		t.Fatalf("exit code = %d", code)
 	}
 	got, _ := app.Store.Get(1)
 	if got.Priority != task.PriLow {
-		t.Errorf("priority = %v，預期 low", got.Priority)
+		t.Errorf("priority = %v, want low", got.Priority)
 	}
 	if got.Due == nil {
-		t.Error("沒給 --due 就不該動到截止日")
+		t.Error("without --due the due date must not move")
 	}
 	if got.Project != "work" {
-		t.Errorf("project = %q，沒給 -p 就不該動", got.Project)
+		t.Errorf("project = %q, without -p it must not move", got.Project)
 	}
 	if len(got.Tags) != 1 {
-		t.Errorf("tags = %v，沒給 -t 就不該動", got.Tags)
+		t.Errorf("tags = %v, without -t they must not move", got.Tags)
 	}
 }
 
 func TestEditEmptyDueClearsIt(t *testing.T) {
 	app, _, _ := newApp(t)
-	app.Run([]string{"add", "買牛奶", "-d", "tomorrow"})
+	app.Run([]string{"add", "buy milk", "-d", "tomorrow"})
 	if code := app.Run([]string{"edit", "1", "--due", ""}); code != 0 {
-		t.Fatalf("離開碼 = %d", code)
+		t.Fatalf("exit code = %d", code)
 	}
 	got, _ := app.Store.Get(1)
 	if got.Due != nil {
-		t.Errorf("due = %v，--due \"\" 應該清掉期限", got.Due)
+		t.Errorf("due = %v, --due \"\" should clear the due date", got.Due)
 	}
 }
 
 func TestEditEmptyProjectMakesItGlobal(t *testing.T) {
 	app, _, _ := newApp(t)
-	app.Run([]string{"add", "買牛奶", "-p", "work"})
+	app.Run([]string{"add", "buy milk", "-p", "work"})
 	if code := app.Run([]string{"edit", "1", "--project="}); code != 0 {
-		t.Fatalf("離開碼 = %d", code)
+		t.Fatalf("exit code = %d", code)
 	}
 	got, _ := app.Store.Get(1)
 	if got.Project != "" {
-		t.Errorf("project = %q，--project= 應該改回全域未分類", got.Project)
+		t.Errorf("project = %q, --project= should put it back to globally uncategorized", got.Project)
 	}
 }
 
 func TestEditReplacesTagsWholesale(t *testing.T) {
 	app, _, _ := newApp(t)
-	app.Run([]string{"add", "買牛奶", "-t", "購物", "-t", "家務"})
-	app.Run([]string{"edit", "1", "-t", "早餐"})
+	app.Run([]string{"add", "buy milk", "-t", "shopping", "-t", "chores"})
+	app.Run([]string{"edit", "1", "-t", "breakfast"})
 	got, _ := app.Store.Get(1)
-	if len(got.Tags) != 1 || got.Tags[0] != "早餐" {
-		t.Errorf("tags = %v，-t 應整組取代而非累加", got.Tags)
+	if len(got.Tags) != 1 || got.Tags[0] != "breakfast" {
+		t.Errorf("tags = %v, -t should replace the whole set rather than add to it", got.Tags)
 	}
 }
 
 func TestEditTitleViaSecondPositional(t *testing.T) {
 	app, out, _ := newApp(t)
-	app.Run([]string{"add", "買牛奶"})
+	app.Run([]string{"add", "buy milk"})
 	out.Reset()
-	if code := app.Run([]string{"edit", "1", "買豆漿"}); code != 0 {
-		t.Fatalf("離開碼 = %d", code)
+	if code := app.Run([]string{"edit", "1", "buy soy milk"}); code != 0 {
+		t.Fatalf("exit code = %d", code)
 	}
 	got, _ := app.Store.Get(1)
-	if got.Title != "買豆漿" {
+	if got.Title != "buy soy milk" {
 		t.Errorf("title = %q", got.Title)
 	}
-	if !strings.Contains(out.String(), "已更新 #1：買豆漿") {
+	if !strings.Contains(out.String(), "updated #1: buy soy milk") {
 		t.Errorf("stdout = %q", out.String())
 	}
 }
 
 func TestEditErrors(t *testing.T) {
 	app, _, _ := newApp(t)
-	app.Run([]string{"add", "買牛奶"})
+	app.Run([]string{"add", "buy milk"})
 	for _, args := range [][]string{
 		{"edit"},
 		{"edit", "x"},
@@ -3394,20 +3394,20 @@ func TestEditErrors(t *testing.T) {
 		{"edit", "1", "--due", "someday"},
 	} {
 		if code := app.Run(args); code == 0 {
-			t.Errorf("%v 應該失敗", args)
+			t.Errorf("%v should fail", args)
 		}
 	}
 }
 ```
 
-- [ ] **Step 2: 執行測試確認失敗**
+- [ ] **Step 2: Run the test and confirm it fails**
 
 Run: `go test ./internal/cli/ -run TestEdit`
-Expected: FAIL，`未知的指令：edit`
+Expected: FAIL, `unknown command "edit"`
 
-- [ ] **Step 3: 實作**
+- [ ] **Step 3: Implement**
 
-建立 `internal/cli/cmd_edit.go`：
+Create `internal/cli/cmd_edit.go`:
 
 ```go
 package cli
@@ -3428,10 +3428,10 @@ func (a *App) cmdEdit(args []string) error {
 	}
 	pos := r.Args()
 	if len(pos) == 0 {
-		return errors.New("用法：todo edit <id> [新標題] [flags]")
+		return errors.New("usage: todo edit <id> [new title] [flags]")
 	}
 	if len(pos) > 2 {
-		return fmt.Errorf("最多接受 <id> 與新標題兩個位置參數，收到 %d 個", len(pos))
+		return fmt.Errorf("at most two positional arguments are accepted, <id> and a new title, got %d", len(pos))
 	}
 	ids, err := parseIDs(pos[:1])
 	if err != nil {
@@ -3439,10 +3439,10 @@ func (a *App) cmdEdit(args []string) error {
 	}
 	t, err := a.Store.Get(ids[0])
 	if err != nil {
-		return fmt.Errorf("#%d：%w", ids[0], err)
+		return fmt.Errorf("#%d: %w", ids[0], err)
 	}
 
-	// 只動「有給」的欄位。沒給 flag 與給了空值是兩回事。
+	// Only the fields that were given change. Leaving a flag out and giving it an empty value are two different things.
 	if len(pos) == 2 {
 		if t.Title, err = task.ValidateTitle(pos[1]); err != nil {
 			return err
@@ -3475,16 +3475,16 @@ func (a *App) cmdEdit(args []string) error {
 	t.UpdatedAt = a.Now()
 
 	if err := a.Store.Update(t); err != nil {
-		return fmt.Errorf("#%d：%w", t.ID, err)
+		return fmt.Errorf("#%d: %w", t.ID, err)
 	}
-	fmt.Fprintf(a.Out, "已更新 #%d：%s\n", t.ID, t.Title)
+	fmt.Fprintf(a.Out, "updated #%d: %s\n", t.ID, t.Title)
 	return nil
 }
 ```
 
-在 `commands()` 加入 `"edit": a.cmdEdit,`。
+Add `"edit": a.cmdEdit,` to `commands()`.
 
-- [ ] **Step 4: 執行測試確認通過**
+- [ ] **Step 4: Run the test and confirm it passes**
 
 Run: `go test ./internal/cli/ -v`
 Expected: PASS
@@ -3498,20 +3498,20 @@ git commit --no-gpg-sign -m "feat(cli): todo edit"
 
 ---
 
-### Task 13: `projects` 與 `tags`
+### Task 13: `projects` and `tags`
 
 **Files:**
 - Create: `internal/cli/cmd_meta.go`
-- Modify: `internal/cli/app.go`（`commands()` 加兩行）
+- Modify: `internal/cli/app.go` (two more lines in `commands()`)
 - Test: `internal/cli/cmd_meta_test.go`
 
 **Interfaces:**
-- Consumes: `store.Store.Projects/Tags`、`project.Label`、`pad`
-- Produces: `(*App).cmdProjects`、`(*App).cmdTags`
+- Consumes: `store.Store.Projects/Tags`, `project.Label`, `pad`
+- Produces: `(*App).cmdProjects`, `(*App).cmdTags`
 
-- [ ] **Step 1: 寫失敗的測試**
+- [ ] **Step 1: Write the failing test**
 
-建立 `internal/cli/cmd_meta_test.go`：
+Create `internal/cli/cmd_meta_test.go`:
 
 ```go
 package cli
@@ -3523,42 +3523,42 @@ import (
 
 func TestProjectsListsCountsAndUncategorized(t *testing.T) {
 	app, out, _ := newApp(t)
-	app.Run([]string{"add", "全域的事"})
-	app.Run([]string{"add", "工作 A", "-p", "/p/work"})
-	app.Run([]string{"add", "工作 B", "-p", "/p/work"})
+	app.Run([]string{"add", "a global one"})
+	app.Run([]string{"add", "work A", "-p", "/p/work"})
+	app.Run([]string{"add", "work B", "-p", "/p/work"})
 	app.Run([]string{"done", "3"})
 	out.Reset()
 
 	if code := app.Run([]string{"projects"}); code != 0 {
-		t.Fatalf("離開碼 = %d", code)
+		t.Fatalf("exit code = %d", code)
 	}
 	s := out.String()
-	if !strings.Contains(s, "（未分類）") {
-		t.Errorf("應該把空專案顯示為（未分類）：%q", s)
+	if !strings.Contains(s, "(uncategorized)") {
+		t.Errorf("an empty project should show as (uncategorized): %q", s)
 	}
-	if !strings.Contains(s, "work") || !strings.Contains(s, "1 未完成") {
-		t.Errorf("應顯示 basename 與未完成數：%q", s)
+	if !strings.Contains(s, "work") || !strings.Contains(s, "1 open") {
+		t.Errorf("the basename and the open count should both show: %q", s)
 	}
 	if !strings.Contains(s, "/p/work") {
-		t.Errorf("有專案者應附上完整路徑：%q", s)
+		t.Errorf("a task with a project should carry its full path: %q", s)
 	}
 }
 
 func TestProjectsEmpty(t *testing.T) {
 	app, out, _ := newApp(t)
 	app.Run([]string{"projects"})
-	if !strings.Contains(out.String(), "還沒有任何待辦") {
+	if !strings.Contains(out.String(), "No tasks yet") {
 		t.Errorf("= %q", out.String())
 	}
 }
 
 func TestTags(t *testing.T) {
 	app, out, _ := newApp(t)
-	app.Run([]string{"add", "x", "-t", "購物", "-t", "家務"})
+	app.Run([]string{"add", "x", "-t", "shopping", "-t", "chores"})
 	out.Reset()
 	app.Run([]string{"tags"})
 	s := out.String()
-	if !strings.Contains(s, "@家務") || !strings.Contains(s, "@購物") {
+	if !strings.Contains(s, "@chores") || !strings.Contains(s, "@shopping") {
 		t.Errorf("= %q", s)
 	}
 }
@@ -3566,7 +3566,7 @@ func TestTags(t *testing.T) {
 func TestTagsEmpty(t *testing.T) {
 	app, out, _ := newApp(t)
 	app.Run([]string{"tags"})
-	if !strings.Contains(out.String(), "還沒有任何標籤") {
+	if !strings.Contains(out.String(), "No tags yet") {
 		t.Errorf("= %q", out.String())
 	}
 }
@@ -3574,24 +3574,24 @@ func TestTagsEmpty(t *testing.T) {
 func TestMetaCommandsRejectArgs(t *testing.T) {
 	for _, cmd := range []string{"projects", "tags"} {
 		app, _, errBuf := newApp(t)
-		if code := app.Run([]string{cmd, "垃圾"}); code != 1 {
-			t.Errorf("%s 離開碼 = %d，預期 1", cmd, code)
+		if code := app.Run([]string{cmd, "junk"}); code != 1 {
+			t.Errorf("%s exit code = %d, want 1", cmd, code)
 		}
-		if !strings.Contains(errBuf.String(), "不接受參數") {
+		if !strings.Contains(errBuf.String(), "takes no arguments") {
 			t.Errorf("%s stderr = %q", cmd, errBuf.String())
 		}
 	}
 }
 ```
 
-- [ ] **Step 2: 執行測試確認失敗**
+- [ ] **Step 2: Run the test and confirm it fails**
 
 Run: `go test ./internal/cli/ -run 'TestProjects|TestTags|TestMeta'`
-Expected: FAIL，`未知的指令：projects`
+Expected: FAIL, `unknown command "projects"`
 
-- [ ] **Step 3: 實作**
+- [ ] **Step 3: Implement**
 
-建立 `internal/cli/cmd_meta.go`：
+Create `internal/cli/cmd_meta.go`:
 
 ```go
 package cli
@@ -3606,14 +3606,14 @@ import (
 
 func (a *App) cmdProjects(args []string) error {
 	if len(args) > 0 {
-		return fmt.Errorf("projects 不接受參數，收到 %q", args[0])
+		return fmt.Errorf("projects takes no arguments, got %q", args[0])
 	}
 	ps, err := a.Store.Projects()
 	if err != nil {
 		return err
 	}
 	if len(ps) == 0 {
-		fmt.Fprintln(a.Out, "還沒有任何待辦")
+		fmt.Fprintln(a.Out, "No tasks yet")
 		return nil
 	}
 	labels := make([]string, len(ps))
@@ -3621,12 +3621,12 @@ func (a *App) cmdProjects(args []string) error {
 	for i, p := range ps {
 		labels[i] = project.Label(p.Path)
 		if labels[i] == "" {
-			labels[i] = "（未分類）"
+			labels[i] = "(uncategorized)"
 		}
 		w = max(w, lipgloss.Width(labels[i]))
 	}
 	for i, p := range ps {
-		fmt.Fprintf(a.Out, "%s  %d 未完成", pad(labels[i], w), p.Open)
+		fmt.Fprintf(a.Out, "%s  %d open", pad(labels[i], w), p.Open)
 		if p.Path != "" {
 			fmt.Fprintf(a.Out, "  %s", p.Path)
 		}
@@ -3637,14 +3637,14 @@ func (a *App) cmdProjects(args []string) error {
 
 func (a *App) cmdTags(args []string) error {
 	if len(args) > 0 {
-		return fmt.Errorf("tags 不接受參數，收到 %q", args[0])
+		return fmt.Errorf("tags takes no arguments, got %q", args[0])
 	}
 	tags, err := a.Store.Tags()
 	if err != nil {
 		return err
 	}
 	if len(tags) == 0 {
-		fmt.Fprintln(a.Out, "還沒有任何標籤")
+		fmt.Fprintln(a.Out, "No tags yet")
 		return nil
 	}
 	for _, t := range tags {
@@ -3654,14 +3654,14 @@ func (a *App) cmdTags(args []string) error {
 }
 ```
 
-在 `commands()` 加入：
+Add to `commands()`:
 
 ```go
 		"projects": a.cmdProjects,
 		"tags":     a.cmdTags,
 ```
 
-- [ ] **Step 4: 執行測試確認通過**
+- [ ] **Step 4: Run the test and confirm it passes**
 
 Run: `go test ./internal/cli/ -v`
 Expected: PASS
@@ -3670,24 +3670,24 @@ Expected: PASS
 
 ```bash
 git add internal/cli/
-git commit --no-gpg-sign -m "feat(cli): projects 與 tags"
+git commit --no-gpg-sign -m "feat(cli): projects and tags"
 ```
 
 ---
 
-### Task 14: 組裝可執行檔
+### Task 14: Wiring the executable
 
 **Files:**
 - Create: `cmd/todo/main.go`
 - Test: `cmd/todo/main_test.go`
 
 **Interfaces:**
-- Consumes: `cli.SplitGlobal`、`cli.App`、`store.OpenSQLite`
-- Produces: `todo` 執行檔；內部 `resolveDBPath(envDB, flagDB, home string) string`、`isTTY(*os.File) bool`
+- Consumes: `cli.SplitGlobal`, `cli.App`, `store.OpenSQLite`
+- Produces: the `todo` executable, plus the internal `resolveDBPath(envDB, flagDB, home string) string` and `isTTY(*os.File) bool`
 
-- [ ] **Step 1: 寫失敗的測試**
+- [ ] **Step 1: Write the failing test**
 
-建立 `cmd/todo/main_test.go`：
+Create `cmd/todo/main_test.go`:
 
 ```go
 package main
@@ -3706,32 +3706,32 @@ func TestResolveDBPath(t *testing.T) {
 		flag   string
 		want   string
 	}{
-		{"預設", "", "", def},
-		{"環境變數", "/tmp/env.db", "", "/tmp/env.db"},
-		{"flag 覆寫環境變數", "/tmp/env.db", "/tmp/flag.db", "/tmp/flag.db"},
-		{"只有 flag", "", "/tmp/flag.db", "/tmp/flag.db"},
+		{"default", "", "", def},
+		{"environment variable", "/tmp/env.db", "", "/tmp/env.db"},
+		{"the flag overrides the environment", "/tmp/env.db", "/tmp/flag.db", "/tmp/flag.db"},
+		{"nothing but the flag", "", "/tmp/flag.db", "/tmp/flag.db"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			if got := resolveDBPath(c.env, c.flag, home); got != c.want {
-				t.Errorf("= %q，預期 %q", got, c.want)
+				t.Errorf("= %q, want %q", got, c.want)
 			}
 		})
 	}
 }
 ```
 
-- [ ] **Step 2: 執行測試確認失敗**
+- [ ] **Step 2: Run the test and confirm it fails**
 
 Run: `go test ./cmd/todo/`
-Expected: FAIL，`undefined: resolveDBPath`
+Expected: FAIL, `undefined: resolveDBPath`
 
-- [ ] **Step 3: 實作**
+- [ ] **Step 3: Implement**
 
-建立 `cmd/todo/main.go`：
+Create `cmd/todo/main.go`:
 
 ```go
-// Command todo 是一個本機待辦事項工具。
+// Command todo is a local task list.
 package main
 
 import (
@@ -3747,26 +3747,26 @@ import (
 
 func main() { os.Exit(run()) }
 
-// run 把整個流程包起來，讓 defer 有機會執行（os.Exit 會跳過 defer）。
+// run wraps the whole flow so deferred calls get to run (os.Exit skips them).
 func run() int {
 	dbFlag, args, err := cli.SplitGlobal(os.Args[1:])
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "錯誤：%s\n", err)
+		fmt.Fprintf(os.Stderr, "error: %s\n", err)
 		return 2
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "錯誤：找不到家目錄：%s\n", err)
+		fmt.Fprintf(os.Stderr, "error: no home directory: %s\n", err)
 		return 1
 	}
 	dbPath := resolveDBPath(os.Getenv("TODO_DB"), dbFlag, home)
 	if err := os.MkdirAll(filepath.Dir(dbPath), 0o700); err != nil {
-		fmt.Fprintf(os.Stderr, "錯誤：無法建立資料目錄 %s：%s\n", filepath.Dir(dbPath), err)
+		fmt.Fprintf(os.Stderr, "error: cannot create the data directory %s: %s\n", filepath.Dir(dbPath), err)
 		return 1
 	}
 	st, err := store.OpenSQLite(dbPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "錯誤：無法開啟資料庫 %s：%s\n", dbPath, err)
+		fmt.Fprintf(os.Stderr, "error: cannot open the database %s: %s\n", dbPath, err)
 		return 1
 	}
 	defer st.Close()
@@ -3787,7 +3787,7 @@ func run() int {
 	return app.Run(args)
 }
 
-// resolveDBPath 決定資料庫位置：--db 優先於 TODO_DB，都沒有就用 ~/.todo/todo.db。
+// resolveDBPath decides where the database lives: --db beats TODO_DB, and ~/.todo/todo.db is the fallback.
 func resolveDBPath(envDB, flagDB, home string) string {
 	if flagDB != "" {
 		return flagDB
@@ -3798,7 +3798,7 @@ func resolveDBPath(envDB, flagDB, home string) string {
 	return filepath.Join(home, ".todo", "todo.db")
 }
 
-// isTTY 判斷輸出是不是終端機；被導向檔案或管線時要關掉顏色。
+// isTTY reports whether the output is a terminal; colour is turned off for a file or a pipe.
 func isTTY(f *os.File) bool {
 	fi, err := f.Stat()
 	if err != nil {
@@ -3808,10 +3808,10 @@ func isTTY(f *os.File) bool {
 }
 ```
 
-此時 `internal/tui` 還不存在，先建一個最小可編譯的版本 `internal/tui/tui.go`：
+`internal/tui` does not exist yet, so start with the smallest version that compiles, `internal/tui/tui.go`:
 
 ```go
-// Package tui 提供 todo 的互動介面。
+// Package tui provides todo's interactive interface.
 package tui
 
 import (
@@ -3821,57 +3821,57 @@ import (
 	"todo.mirumo.net/internal/store"
 )
 
-// Run 啟動互動介面。
+// Run starts the interactive interface.
 func Run(s store.Store, now func() time.Time, cwd string) error {
-	return errors.New("TUI 尚未實作")
+	return errors.New("the TUI is not implemented yet")
 }
 ```
 
-- [ ] **Step 4: 執行測試與手動驗證**
+- [ ] **Step 4: Run the tests and check it by hand**
 
 Run:
 ```bash
 go test ./... 
 go build -o /tmp/todo ./cmd/todo
-TODO_DB=/tmp/todo-smoke.db /tmp/todo add "買牛奶" --pri high -d tomorrow -t 購物
+TODO_DB=/tmp/todo-smoke.db /tmp/todo add "buy milk" --pri high -d tomorrow -t shopping
 TODO_DB=/tmp/todo-smoke.db /tmp/todo ls
 TODO_DB=/tmp/todo-smoke.db /tmp/todo done 1
 TODO_DB=/tmp/todo-smoke.db /tmp/todo ls -a
 TODO_DB=/tmp/todo-smoke.db /tmp/todo ls | cat
 rm -f /tmp/todo-smoke.db
 ```
-Expected: 測試 PASS；`add` 印出 `已新增 #1：買牛奶`；`ls` 顯示對齊的一行且帶 `明天`、`!高`、`@購物`；`done` 後 `ls` 為空、`ls -a` 顯示 `[x]`；`| cat` 那次輸出不含任何 ANSI 跳脫碼。
+Expected: the tests PASS; `add` prints `added #1: buy milk`; `ls` shows one aligned line carrying `tomorrow`, `!High` and `@shopping`; after `done`, `ls` is empty and `ls -a` shows `[x]`; the `| cat` run contains no ANSI escapes at all.
 
 - [ ] **Step 5: Commit**
 
 ```bash
 git add cmd/ internal/tui/
-git commit --no-gpg-sign -m "feat(cmd): 組裝 todo 執行檔與 ~/.todo 資料路徑"
+git commit --no-gpg-sign -m "feat(cmd): wire up the todo executable and the ~/.todo data path"
 ```
 
 ---
 
-### Task 15: TUI 清單、導航與完成切換
+### Task 15: The TUI list, navigation and toggling done
 
 **Files:**
 - Create: `internal/tui/cmds.go`
 - Create: `internal/tui/list.go`
-- Modify: `internal/tui/tui.go`（取代 Task 14 的最小樁）
+- Modify: `internal/tui/tui.go` (replacing Task 14's minimal stub)
 - Test: `internal/tui/tui_test.go`
 
 **Interfaces:**
-- Consumes: `store.Store`、`task.Filter`、`datearg.Format`、`project.Label`
-- Produces: `tui.Model`、`tui.New(s store.Store, now func() time.Time, cwd string) Model`、`(Model).Init/Update/View`、`tui.Run`、內部 msg 型別 `tasksMsg`、`errMsg`、`savedMsg`、內部 `(Model).loadCmd()`、`(Model).current() (task.Task, bool)`、`mode` 常數 `modeList`
+- Consumes: `store.Store`, `task.Filter`, `datearg.Format`, `project.Label`
+- Produces: `tui.Model`, `tui.New(s store.Store, now func() time.Time, cwd string) Model`, `(Model).Init/Update/View`, `tui.Run`, the internal msg types `tasksMsg`, `errMsg`, `savedMsg`, and the internal `(Model).loadCmd()`, `(Model).current() (task.Task, bool)`, and the `mode` constant `modeList`
 
-- [ ] **Step 1: 加入 Bubble Tea 依賴**
+- [ ] **Step 1: Add the Bubble Tea dependency**
 
 ```bash
 go get github.com/charmbracelet/bubbletea@v1
 ```
 
-- [ ] **Step 2: 寫失敗的測試**
+- [ ] **Step 2: Write the failing test**
 
-建立 `internal/tui/tui_test.go`：
+Create `internal/tui/tui_test.go`:
 
 ```go
 package tui
@@ -3894,7 +3894,7 @@ func day(y int, m time.Month, d int) *time.Time {
 	return &t
 }
 
-// newModel 建一個接上 in-memory 資料庫、已載入資料的 Model。
+// newModel builds a Model backed by an in-memory database with its tasks already loaded.
 func newModel(t *testing.T) (Model, store.Store) {
 	t.Helper()
 	s, err := store.OpenSQLite(":memory:")
@@ -3903,9 +3903,9 @@ func newModel(t *testing.T) (Model, store.Store) {
 	}
 	t.Cleanup(func() { s.Close() })
 	for _, ti := range []task.Task{
-		{Title: "第一件", Due: day(2026, 8, 29), Priority: task.PriHigh, Tags: []string{"急"}},
-		{Title: "第二件", Project: "/p/work"},
-		{Title: "第三件"},
+		{Title: "first", Due: day(2026, 8, 29), Priority: task.PriHigh, Tags: []string{"urgent"}},
+		{Title: "second", Project: "/p/work"},
+		{Title: "third"},
 	} {
 		ti.CreatedAt, ti.UpdatedAt = refTime(), refTime()
 		if _, err := s.Add(ti); err != nil {
@@ -3919,7 +3919,7 @@ func newModel(t *testing.T) (Model, store.Store) {
 	return m, s
 }
 
-// key 把按鍵字串轉成 tea.KeyMsg。
+// key turns a key name into a tea.KeyMsg.
 func key(s string) tea.KeyMsg {
 	switch s {
 	case "up":
@@ -3943,7 +3943,7 @@ func key(s string) tea.KeyMsg {
 	}
 }
 
-// send 餵一個 msg，回傳新 model 與 cmd 執行後的結果 msg（沒有 cmd 時為 nil）。
+// send feeds one msg and returns the new model plus the msg its cmd produced, or nil when there is no cmd.
 func send(t *testing.T, m Model, msg tea.Msg) (Model, tea.Msg) {
 	t.Helper()
 	next, cmd := m.Update(msg)
@@ -3958,7 +3958,7 @@ func run(t *testing.T, m Model, cmd tea.Cmd) (Model, tea.Msg) {
 	return m, cmd()
 }
 
-// press 按一個鍵，並把它引發的 cmd 結果也餵回去（模擬 Bubble Tea 的迴圈一輪）。
+// press sends one key and feeds back whatever its cmd produced, mimicking one turn of the Bubble Tea loop.
 func press(t *testing.T, m Model, k string) Model {
 	t.Helper()
 	m, msg := send(t, m, key(k))
@@ -3971,10 +3971,10 @@ func press(t *testing.T, m Model, k string) Model {
 func TestInitLoadsTasks(t *testing.T) {
 	m, _ := newModel(t)
 	if len(m.tasks) != 3 {
-		t.Fatalf("載入 %d 筆，預期 3 筆", len(m.tasks))
+		t.Fatalf("loaded %d tasks, want 3", len(m.tasks))
 	}
 	if m.cursor != 0 {
-		t.Errorf("cursor = %d，預期 0", m.cursor)
+		t.Errorf("cursor = %d, want 0", m.cursor)
 	}
 }
 
@@ -3982,30 +3982,30 @@ func TestNavigation(t *testing.T) {
 	m, _ := newModel(t)
 	m = press(t, m, "j")
 	if m.cursor != 1 {
-		t.Errorf("j 之後 cursor = %d，預期 1", m.cursor)
+		t.Errorf("cursor after j = %d, want 1", m.cursor)
 	}
 	m = press(t, m, "down")
 	m = press(t, m, "down")
 	if m.cursor != 2 {
-		t.Errorf("到底之後 cursor = %d，預期停在 2 不越界", m.cursor)
+		t.Errorf("cursor at the bottom = %d, want it to stop at 2 rather than run past", m.cursor)
 	}
 	m = press(t, m, "k")
 	if m.cursor != 1 {
-		t.Errorf("k 之後 cursor = %d，預期 1", m.cursor)
+		t.Errorf("cursor after k = %d, want 1", m.cursor)
 	}
 	m = press(t, m, "g")
 	if m.cursor != 0 {
-		t.Errorf("g 之後 cursor = %d，預期 0", m.cursor)
+		t.Errorf("cursor after g = %d, want 0", m.cursor)
 	}
 	m = press(t, m, "G")
 	if m.cursor != 2 {
-		t.Errorf("G 之後 cursor = %d，預期 2", m.cursor)
+		t.Errorf("cursor after G = %d, want 2", m.cursor)
 	}
 	m = press(t, m, "k")
 	m = press(t, m, "k")
 	m = press(t, m, "k")
 	if m.cursor != 0 {
-		t.Errorf("到頂之後 cursor = %d，預期停在 0 不越界", m.cursor)
+		t.Errorf("cursor at the top = %d, want it to stop at 0 rather than run past", m.cursor)
 	}
 }
 
@@ -4019,11 +4019,11 @@ func TestSpaceTogglesDone(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !got.Done() {
-		t.Error("space 應該把項目標成已完成")
+		t.Error("space should mark the task done")
 	}
-	// 預設只看未完成，重查後該項目應消失。
+	// The default shows only unfinished tasks, so it should be gone after the reload.
 	if len(m.tasks) != 2 {
-		t.Errorf("重查後剩 %d 筆，預期 2 筆", len(m.tasks))
+		t.Errorf("%d tasks after the reload, want 2", len(m.tasks))
 	}
 }
 
@@ -4031,10 +4031,10 @@ func TestQuit(t *testing.T) {
 	m, _ := newModel(t)
 	_, cmd := m.Update(key("q"))
 	if cmd == nil {
-		t.Fatal("q 應該回傳一個 cmd")
+		t.Fatal("q should return a cmd")
 	}
 	if _, ok := cmd().(tea.QuitMsg); !ok {
-		t.Error("q 應該離開程式")
+		t.Error("q should quit")
 	}
 }
 
@@ -4042,45 +4042,45 @@ func TestErrMsgShowsWithoutCrashing(t *testing.T) {
 	m, _ := newModel(t)
 	m, _ = send(t, m, errMsg{err: errFake})
 	if m.err == nil {
-		t.Fatal("錯誤應該被記下來")
+		t.Fatal("the error should have been recorded")
 	}
-	if !strings.Contains(m.View(), "壞掉了") {
-		t.Errorf("錯誤應該顯示在畫面上：%q", m.View())
+	if !strings.Contains(m.View(), "broken") {
+		t.Errorf("the error should be shown on screen: %q", m.View())
 	}
 }
 
 func TestViewShowsTasksAndCursor(t *testing.T) {
 	m, _ := newModel(t)
 	v := m.View()
-	for _, want := range []string{"第一件", "第二件", "第三件", "今天", "!高", "@急", "work"} {
+	for _, want := range []string{"first", "second", "third", "today", "!High", "@urgent", "work"} {
 		if !strings.Contains(v, want) {
-			t.Errorf("畫面缺少 %q：\n%s", want, v)
+			t.Errorf("the screen is missing %q:\n%s", want, v)
 		}
 	}
 	if !strings.Contains(v, "▸") {
-		t.Errorf("畫面應該有游標標記：\n%s", v)
+		t.Errorf("the screen should carry a cursor marker:\n%s", v)
 	}
 }
 ```
 
-在測試檔尾加上：
+Add at the end of the test file:
 
 ```go
 var errFake = fakeErr{}
 
 type fakeErr struct{}
 
-func (fakeErr) Error() string { return "資料庫壞掉了" }
+func (fakeErr) Error() string { return "the database is broken" }
 ```
 
-- [ ] **Step 3: 執行測試確認失敗**
+- [ ] **Step 3: Run the test and confirm it fails**
 
 Run: `go test ./internal/tui/`
-Expected: FAIL，`undefined: New`
+Expected: FAIL, `undefined: New`
 
-- [ ] **Step 4: 實作 msg 與 cmd**
+- [ ] **Step 4: Implement the msgs and cmds**
 
-建立 `internal/tui/cmds.go`：
+Create `internal/tui/cmds.go`:
 
 ```go
 package tui
@@ -4091,8 +4091,8 @@ import (
 	"todo.mirumo.net/internal/task"
 )
 
-// 所有與資料庫往來的動作都包成 tea.Cmd，結果以 msg 回到 Update。
-// Update 本身不碰 IO，維持純函式，測試只需要餵 msg。
+// Everything that talks to the database is wrapped in a tea.Cmd whose result comes back to Update as a msg.
+// Update itself does no IO and stays a pure function, so tests only have to feed it msgs.
 type (
 	tasksMsg []task.Task
 	errMsg   struct{ err error }
@@ -4116,21 +4116,21 @@ func (m Model) toggleCmd(t task.Task) tea.Cmd {
 		if err := s.SetDone(t.ID, !t.Done(), now); err != nil {
 			return errMsg{err}
 		}
-		note := "已完成「" + t.Title + "」"
+		note := "completed \"" + t.Title + "\""
 		if t.Done() {
-			note = "已取消完成「" + t.Title + "」"
+			note = "reopened \"" + t.Title + "\""
 		}
 		return savedMsg{note: note}
 	}
 }
 ```
 
-- [ ] **Step 5: 實作 Model**
+- [ ] **Step 5: Implement the Model**
 
-改寫 `internal/tui/tui.go`：
+Rewrite `internal/tui/tui.go`:
 
 ```go
-// Package tui 提供 todo 的互動介面。
+// Package tui provides todo's interactive interface.
 package tui
 
 import (
@@ -4148,7 +4148,7 @@ const (
 	modeList mode = iota
 )
 
-// Model 是根 model。所有子狀態掛在這裡，Update 依 mode 分派。
+// Model is the root model. Every substate hangs off it and Update dispatches on mode.
 type Model struct {
 	store store.Store
 	now   func() time.Time
@@ -4164,12 +4164,12 @@ type Model struct {
 	width, height int
 }
 
-// New 建立一個 Model。
+// New builds a Model.
 func New(s store.Store, now func() time.Time, cwd string) Model {
 	return Model{store: s, now: now, cwd: cwd, mode: modeList, width: 80, height: 24}
 }
 
-// Run 啟動互動介面。
+// Run starts the interactive interface.
 func Run(s store.Store, now func() time.Time, cwd string) error {
 	_, err := tea.NewProgram(New(s, now, cwd), tea.WithAltScreen()).Run()
 	return err
@@ -4177,7 +4177,7 @@ func Run(s store.Store, now func() time.Time, cwd string) error {
 
 func (m Model) Init() tea.Cmd { return m.loadCmd() }
 
-// current 回傳游標所指的項目。
+// current returns the item under the cursor.
 func (m Model) current() (task.Task, bool) {
 	if m.cursor < 0 || m.cursor >= len(m.tasks) {
 		return task.Task{}, false
@@ -4243,9 +4243,9 @@ func (m Model) updateList(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 func (m Model) View() string { return m.viewList() }
 ```
 
-- [ ] **Step 6: 實作畫面**
+- [ ] **Step 6: Implement the view**
 
-建立 `internal/tui/list.go`：
+Create `internal/tui/list.go`:
 
 ```go
 package tui
@@ -4275,7 +4275,7 @@ func pad(s string, w int) string {
 	return s
 }
 
-// taskLine 組出一行的內容（不含游標標記）。
+// taskLine builds one row's text, without the cursor marker.
 func (m Model) taskLine(t task.Task) string {
 	status := "[ ]"
 	if t.Done() {
@@ -4302,7 +4302,7 @@ func (m Model) viewList() string {
 	var b strings.Builder
 	b.WriteString(m.header() + "\n\n")
 	if len(m.tasks) == 0 {
-		b.WriteString(styleDim.Render("沒有符合的待辦") + "\n")
+		b.WriteString(styleDim.Render("No matching tasks") + "\n")
 	}
 	for i, t := range m.tasks {
 		marker := "  "
@@ -4323,65 +4323,65 @@ func (m Model) viewList() string {
 }
 
 func (m Model) header() string {
-	return fmt.Sprintf("todo — %d 筆", len(m.tasks))
+	return fmt.Sprintf("todo — %d tasks", len(m.tasks))
 }
 
 func (m Model) footer() string {
 	if m.err != nil {
-		return styleErr.Render("錯誤：" + m.err.Error())
+		return styleErr.Render("error: " + m.err.Error())
 	}
 	if m.status != "" {
 		return m.status
 	}
-	return styleHint.Render("j/k 移動 · space 完成 · q 離開")
+	return styleHint.Render("j/k move · space toggle · q quit")
 }
 ```
 
-- [ ] **Step 7: 執行測試確認通過**
+- [ ] **Step 7: Run the test and confirm it passes**
 
 Run: `go test ./internal/tui/ -v`
 Expected: PASS
 
-- [ ] **Step 8: 手動確認**
+- [ ] **Step 8: Check it by hand**
 
 ```bash
 go build -o /tmp/todo ./cmd/todo
-TODO_DB=/tmp/todo-tui.db /tmp/todo add "第一件" --pri high -d today
-TODO_DB=/tmp/todo-tui.db /tmp/todo add "第二件"
+TODO_DB=/tmp/todo-tui.db /tmp/todo add "first" --pri high -d today
+TODO_DB=/tmp/todo-tui.db /tmp/todo add "second"
 TODO_DB=/tmp/todo-tui.db /tmp/todo tui
 ```
-Expected: 進入全螢幕清單，`j`/`k` 移動、`space` 勾掉項目後它從清單消失、`q` 離開。
+Expected: a full-screen list opens, `j`/`k` move, `space` ticks a task off and it leaves the list, `q` quits.
 
 - [ ] **Step 9: Commit**
 
 ```bash
 git add go.mod go.sum internal/tui/
-git commit --no-gpg-sign -m "feat(tui): 清單、導航與完成切換"
+git commit --no-gpg-sign -m "feat(tui): the list, navigation and toggling done"
 ```
 
 ---
 
-### Task 16: 刪除與復原、搜尋、排序、顯示已完成
+### Task 16: Delete and undo, search, sorting, showing done tasks
 
 **Files:**
-- Modify: `internal/tui/tui.go`（新增 `modeSearch`、Model 欄位、按鍵）
-- Modify: `internal/tui/cmds.go`（新增 `deletedMsg`、`deleteCmd`、`restoreCmd`）
-- Modify: `internal/tui/list.go`（footer 顯示提示）
+- Modify: `internal/tui/tui.go` (adding `modeSearch`, Model fields and keys)
+- Modify: `internal/tui/cmds.go` (adding `deletedMsg`, `deleteCmd`, `restoreCmd`)
+- Modify: `internal/tui/list.go` (the footer shows the hint)
 - Test: `internal/tui/filter_test.go`
 
 **Interfaces:**
-- Consumes: `store.Store.Delete/Get/Restore`、`task.SortBy`
-- Produces: `deletedMsg{t task.Task}`、`(Model).deleteCmd`、`(Model).restoreCmd`、Model 新欄位 `undo *task.Task`、`search textinput.Model`、`modeSearch`
+- Consumes: `store.Store.Delete/Get/Restore`, `task.SortBy`
+- Produces: `deletedMsg{t task.Task}`, `(Model).deleteCmd`, `(Model).restoreCmd`, and the new Model fields `undo *task.Task`, `search textinput.Model`, `modeSearch`
 
-- [ ] **Step 1: 加入 Bubbles 依賴**
+- [ ] **Step 1: Add the Bubbles dependency**
 
 ```bash
 go get github.com/charmbracelet/bubbles@v0
 ```
 
-- [ ] **Step 2: 寫失敗的測試**
+- [ ] **Step 2: Write the failing test**
 
-建立 `internal/tui/filter_test.go`：
+Create `internal/tui/filter_test.go`:
 
 ```go
 package tui
@@ -4401,25 +4401,25 @@ func TestDeleteThenUndo(t *testing.T) {
 
 	m = press(t, m, "d")
 	if _, err := s.Get(victim.ID); !errors.Is(err, store.ErrNotFound) {
-		t.Fatalf("d 應該刪掉項目，err = %v", err)
+		t.Fatalf("d should delete the task, err = %v", err)
 	}
 	if len(m.tasks) != 2 {
-		t.Errorf("刪除後剩 %d 筆，預期 2 筆", len(m.tasks))
+		t.Errorf("%d tasks after the delete, want 2", len(m.tasks))
 	}
-	if !strings.Contains(m.View(), "u 復原") {
-		t.Errorf("底部應提示可以復原：\n%s", m.View())
+	if !strings.Contains(m.View(), "u to undo") {
+		t.Errorf("the bottom should offer the undo:\n%s", m.View())
 	}
 
 	m = press(t, m, "u")
 	back, err := s.Get(victim.ID)
 	if err != nil {
-		t.Fatalf("u 應該以原 id 復原，err = %v", err)
+		t.Fatalf("u should restore under the original id, err = %v", err)
 	}
 	if back.Title != victim.Title || len(back.Tags) != len(victim.Tags) {
-		t.Errorf("復原內容不符：%+v", back)
+		t.Errorf("the restored content does not match: %+v", back)
 	}
 	if len(m.tasks) != 3 {
-		t.Errorf("復原後 %d 筆，預期 3 筆", len(m.tasks))
+		t.Errorf("%d tasks after the undo, want 3", len(m.tasks))
 	}
 }
 
@@ -4432,14 +4432,14 @@ func TestUndoOnlyKeepsOneLevel(t *testing.T) {
 	m = press(t, m, "u")
 
 	if _, err := s.Get(second.ID); err != nil {
-		t.Errorf("最後刪的那筆應該被復原：%v", err)
+		t.Errorf("the last delete should be the one undone: %v", err)
 	}
 	if _, err := s.Get(first.ID); !errors.Is(err, store.ErrNotFound) {
-		t.Error("只保留一層 undo，更早刪的不該回來")
+		t.Error("undo keeps one level; anything deleted earlier must not come back")
 	}
 	m = press(t, m, "u")
-	if !strings.Contains(m.View(), "沒有可復原") {
-		t.Errorf("沒有可復原時應該說一聲：\n%s", m.View())
+	if !strings.Contains(m.View(), "nothing to undo") {
+		t.Errorf("with nothing to undo it should say so:\n%s", m.View())
 	}
 }
 
@@ -4447,93 +4447,93 @@ func TestSearchFiltersIncrementally(t *testing.T) {
 	m, _ := newModel(t)
 	m = press(t, m, "/")
 	if m.mode != modeSearch {
-		t.Fatal("/ 應該進入搜尋模式")
+		t.Fatal("/ should enter search mode")
 	}
-	m = press(t, m, "第二")
-	if len(m.tasks) != 1 || m.tasks[0].Title != "第二件" {
-		t.Errorf("打字應該即時過濾，實得 %d 筆", len(m.tasks))
+	m = press(t, m, "second")
+	if len(m.tasks) != 1 || m.tasks[0].Title != "second" {
+		t.Errorf("typing should filter as it goes, got %d tasks", len(m.tasks))
 	}
 	m = press(t, m, "enter")
 	if m.mode != modeList {
-		t.Error("enter 應該回到清單並保留過濾")
+		t.Error("enter should return to the list and keep the filter")
 	}
 	if len(m.tasks) != 1 {
-		t.Errorf("enter 後過濾應保留，實得 %d 筆", len(m.tasks))
+		t.Errorf("the filter should survive enter, got %d tasks", len(m.tasks))
 	}
 }
 
 func TestSearchEscCancels(t *testing.T) {
 	m, _ := newModel(t)
 	m = press(t, m, "/")
-	m = press(t, m, "第二")
+	m = press(t, m, "second")
 	m = press(t, m, "esc")
 	if m.mode != modeList {
-		t.Error("esc 應該回到清單")
+		t.Error("esc should return to the list")
 	}
 	if len(m.tasks) != 3 {
-		t.Errorf("esc 應該取消過濾，實得 %d 筆", len(m.tasks))
+		t.Errorf("esc should drop the filter, got %d tasks", len(m.tasks))
 	}
 }
 
 func TestToggleIncludeDone(t *testing.T) {
 	m, _ := newModel(t)
-	m = press(t, m, " ") // 完成第一件
+	m = press(t, m, " ") // complete the first one
 	if len(m.tasks) != 2 {
-		t.Fatalf("預期剩 2 筆，實得 %d", len(m.tasks))
+		t.Fatalf("want 2 tasks left, got %d", len(m.tasks))
 	}
 	m = press(t, m, "A")
 	if len(m.tasks) != 3 {
-		t.Errorf("A 應該連已完成一起顯示，實得 %d 筆", len(m.tasks))
+		t.Errorf("A should show the done ones too, got %d tasks", len(m.tasks))
 	}
 	m = press(t, m, "A")
 	if len(m.tasks) != 2 {
-		t.Errorf("再按 A 應該切回只看未完成，實得 %d 筆", len(m.tasks))
+		t.Errorf("A again should go back to unfinished only, got %d tasks", len(m.tasks))
 	}
 }
 
 func TestSortCycles(t *testing.T) {
 	m, _ := newModel(t)
 	if m.filter.Sort != task.SortDue {
-		t.Fatal("預設應為 due")
+		t.Fatal("the default should be due")
 	}
 	m = press(t, m, "s")
 	if m.filter.Sort != task.SortPriority {
-		t.Errorf("s 之後 = %v，預期 pri", m.filter.Sort)
+		t.Errorf("after s = %v, want pri", m.filter.Sort)
 	}
 	m = press(t, m, "s")
 	if m.filter.Sort != task.SortCreated {
-		t.Errorf("再按 s = %v，預期 created", m.filter.Sort)
+		t.Errorf("s again = %v, want created", m.filter.Sort)
 	}
 	m = press(t, m, "s")
 	if m.filter.Sort != task.SortDue {
-		t.Errorf("循環回來 = %v，預期 due", m.filter.Sort)
+		t.Errorf("back around = %v, want due", m.filter.Sort)
 	}
 }
 
 func TestEscClearsAllFilters(t *testing.T) {
 	m, _ := newModel(t)
 	m = press(t, m, "/")
-	m = press(t, m, "第二")
+	m = press(t, m, "second")
 	m = press(t, m, "enter")
 	m = press(t, m, "A")
 	m = press(t, m, "esc")
 	if len(m.tasks) != 3 {
-		t.Errorf("esc 應該清掉所有過濾，實得 %d 筆", len(m.tasks))
+		t.Errorf("esc should clear every filter, got %d tasks", len(m.tasks))
 	}
 	if m.filter.Search != "" || m.filter.IncludeDone {
-		t.Errorf("filter 應該歸零：%+v", m.filter)
+		t.Errorf("the filter should be back to zero: %+v", m.filter)
 	}
 }
 ```
 
-- [ ] **Step 3: 執行測試確認失敗**
+- [ ] **Step 3: Run the test and confirm it fails**
 
 Run: `go test ./internal/tui/ -run 'TestDelete|TestUndo|TestSearch|TestToggle|TestSort|TestEsc'`
-Expected: FAIL，`undefined: modeSearch`
+Expected: FAIL, `undefined: modeSearch`
 
-- [ ] **Step 4: 實作 cmd**
+- [ ] **Step 4: Implement the cmds**
 
-在 `internal/tui/cmds.go` 的 msg 群組加入 `deletedMsg`，並追加兩個 cmd：
+Add `deletedMsg` to the msg group in `internal/tui/cmds.go` and append two cmds:
 
 ```go
 type (
@@ -4543,7 +4543,7 @@ type (
 	deletedMsg struct{ t task.Task }
 )
 
-// deleteCmd 先完整取回再刪除——undo 需要包含標籤的整份資料。
+// deleteCmd fetches the whole task before deleting it — undo needs everything, tags included.
 func (m Model) deleteCmd(t task.Task) tea.Cmd {
 	s := m.store
 	return func() tea.Msg {
@@ -4564,14 +4564,14 @@ func (m Model) restoreCmd(t task.Task) tea.Cmd {
 		if err := s.Restore(t); err != nil {
 			return errMsg{err}
 		}
-		return savedMsg{note: "已復原「" + t.Title + "」"}
+		return savedMsg{note: "restored \"" + t.Title + "\""}
 	}
 }
 ```
 
-- [ ] **Step 5: 實作 Model 變更**
+- [ ] **Step 5: Implement the Model changes**
 
-`internal/tui/tui.go` 的 mode 常數與 Model 改成：
+The mode constants and the Model in `internal/tui/tui.go` become:
 
 ```go
 const (
@@ -4590,7 +4590,7 @@ type Model struct {
 	filter task.Filter
 
 	search textinput.Model
-	// undo 只保留一層：最近一次刪除的完整項目，離開 TUI 即失效。
+	// undo keeps a single level: the last deleted item, discarded when the TUI exits.
 	undo *task.Task
 
 	status        string
@@ -4599,13 +4599,13 @@ type Model struct {
 }
 ```
 
-`New` 改成：
+`New` becomes:
 
 ```go
 func New(s store.Store, now func() time.Time, cwd string) Model {
 	ti := textinput.New()
 	ti.Prompt = "/"
-	ti.Placeholder = "搜尋標題"
+	ti.Placeholder = "search titles"
 	return Model{
 		store: s, now: now, cwd: cwd,
 		mode: modeList, search: ti,
@@ -4614,15 +4614,15 @@ func New(s store.Store, now func() time.Time, cwd string) Model {
 }
 ```
 
-import 補上 `"github.com/charmbracelet/bubbles/textinput"`。
+Add `"github.com/charmbracelet/bubbles/textinput"` to the imports.
 
-`Update` 的 `deletedMsg` 分支與 mode 分派：
+The `deletedMsg` branch of `Update` and the mode dispatch:
 
 ```go
 	case deletedMsg:
 		t := msg.t
 		m.undo = &t
-		m.status = "已刪除「" + t.Title + "」· u 復原"
+		m.status = "deleted \"" + t.Title + "\" · u to undo"
 		m.err = nil
 		return m, m.loadCmd()
 
@@ -4635,7 +4635,7 @@ import 補上 `"github.com/charmbracelet/bubbles/textinput"`。
 		}
 ```
 
-`updateList` 新增按鍵：
+New keys in `updateList`:
 
 ```go
 	case "d":
@@ -4644,7 +4644,7 @@ import 補上 `"github.com/charmbracelet/bubbles/textinput"`。
 		}
 	case "u":
 		if m.undo == nil {
-			m.status = "沒有可復原的刪除"
+			m.status = "nothing to undo"
 			return m, nil
 		}
 		t := *m.undo
@@ -4661,7 +4661,7 @@ import 補上 `"github.com/charmbracelet/bubbles/textinput"`。
 		return m, m.loadCmd()
 	case "s":
 		m.filter.Sort = (m.filter.Sort + 1) % 3
-		m.status = "排序：" + sortLabel(m.filter.Sort)
+		m.status = "sort: " + sortLabel(m.filter.Sort)
 		return m, m.loadCmd()
 	case "esc":
 		m.filter = task.Filter{}
@@ -4670,11 +4670,11 @@ import 補上 `"github.com/charmbracelet/bubbles/textinput"`。
 		return m, m.loadCmd()
 ```
 
-新增搜尋模式與標籤函式：
+The search mode and the label helper:
 
 ```go
-// updateSearch 處理增量搜尋。每個按鍵都重查一次——清單規模小，成本可忽略，
-// 換來的是畫面與資料庫永遠一致。
+// updateSearch drives incremental search, requerying on every keystroke. The list is small,
+// so the cost is negligible and the view never drifts from the database.
 func (m Model) updateSearch(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "enter":
@@ -4688,8 +4688,8 @@ func (m Model) updateSearch(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.filter.Search = ""
 		return m, m.loadCmd()
 	}
-	// 刻意丟掉 textinput 回傳的 cmd：那是游標閃爍的計時器。
-	// 轉傳它會讓 Update 的測試變成在等計時器，而閃爍只是裝飾。
+	// The cmd textinput returns is dropped on purpose: it is the cursor blink timer.
+	// Forwarding it would make Update tests wait on a timer, and blinking is decoration.
 	m.search, _ = m.search.Update(msg)
 	m.filter.Search = m.search.Value()
 	m.cursor = 0
@@ -4699,17 +4699,17 @@ func (m Model) updateSearch(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 func sortLabel(s task.SortBy) string {
 	switch s {
 	case task.SortPriority:
-		return "優先度"
+		return "priority"
 	case task.SortCreated:
-		return "建立時間"
+		return "created"
 	}
-	return "截止日"
+	return "due date"
 }
 ```
 
-- [ ] **Step 6: footer 顯示搜尋列**
+- [ ] **Step 6: The footer shows the search line**
 
-`internal/tui/list.go` 的 `footer` 改成：
+`footer` in `internal/tui/list.go` becomes:
 
 ```go
 func (m Model) footer() string {
@@ -4717,31 +4717,31 @@ func (m Model) footer() string {
 		return m.search.View()
 	}
 	if m.err != nil {
-		return styleErr.Render("錯誤：" + m.err.Error())
+		return styleErr.Render("error: " + m.err.Error())
 	}
 	if m.status != "" {
 		return m.status
 	}
-	return styleHint.Render("j/k 移動 · space 完成 · d 刪除 · / 搜尋 · s 排序 · A 含已完成 · esc 清除 · q 離開")
+	return styleHint.Render("j/k move · space toggle · d delete · / search · s sort · A include done · esc clear · q quit")
 }
 ```
 
-`header` 加上目前的過濾狀態：
+`header` gains the current filter state:
 
 ```go
 func (m Model) header() string {
-	h := fmt.Sprintf("todo — %d 筆", len(m.tasks))
+	h := fmt.Sprintf("todo — %d tasks", len(m.tasks))
 	if m.filter.Search != "" {
-		h += "  搜尋：" + m.filter.Search
+		h += "  search: " + m.filter.Search
 	}
 	if m.filter.IncludeDone {
-		h += "  含已完成"
+		h += "  including done"
 	}
 	return h
 }
 ```
 
-- [ ] **Step 7: 執行測試確認通過**
+- [ ] **Step 7: Run the test and confirm it passes**
 
 Run: `go test ./internal/tui/ -v`
 Expected: PASS
@@ -4750,26 +4750,26 @@ Expected: PASS
 
 ```bash
 git add go.mod go.sum internal/tui/
-git commit --no-gpg-sign -m "feat(tui): 刪除與復原、增量搜尋、排序、顯示已完成"
+git commit --no-gpg-sign -m "feat(tui): delete and undo, incremental search, sorting, showing done tasks"
 ```
 
 ---
 
-### Task 17: 專案與標籤選單
+### Task 17: The project and tag menus
 
 **Files:**
-- Modify: `internal/tui/tui.go`（新增 `modePicker` 與按鍵）
-- Modify: `internal/tui/cmds.go`（新增 `projectsMsg`、`tagsMsg` 與對應 cmd）
+- Modify: `internal/tui/tui.go` (adding `modePicker` and its keys)
+- Modify: `internal/tui/cmds.go` (adding `projectsMsg`, `tagsMsg` and their cmds)
 - Create: `internal/tui/picker.go`
 - Test: `internal/tui/picker_test.go`
 
 **Interfaces:**
-- Consumes: `store.Store.Projects/Tags`、`project.Label`
-- Produces: `pickerKind`（`pickProject`/`pickTag`）、`pickerItem{label, value string; clear bool}`、`pickerState{kind pickerKind; items []pickerItem; cursor int}`、`(Model).projectsCmd()`、`(Model).tagsCmd()`、`modePicker`
+- Consumes: `store.Store.Projects/Tags`, `project.Label`
+- Produces: `pickerKind` (`pickProject`/`pickTag`), `pickerItem{label, value string; clear bool}`, `pickerState{kind pickerKind; items []pickerItem; cursor int}`, `(Model).projectsCmd()`, `(Model).tagsCmd()`, `modePicker`
 
-- [ ] **Step 1: 寫失敗的測試**
+- [ ] **Step 1: Write the failing test**
 
-建立 `internal/tui/picker_test.go`：
+Create `internal/tui/picker_test.go`:
 
 ```go
 package tui
@@ -4783,23 +4783,23 @@ func TestProjectPickerFiltersByProject(t *testing.T) {
 	m, _ := newModel(t)
 	m = press(t, m, "P")
 	if m.mode != modePicker {
-		t.Fatal("P 應該開啟選單")
+		t.Fatal("P should open the menu")
 	}
 	v := m.View()
-	for _, want := range []string{"全部", "（未分類）", "work"} {
+	for _, want := range []string{"All", "(uncategorized)", "work"} {
 		if !strings.Contains(v, want) {
-			t.Errorf("選單缺少 %q：\n%s", want, v)
+			t.Errorf("the menu is missing %q:\n%s", want, v)
 		}
 	}
-	// 第一項是「全部」，第二項是「（未分類）」，第三項是 work。
+	// Row one is "All", row two is "(uncategorized)", row three is work.
 	m = press(t, m, "j")
 	m = press(t, m, "j")
 	m = press(t, m, "enter")
 	if m.mode != modeList {
-		t.Fatal("enter 應該回到清單")
+		t.Fatal("enter should return to the list")
 	}
-	if len(m.tasks) != 1 || m.tasks[0].Title != "第二件" {
-		t.Errorf("選 work 後應只剩第二件，實得 %d 筆", len(m.tasks))
+	if len(m.tasks) != 1 || m.tasks[0].Title != "second" {
+		t.Errorf("picking work should leave only second, got %d", len(m.tasks))
 	}
 }
 
@@ -4809,10 +4809,10 @@ func TestProjectPickerUncategorized(t *testing.T) {
 	m = press(t, m, "j")
 	m = press(t, m, "enter")
 	if len(m.tasks) != 2 {
-		t.Errorf("（未分類）應剩 2 筆，實得 %d 筆", len(m.tasks))
+		t.Errorf("(uncategorized) should leave 2, got %d", len(m.tasks))
 	}
 	if m.filter.Project == nil || *m.filter.Project != "" {
-		t.Errorf("filter.Project = %v，預期指向空字串", m.filter.Project)
+		t.Errorf("filter.Project = %v, want a pointer to an empty string", m.filter.Project)
 	}
 }
 
@@ -4822,12 +4822,12 @@ func TestProjectPickerAllClearsFilter(t *testing.T) {
 	m = press(t, m, "j")
 	m = press(t, m, "enter")
 	m = press(t, m, "P")
-	m = press(t, m, "enter") // 第一項「全部」
+	m = press(t, m, "enter") // row one, "All"
 	if m.filter.Project != nil {
-		t.Errorf("選「全部」應該清掉專案過濾，實得 %v", m.filter.Project)
+		t.Errorf("picking All should clear the project filter, got %v", m.filter.Project)
 	}
 	if len(m.tasks) != 3 {
-		t.Errorf("實得 %d 筆，預期 3 筆", len(m.tasks))
+		t.Errorf("got %d tasks, want 3", len(m.tasks))
 	}
 }
 
@@ -4835,15 +4835,15 @@ func TestTagPicker(t *testing.T) {
 	m, _ := newModel(t)
 	m = press(t, m, "T")
 	if m.mode != modePicker {
-		t.Fatal("T 應該開啟選單")
+		t.Fatal("T should open the menu")
 	}
-	if !strings.Contains(m.View(), "@急") {
-		t.Errorf("標籤選單應列出 @急：\n%s", m.View())
+	if !strings.Contains(m.View(), "@urgent") {
+		t.Errorf("the tag menu should list @urgent:\n%s", m.View())
 	}
 	m = press(t, m, "j")
 	m = press(t, m, "enter")
-	if len(m.tasks) != 1 || m.tasks[0].Title != "第一件" {
-		t.Errorf("選 @急 後應只剩第一件，實得 %d 筆", len(m.tasks))
+	if len(m.tasks) != 1 || m.tasks[0].Title != "first" {
+		t.Errorf("picking @urgent should leave only first, got %d", len(m.tasks))
 	}
 }
 
@@ -4852,22 +4852,22 @@ func TestPickerEscCancels(t *testing.T) {
 	m = press(t, m, "P")
 	m = press(t, m, "esc")
 	if m.mode != modeList {
-		t.Error("esc 應該關掉選單")
+		t.Error("esc should close the menu")
 	}
 	if m.filter.Project != nil {
-		t.Error("esc 不該套用任何過濾")
+		t.Error("esc should apply no filter at all")
 	}
 }
 ```
 
-- [ ] **Step 2: 執行測試確認失敗**
+- [ ] **Step 2: Run the test and confirm it fails**
 
 Run: `go test ./internal/tui/ -run 'TestProjectPicker|TestTagPicker|TestPickerEsc'`
-Expected: FAIL，`undefined: modePicker`
+Expected: FAIL, `undefined: modePicker`
 
-- [ ] **Step 3: 實作 cmd**
+- [ ] **Step 3: Implement the cmds**
 
-在 `internal/tui/cmds.go` 追加：
+Append to `internal/tui/cmds.go`:
 
 ```go
 type (
@@ -4898,11 +4898,11 @@ func (m Model) tagsCmd() tea.Cmd {
 }
 ```
 
-import 補上 `"todo.mirumo.net/internal/store"`。
+Add `"todo.mirumo.net/internal/store"` to the imports.
 
-- [ ] **Step 4: 實作選單**
+- [ ] **Step 4: Implement the menu**
 
-建立 `internal/tui/picker.go`：
+Create `internal/tui/picker.go`:
 
 ```go
 package tui
@@ -4923,7 +4923,7 @@ const (
 	pickTag
 )
 
-// pickerItem 是選單的一列。clear 為 true 的那項代表「不過濾」。
+// pickerItem is one row of the menu. The entry with clear set means no filtering.
 type pickerItem struct {
 	label string
 	value string
@@ -4937,11 +4937,11 @@ type pickerState struct {
 }
 
 func projectItems(ps []store.ProjectCount) []pickerItem {
-	items := []pickerItem{{label: "全部", clear: true}}
+	items := []pickerItem{{label: "All", clear: true}}
 	for _, p := range ps {
 		label := project.Label(p.Path)
 		if label == "" {
-			label = "（未分類）"
+			label = "(uncategorized)"
 		}
 		items = append(items, pickerItem{label: label, value: p.Path})
 	}
@@ -4949,14 +4949,14 @@ func projectItems(ps []store.ProjectCount) []pickerItem {
 }
 
 func tagItems(tags []string) []pickerItem {
-	items := []pickerItem{{label: "全部", clear: true}}
+	items := []pickerItem{{label: "All", clear: true}}
 	for _, t := range tags {
 		items = append(items, pickerItem{label: "@" + t, value: t})
 	}
 	return items
 }
 
-// updatePicker 處理選單模式的按鍵。
+// updatePicker handles keys in menu mode.
 func (m Model) updatePicker(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "esc", "q":
@@ -4999,9 +4999,9 @@ func (m Model) updatePicker(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) viewPicker() string {
-	title := "依專案過濾"
+	title := "Filter by project"
 	if m.picker.kind == pickTag {
-		title = "依標籤過濾"
+		title = "Filter by tag"
 	}
 	var b strings.Builder
 	b.WriteString(title + "\n\n")
@@ -5014,14 +5014,14 @@ func (m Model) viewPicker() string {
 		}
 		b.WriteString(marker + line + "\n")
 	}
-	b.WriteString("\n" + styleHint.Render("j/k 移動 · enter 選擇 · esc 取消"))
+	b.WriteString("\n" + styleHint.Render("j/k move · enter select · esc cancel"))
 	return b.String()
 }
 ```
 
-- [ ] **Step 5: 接上 Model**
+- [ ] **Step 5: Wire it into the Model**
 
-`internal/tui/tui.go`：mode 加 `modePicker`，Model 加 `picker pickerState`，`Update` 加兩個 msg 分支與 mode 分派，`updateList` 加兩個按鍵，`View` 分派。
+`internal/tui/tui.go`: add `modePicker` to the modes, `picker pickerState` to the Model, two msg branches and the mode dispatch to `Update`, two keys to `updateList`, and the dispatch in `View`.
 
 ```go
 const (
@@ -5048,7 +5048,7 @@ const (
 			return m.updatePicker(msg)
 ```
 
-`updateList` 加：
+Add to `updateList`:
 
 ```go
 	case "P":
@@ -5057,7 +5057,7 @@ const (
 		return m, m.tagsCmd()
 ```
 
-`View` 改成：
+`View` becomes:
 
 ```go
 func (m Model) View() string {
@@ -5068,9 +5068,9 @@ func (m Model) View() string {
 }
 ```
 
-footer 提示補上 `P/T 過濾`。
+Add `P/T filter` to the footer hint.
 
-- [ ] **Step 6: 執行測試確認通過**
+- [ ] **Step 6: Run the test and confirm it passes**
 
 Run: `go test ./internal/tui/ -v`
 Expected: PASS
@@ -5079,26 +5079,26 @@ Expected: PASS
 
 ```bash
 git add internal/tui/
-git commit --no-gpg-sign -m "feat(tui): 專案與標籤過濾選單"
+git commit --no-gpg-sign -m "feat(tui): the project and tag filter menus"
 ```
 
 ---
 
-### Task 18: 新增／編輯表單與說明覆蓋層
+### Task 18: The add/edit form and the help overlay
 
 **Files:**
 - Create: `internal/tui/form.go`
-- Modify: `internal/tui/tui.go`（新增 `modeForm`、`modeHelp` 與按鍵）
-- Modify: `internal/tui/cmds.go`（新增 `saveCmd`）
+- Modify: `internal/tui/tui.go` (adding `modeForm`, `modeHelp` and their keys)
+- Modify: `internal/tui/cmds.go` (adding `saveCmd`)
 - Test: `internal/tui/form_test.go`
 
 **Interfaces:**
-- Consumes: `textinput.Model`、`task.ValidateTitle`、`task.ParsePriority`、`task.NormalizeTags`、`datearg.Parse`、`project.Current`、`store.Store.Add/Update`
-- Produces: `formState`、`(Model).openForm(t task.Task, editing bool) Model`、`(Model).updateForm`、`(Model).viewForm`、`(Model).saveCmd(t task.Task, editing bool) tea.Cmd`、`modeForm`、`modeHelp`
+- Consumes: `textinput.Model`, `task.ValidateTitle`, `task.ParsePriority`, `task.NormalizeTags`, `datearg.Parse`, `project.Current`, `store.Store.Add/Update`
+- Produces: `formState`, `(Model).openForm(t task.Task, editing bool) Model`, `(Model).updateForm`, `(Model).viewForm`, `(Model).saveCmd(t task.Task, editing bool) tea.Cmd`, `modeForm`, `modeHelp`
 
-- [ ] **Step 1: 寫失敗的測試**
+- [ ] **Step 1: Write the failing test**
 
-建立 `internal/tui/form_test.go`：
+Create `internal/tui/form_test.go`:
 
 ```go
 package tui
@@ -5112,7 +5112,7 @@ import (
 	"todo.mirumo.net/internal/task"
 )
 
-// typeInto 依序把字串打進目前聚焦的欄位。
+// typeInto types a string into the focused field.
 func typeInto(t *testing.T, m Model, s string) Model {
 	t.Helper()
 	return press(t, m, s)
@@ -5122,12 +5122,12 @@ func TestFormAddCreatesTask(t *testing.T) {
 	m, s := newModel(t)
 	m = press(t, m, "a")
 	if m.mode != modeForm {
-		t.Fatal("a 應該開啟表單")
+		t.Fatal("a should open the form")
 	}
-	m = typeInto(t, m, "第四件")
+	m = typeInto(t, m, "fourth")
 	m = press(t, m, "tab")
 	m = press(t, m, "tab")
-	m = typeInto(t, m, "急,雜")
+	m = typeInto(t, m, "urgent,misc")
 	m = press(t, m, "tab")
 	m = typeInto(t, m, "tomorrow")
 	m = press(t, m, "tab")
@@ -5135,14 +5135,14 @@ func TestFormAddCreatesTask(t *testing.T) {
 	m = press(t, m, "enter")
 
 	if m.mode != modeList {
-		t.Fatalf("儲存後應回到清單，mode = %v", m.mode)
+		t.Fatalf("saving should return to the list, mode = %v", m.mode)
 	}
-	ts, err := s.List(task.Filter{Search: "第四件"}, refTime())
+	ts, err := s.List(task.Filter{Search: "fourth"}, refTime())
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(ts) != 1 {
-		t.Fatalf("應該新增了一筆，實得 %d 筆", len(ts))
+		t.Fatalf("one task should have been added, got %d", len(ts))
 	}
 	got := ts[0]
 	if got.Due == nil || got.Due.Format("2006-01-02") != "2026-08-30" {
@@ -5152,7 +5152,7 @@ func TestFormAddCreatesTask(t *testing.T) {
 		t.Errorf("priority = %v", got.Priority)
 	}
 	if len(got.Tags) != 2 {
-		t.Errorf("tags = %v，逗號分隔應拆成兩個", got.Tags)
+		t.Errorf("tags = %v, the comma-separated value should split into two", got.Tags)
 	}
 }
 
@@ -5161,27 +5161,27 @@ func TestFormEditPrefillsAndUpdates(t *testing.T) {
 	id := m.tasks[0].ID
 	m = press(t, m, "e")
 	if m.mode != modeForm {
-		t.Fatal("e 應該開啟表單")
+		t.Fatal("e should open the form")
 	}
-	if !strings.Contains(m.View(), "第一件") {
-		t.Errorf("編輯時應預填現有值：\n%s", m.View())
+	if !strings.Contains(m.View(), "first") {
+		t.Errorf("editing should prefill the current values:\n%s", m.View())
 	}
-	// 清掉標題後重打。
-	for range len([]rune("第一件")) {
+	// Clear the title and type a new one.
+	for range len([]rune("first")) {
 		m = press(t, m, "backspace")
 	}
-	m = typeInto(t, m, "改過的")
+	m = typeInto(t, m, "changed")
 	m = press(t, m, "enter")
 
 	got, err := s.Get(id)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Title != "改過的" {
+	if got.Title != "changed" {
 		t.Errorf("title = %q", got.Title)
 	}
 	if got.Due == nil {
-		t.Error("沒動到的欄位應該保持原值")
+		t.Error("fields left alone should keep their value")
 	}
 }
 
@@ -5190,27 +5190,27 @@ func TestFormRejectsEmptyTitle(t *testing.T) {
 	m = press(t, m, "a")
 	m = press(t, m, "enter")
 	if m.mode != modeForm {
-		t.Error("標題空白時不該離開表單")
+		t.Error("an empty title should not leave the form")
 	}
-	if !strings.Contains(m.View(), "標題不能是空的") {
-		t.Errorf("應該說明為什麼存不了：\n%s", m.View())
+	if !strings.Contains(m.View(), "a title cannot be empty") {
+		t.Errorf("it should say why it cannot save:\n%s", m.View())
 	}
 }
 
 func TestFormRejectsBadDue(t *testing.T) {
 	m, _ := newModel(t)
 	m = press(t, m, "a")
-	m = typeInto(t, m, "測試")
+	m = typeInto(t, m, "test")
 	m = press(t, m, "tab")
 	m = press(t, m, "tab")
 	m = press(t, m, "tab")
 	m = typeInto(t, m, "someday")
 	m = press(t, m, "enter")
 	if m.mode != modeForm {
-		t.Error("日期不合法時不該離開表單")
+		t.Error("an invalid date should not leave the form")
 	}
-	if !strings.Contains(m.View(), "看不懂的日期") {
-		t.Errorf("應該指出是日期的問題：\n%s", m.View())
+	if !strings.Contains(m.View(), "unrecognised date") {
+		t.Errorf("it should point at the date:\n%s", m.View())
 	}
 }
 
@@ -5218,14 +5218,14 @@ func TestFormEscCancels(t *testing.T) {
 	m, s := newModel(t)
 	before, _ := s.List(task.Filter{}, refTime())
 	m = press(t, m, "a")
-	m = typeInto(t, m, "不要存")
+	m = typeInto(t, m, "do not save")
 	m = press(t, m, "esc")
 	if m.mode != modeList {
-		t.Error("esc 應該回到清單")
+		t.Error("esc should return to the list")
 	}
 	after, _ := s.List(task.Filter{}, refTime())
 	if len(after) != len(before) {
-		t.Error("esc 不該存進任何東西")
+		t.Error("esc must not save anything")
 	}
 }
 
@@ -5237,7 +5237,7 @@ func TestFormFillsProjectFromCwd(t *testing.T) {
 	m = press(t, m, "a")
 	m = press(t, m, "ctrl+p")
 	if !strings.Contains(m.View(), filepath.Base(m.cwd)) {
-		t.Errorf("ctrl+p 應該填入當前目錄的專案：\n%s", m.View())
+		t.Errorf("ctrl+p should fill in the current directory's project:\n%s", m.View())
 	}
 }
 
@@ -5245,29 +5245,29 @@ func TestHelpOverlay(t *testing.T) {
 	m, _ := newModel(t)
 	m = press(t, m, "?")
 	if m.mode != modeHelp {
-		t.Fatal("? 應該開啟說明")
+		t.Fatal("? should open the help")
 	}
 	v := m.View()
 	for _, want := range []string{"space", "d", "u", "/", "P", "T"} {
 		if !strings.Contains(v, want) {
-			t.Errorf("說明缺少 %q：\n%s", want, v)
+			t.Errorf("the help is missing %q:\n%s", want, v)
 		}
 	}
 	m = press(t, m, "esc")
 	if m.mode != modeList {
-		t.Error("esc 應該關掉說明")
+		t.Error("esc should close the help")
 	}
 }
 ```
 
-- [ ] **Step 2: 執行測試確認失敗**
+- [ ] **Step 2: Run the test and confirm it fails**
 
 Run: `go test ./internal/tui/ -run 'TestForm|TestHelp'`
-Expected: FAIL，`undefined: modeForm`
+Expected: FAIL, `undefined: modeForm`
 
-- [ ] **Step 3: 實作表單**
+- [ ] **Step 3: Implement the form**
 
-建立 `internal/tui/form.go`：
+Create `internal/tui/form.go`:
 
 ```go
 package tui
@@ -5292,9 +5292,9 @@ const (
 	fieldCount
 )
 
-var fieldLabels = [fieldCount]string{"標題", "專案", "標籤", "截止日", "優先度"}
+var fieldLabels = [fieldCount]string{"Title", "Project", "Tags", "Due", "Priority"}
 
-// formState 是新增／編輯共用的表單。editing 為 false 時代表新增。
+// formState is the form shared by add and edit. editing false means add.
 type formState struct {
 	editing  bool
 	original task.Task
@@ -5303,7 +5303,7 @@ type formState struct {
 	errText  string
 }
 
-// openForm 準備一份表單。編輯時以現有值預填。
+// openForm prepares a form, prefilling current values when editing.
 func (m Model) openForm(t task.Task, editing bool) Model {
 	f := formState{editing: editing, original: t}
 	values := [fieldCount]string{
@@ -5317,11 +5317,11 @@ func (m Model) openForm(t task.Task, editing bool) Model {
 		values[fieldDue] = t.Due.Format("2006-01-02")
 	}
 	placeholders := [fieldCount]string{
-		"要做什麼",
-		"留空 = 全域未分類（ctrl+p 填入當前目錄）",
-		"逗號分隔",
-		"tomorrow、fri、+3d、2026-09-01",
-		"low、med、high",
+		"what needs doing",
+		"empty = uncategorized (ctrl+p fills the current directory)",
+		"comma separated",
+		"tomorrow, fri, +3d, 2026-09-01",
+		"low, med, high",
 	}
 	for i := range f.inputs {
 		ti := textinput.New()
@@ -5370,13 +5370,13 @@ func (m Model) updateForm(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.mode = modeList
 		return m, m.saveCmd(t, m.form.editing)
 	}
-	// 同 updateSearch：不轉傳游標閃爍的計時器 cmd。
+	// As in updateSearch, the cursor blink timer cmd is not forwarded.
 	m.form.inputs[m.form.focus], _ = m.form.inputs[m.form.focus].Update(msg)
 	m.form.errText = ""
 	return m, nil
 }
 
-// formTask 把表單內容組成一筆 Task，任何欄位不合法就回傳錯誤。
+// formTask assembles a Task from the form, returning an error if any field is invalid.
 func (m Model) formTask() (task.Task, error) {
 	f := m.form
 	t := f.original
@@ -5411,9 +5411,9 @@ func (m Model) formTask() (task.Task, error) {
 }
 
 func (m Model) viewForm() string {
-	title := "新增待辦"
+	title := "New task"
 	if m.form.editing {
-		title = "編輯 #" + itoa(m.form.original.ID)
+		title = "Edit #" + itoa(m.form.original.ID)
 	}
 	var b strings.Builder
 	b.WriteString(title + "\n\n")
@@ -5428,22 +5428,22 @@ func (m Model) viewForm() string {
 	if m.form.errText != "" {
 		b.WriteString(styleErr.Render(m.form.errText) + "\n")
 	}
-	b.WriteString(styleHint.Render("tab 換欄 · ctrl+p 填入當前目錄 · enter 儲存 · esc 取消"))
+	b.WriteString(styleHint.Render("tab next field · ctrl+p fill current directory · enter save · esc cancel"))
 	return b.String()
 }
 ```
 
-`itoa` 放在 `internal/tui/list.go`：
+`itoa` lives in `internal/tui/list.go`:
 
 ```go
 func itoa(n int64) string { return strconv.FormatInt(n, 10) }
 ```
 
-（import 補 `"strconv"`。）
+(Add `"strconv"` to the imports.)
 
-- [ ] **Step 4: 實作儲存 cmd**
+- [ ] **Step 4: Implement the save cmd**
 
-在 `internal/tui/cmds.go` 追加：
+Append to `internal/tui/cmds.go`:
 
 ```go
 func (m Model) saveCmd(t task.Task, editing bool) tea.Cmd {
@@ -5453,19 +5453,19 @@ func (m Model) saveCmd(t task.Task, editing bool) tea.Cmd {
 			if err := s.Update(t); err != nil {
 				return errMsg{err}
 			}
-			return savedMsg{note: "已更新「" + t.Title + "」"}
+			return savedMsg{note: "updated \"" + t.Title + "\""}
 		}
 		if _, err := s.Add(t); err != nil {
 			return errMsg{err}
 		}
-		return savedMsg{note: "已新增「" + t.Title + "」"}
+		return savedMsg{note: "added \"" + t.Title + "\""}
 	}
 }
 ```
 
-- [ ] **Step 5: 接上 Model 與說明覆蓋層**
+- [ ] **Step 5: Wire in the Model and the help overlay**
 
-`internal/tui/tui.go`：
+`internal/tui/tui.go`:
 
 ```go
 const (
@@ -5477,9 +5477,9 @@ const (
 )
 ```
 
-Model 加 `form formState`。
+Add `form formState` to the Model.
 
-`Update` 的 mode 分派加：
+The mode dispatch in `Update` gains:
 
 ```go
 		case modeForm:
@@ -5489,7 +5489,7 @@ Model 加 `form formState`。
 			return m, nil
 ```
 
-`updateList` 加：
+`updateList` gains:
 
 ```go
 	case "a":
@@ -5503,7 +5503,7 @@ Model 加 `form formState`。
 		return m, nil
 ```
 
-`View`：
+`View`:
 
 ```go
 func (m Model) View() string {
@@ -5519,76 +5519,76 @@ func (m Model) View() string {
 }
 ```
 
-在 `internal/tui/list.go` 加說明畫面：
+Add the help screen to `internal/tui/list.go`:
 
 ```go
 func viewHelp() string {
 	rows := [][2]string{
-		{"j / k / ↑ / ↓", "移動"},
-		{"g / G", "跳到頂 / 底"},
-		{"space", "切換完成"},
-		{"a / e", "新增 / 編輯"},
-		{"d", "刪除"},
-		{"u", "復原最近一次刪除"},
-		{"/", "搜尋標題"},
-		{"P / T", "依專案 / 標籤過濾"},
-		{"A", "切換是否顯示已完成"},
-		{"s", "循環排序"},
-		{"esc", "清除所有過濾"},
-		{"?", "這份說明"},
-		{"q", "離開"},
+		{"j / k / ↑ / ↓", "Move"},
+		{"g / G", "Jump to top / bottom"},
+		{"space", "Toggle done"},
+		{"a / e", "Add / edit"},
+		{"d", "Delete"},
+		{"u", "Undo the last delete"},
+		{"/", "Search titles"},
+		{"P / T", "Filter by project / tag"},
+		{"A", "Show or hide done tasks"},
+		{"s", "Cycle sort order"},
+		{"esc", "Clear every filter"},
+		{"?", "This help"},
+		{"q", "Quit"},
 	}
 	var b strings.Builder
-	b.WriteString("按鍵說明\n\n")
+	b.WriteString("Keys\n\n")
 	for _, r := range rows {
 		b.WriteString("  " + pad(r[0], 16) + r[1] + "\n")
 	}
-	b.WriteString("\n" + styleHint.Render("按任意鍵返回"))
+	b.WriteString("\n" + styleHint.Render("Press any key to go back"))
 	return b.String()
 }
 ```
 
-`updateList` 的 `case "a"` 需要 import `"todo.mirumo.net/internal/task"`（`tui.go` 已有）。
+`case "a"` in `updateList` needs `"todo.mirumo.net/internal/task"` imported (`tui.go` already has it).
 
-footer 提示更新為：
+The footer hint becomes:
 
 ```go
-	return styleHint.Render("a 新增 · e 編輯 · space 完成 · d 刪除 · / 搜尋 · P/T 過濾 · ? 說明 · q 離開")
+	return styleHint.Render("a add · e edit · space toggle · d delete · / search · P/T filter · ? help · q quit")
 ```
 
-- [ ] **Step 6: 執行整包測試**
+- [ ] **Step 6: Run the whole test suite**
 
 Run: `go test ./... -v`
-Expected: 全部 PASS
+Expected: everything PASSes
 
-- [ ] **Step 7: 手動驗收**
+- [ ] **Step 7: Check it by hand**
 
 ```bash
 go build -o /tmp/todo ./cmd/todo
 rm -f /tmp/todo-final.db
 export TODO_DB=/tmp/todo-final.db
-/tmp/todo add "買牛奶" -t 購物 -d tomorrow --pri high
-/tmp/todo add "修 bug" -p
+/tmp/todo add "buy milk" -t shopping -d tomorrow --pri high
+/tmp/todo add "fix a bug" -p
 /tmp/todo ls
 /tmp/todo projects
 /tmp/todo tui
 ```
-Expected：TUI 中依序驗證 `a` 新增、`e` 編輯（含 `ctrl+p` 填入目錄）、`space` 勾選、`d` 刪除後 `u` 復原、`/` 搜尋、`P`/`T` 過濾、`A` 顯示已完成、`s` 換排序、`?` 說明、`q` 離開，且離開後 `/tmp/todo ls` 反映所有變更。
+Expected: in the TUI, check in order that `a` adds, `e` edits (including `ctrl+p` filling the directory), `space` ticks off, `d` then `u` deletes and restores, `/` searches, `P`/`T` filter, `A` shows done tasks, `s` changes the sort, `?` shows the help and `q` quits — and that `/tmp/todo ls` reflects every change afterwards.
 
 - [ ] **Step 8: Commit**
 
 ```bash
 git add internal/tui/
-git commit --no-gpg-sign -m "feat(tui): 新增／編輯表單與說明覆蓋層"
+git commit --no-gpg-sign -m "feat(tui): the add/edit form and the help overlay"
 ```
 
 ---
 
-## 收尾檢查
+## Closing checks
 
-- [ ] `go vet ./...` 無輸出
-- [ ] `gofmt -l .` 無輸出
-- [ ] `go test ./...` 全綠
-- [ ] `grep -rn "flag\." --include=*.go . | grep -v argparse` 無標準庫 flag 的使用
-- [ ] `go list -m all | grep -E 'cobra|pflag'` 無結果
-- [ ] `ls ~/.todo` 在跑過測試後仍不存在（除非手動驗收時建立過）
+- [ ] `go vet ./...` prints nothing
+- [ ] `gofmt -l .` prints nothing
+- [ ] `go test ./...` is green
+- [ ] `grep -rn "flag\." --include=*.go . | grep -v argparse` finds no use of the stdlib flag
+- [ ] `go list -m all | grep -E 'cobra|pflag'` finds nothing
+- [ ] `ls ~/.todo` still does not exist after the tests have run (unless a manual check created it)

@@ -17,10 +17,10 @@ func day(y int, m time.Month, d int) *time.Time {
 func TestPadUsesDisplayWidth(t *testing.T) {
 	// The Chinese title is 3 runes, 9 bytes, and 6 display cells wide.
 	if got := pad("買牛奶", 8); got != "買牛奶  " {
-		t.Errorf("= %q, 預期補到 8 格寬（兩個空白）", got)
+		t.Errorf("= %q, want it padded to 8 cells (two spaces)", got)
 	}
 	if got := pad("abc", 2); got != "abc" {
-		t.Errorf("= %q, 超過寬度時應原樣回傳", got)
+		t.Errorf("= %q, anything wider than the column comes back unchanged", got)
 	}
 }
 

@@ -6,6 +6,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
+	"todo.mirumo.net/internal/argparse"
 	"todo.mirumo.net/internal/datearg"
 	"todo.mirumo.net/internal/project"
 	"todo.mirumo.net/internal/task"
@@ -84,4 +85,18 @@ func (a *App) writeDetails(t task.Task) {
 		}
 		fmt.Fprintln(a.Out, "  "+line)
 	}
+}
+
+// descValue reads the three states of --desc: absent leaves current alone, a
+// value replaces it (an empty one clears it), and no value at all hands the
+// text to the editor. A description is a paragraph, and a paragraph does not
+// belong on a command line.
+func (a *App) descValue(r *argparse.Result, current string) (string, error) {
+	if !r.Changed("desc") {
+		return current, nil
+	}
+	if v, has := r.Optional("desc"); has {
+		return v, nil
+	}
+	return a.editText(current)
 }

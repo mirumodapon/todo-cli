@@ -70,7 +70,7 @@ todo tui                        Open the interactive interface
 | `-t`, `--tag` | Repeatable. |
 | `-d`, `--due` | `today`, `tomorrow`, `fri`, `+3d`, `+2w`, `2026-09-01`, each optionally with a time (`today 15:00`). A bare `18:00` means today. |
 | `--pri` | `low`, `med`, `high`, or the marks a listing shows: `!`, `!!`, `!!!`. Quote the marks — most shells treat `!!` as history expansion: `--pri '!!!'`. |
-| `--desc` | The long form of the task, over as many lines as it takes. Listings show only the title; `todo details` and `enter` in the TUI show this. |
+| `--desc` | The long form of the task, over as many lines as it takes. With no value it opens `$EDITOR`; with one it takes the value. Listings show only the title; `todo details` and `enter` in the TUI show it. |
 
 `edit` touches only the fields you pass, so an omitted flag and an empty value
 mean different things:
@@ -153,6 +153,20 @@ $ todo details 1
   the post office on the corner does them for a fiver
 ```
 
+A description is a paragraph, and a paragraph does not belong on a command
+line, so `--desc` with no value opens your editor on it — `$VISUAL`, then
+`$EDITOR`, then `vi`, run through a shell so `EDITOR="code -w"` works:
+
+```sh
+todo add "renew the passport" --desc   # opens an empty file
+todo edit 1 --desc                     # opens the current text
+todo edit 1 --desc ""                  # clears it, no editor
+```
+
+The file has no comment lines to strip, so a description may start with `#`,
+and quitting the editor with an error aborts the edit rather than saving what
+happens to be in the file.
+
 Fields with nothing in them are left out, so a task with only a title prints
 two lines rather than a column of blanks. The due date is written out in full
 here — this is the view you come to when you want to settle what a date is,
@@ -187,8 +201,9 @@ accepts, so a mistyped key cannot confirm. A delete can still be taken back
 with `u` for as long as the TUI is open.
 
 `enter` opens the task under the cursor in full, the same fields `todo details`
-prints. Any key closes it again. Descriptions are written from the command line
-(`--desc`); the form edits the other five fields.
+prints. From there `e` hands the description to `$EDITOR`: the interface steps
+aside while the editor owns the terminal and comes back when it exits. Any
+other key closes the view.
 
 `ctrl+n` and `ctrl+p` move everywhere, including the places where `j` and `k`
 are text: while searching they walk the results without leaving the field, and

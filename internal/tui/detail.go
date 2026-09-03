@@ -2,11 +2,15 @@ package tui
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
 	"todo.mirumo.net/internal/datearg"
+	"todo.mirumo.net/internal/editor"
 	"todo.mirumo.net/internal/project"
 	"todo.mirumo.net/internal/task"
 )
@@ -46,6 +50,26 @@ func (m Model) detailRows(t task.Task) [][2]string {
 	return rows
 }
 
+// updateDetail handles keys while a task is open. Every key but e closes the
+// view: it is a look, not a place to be.
+func (m Model) updateDetail(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	t, ok := m.current()
+	if msg.String() != "e" || !ok {
+		m.mode = modeList
+		return m, nil
+	}
+	now := m.now()
+	return m, m.edit(t.Desc, func(s string, err error) tea.Msg {
+		if err != nil {
+			return errMsg{err}
+		}
+		t.Desc, t.UpdatedAt = s, now
+		return descMsg{t}
+	})
+}
+
+var detailHint = styleHint.Render("e edit the description in $EDITOR · any other key goes back")
+
 func (m Model) viewDetail() string {
 	t, ok := m.current()
 	if !ok {
@@ -65,7 +89,7 @@ func (m Model) viewDetail() string {
 	b.WriteString("\n")
 	if t.Desc == "" {
 		b.WriteString(styleDim.Render("  No description") + "\n")
-		return m.screen(b.String(), styleHint.Render("Press any key to go back"))
+		return m.screen(b.String(), detailHint)
 	}
 	// The description is wrapped to the frame: a long line would otherwise wrap
 	// itself and push the rows below it off the bottom of the screen.
@@ -80,5 +104,26 @@ func (m Model) viewDetail() string {
 			b.WriteString(strings.TrimRight(wrapped, " ") + "\n")
 		}
 	}
-	return m.screen(b.String(), styleHint.Render("Press any key to go back"))
+	return m.screen(b.String(), detailHint)
+}
+
+// editorFunc hands text to an editor and returns the cmd that produces the
+// result. apply turns that result into the msg Update will see.
+type editorFunc func(text string, apply func(string, error) tea.Msg) tea.Cmd
+
+// execEditor is the real one. Bubble Tea has to give the terminal up while the
+// editor owns it, which is what tea.ExecProcess does: it suspends the
+// interface, runs the command, and restores the screen afterwards.
+func execEditor(text string, apply func(string, error) tea.Msg) tea.Cmd {
+	path, err := editor.WriteTemp("description", text)
+	if err != nil {
+		return func() tea.Msg { return apply("", err) }
+	}
+	return tea.ExecProcess(editor.Command(path), func(runErr error) tea.Msg {
+		if runErr != nil {
+			os.RemoveAll(filepath.Dir(path))
+			return apply("", runErr)
+		}
+		return apply(editor.ReadTemp(path))
+	})
 }

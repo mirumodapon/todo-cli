@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"todo.mirumo.net/internal/argparse"
+	"todo.mirumo.net/internal/editor"
 	"todo.mirumo.net/internal/project"
 	"todo.mirumo.net/internal/store"
 )
@@ -24,6 +25,17 @@ type App struct {
 	Color bool
 	// RunTUI is injected by cmd/todo. cli does not import tui; they stay siblings.
 	RunTUI func() error
+	// EditText opens the user's editor on a piece of text. It is nil in normal
+	// use, where editText falls back to the real editor; tests replace it so
+	// nothing spawns vi.
+	EditText func(current string) (string, error)
+}
+
+func (a *App) editText(current string) (string, error) {
+	if a.EditText != nil {
+		return a.EditText(current)
+	}
+	return editor.Edit("description", current)
 }
 
 // command fully describes one subcommand. All help text is generated from here,

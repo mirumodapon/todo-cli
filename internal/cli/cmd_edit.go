@@ -60,8 +60,8 @@ func (a *App) cmdEdit(args []string) error {
 	if r.Changed("tag") {
 		t.Tags = task.NormalizeTags(r.Strings("tag"))
 	}
-	if r.Changed("desc") {
-		t.Desc = r.String("desc")
+	if t.Desc, err = a.descValue(r, t.Desc); err != nil {
+		return err
 	}
 	t.UpdatedAt = a.Now()
 

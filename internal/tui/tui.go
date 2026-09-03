@@ -47,6 +47,10 @@ type Model struct {
 	// a header and hint that stay put.
 	offset int
 
+	// edit hands text to the user's editor. New installs the real one; tests
+	// replace it so nothing spawns vi.
+	edit editorFunc
+
 	status        string
 	err           error
 	width, height int
@@ -72,7 +76,7 @@ func New(s store.Store, now func() time.Time, cwd string) Model {
 	return Model{
 		store: s, now: now, cwd: cwd,
 		mode: modeList, search: ti, filter: defaultFilter(),
-		width: 80, height: 24,
+		width: 80, height: 24, edit: execEditor,
 	}
 }
 
@@ -143,6 +147,10 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.status, m.err = msg.note, nil
 		return m, m.loadCmd()
 
+	case descMsg:
+		// The view stays open on the task so the new text is there to read.
+		return m, m.saveCmd(msg.t, true)
+
 	case deletedMsg:
 		t := msg.t
 		m.undo = &t
@@ -176,9 +184,7 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case modeConfirm:
 			return m.updateConfirm(msg)
 		case modeDetail:
-			// Like the help, any key closes it: it is a look, not a place to be.
-			m.mode = modeList
-			return m, nil
+			return m.updateDetail(msg)
 		}
 	}
 	return m, nil

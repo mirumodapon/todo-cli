@@ -28,7 +28,7 @@ func TestHintSitsOnTheLastLine(t *testing.T) {
 		{"form", []string{"a"}, "esc cancel"},
 		{"picker", []string{"P"}, "esc cancel"},
 		{"confirm", []string{" "}, "done? (y/n)"},
-		{"detail", []string{"enter"}, "go back"},
+		{"detail", []string{"enter"}, "goes back"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

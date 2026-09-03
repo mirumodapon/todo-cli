@@ -1,9 +1,11 @@
 package tui
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -78,5 +80,59 @@ func TestDetailViewWrapsWithoutTrailingSpaces(t *testing.T) {
 		if lipgloss.Width(line) > 80 {
 			t.Errorf("line wider than the 80-column frame: %q", line)
 		}
+	}
+}
+
+// fakeEditor stands in for the user's editor: it records what it was handed and
+// returns text without spawning anything.
+func fakeEditor(m Model, out string, err error, saw *string) Model {
+	m.edit = func(text string, apply func(string, error) tea.Msg) tea.Cmd {
+		*saw = text
+		return func() tea.Msg { return apply(out, err) }
+	}
+	return m
+}
+
+func TestDetailViewEditsTheDescriptionInAnEditor(t *testing.T) {
+	m, _ := newModel(t)
+	m = withDesc(t, m, "before")
+	var saw string
+	m = fakeEditor(m, "from the editor", nil, &saw)
+
+	m = press(t, m, "enter")
+	m = press(t, m, "e")
+
+	if saw != "before" {
+		t.Errorf("the editor should open on the current description, got %q", saw)
+	}
+	back, err := m.store.Get(m.tasks[0].ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if back.Desc != "from the editor" {
+		t.Errorf("desc = %q, what the editor returned should be saved", back.Desc)
+	}
+	if m.mode != modeDetail {
+		t.Errorf("the view should stay open on the task, mode = %v", m.mode)
+	}
+	if !strings.Contains(m.View(), "from the editor") {
+		t.Errorf("the new text should be on screen:\n%s", m.View())
+	}
+}
+
+func TestAFailingEditorIsReportedNotSaved(t *testing.T) {
+	m, _ := newModel(t)
+	m = withDesc(t, m, "before")
+	var saw string
+	m = fakeEditor(m, "", errors.New("exit status 3"), &saw)
+
+	m = press(t, m, "enter")
+	m = press(t, m, "e")
+
+	if back, _ := m.store.Get(m.tasks[0].ID); back.Desc != "before" {
+		t.Errorf("desc = %q, an aborted edit must change nothing", back.Desc)
+	}
+	if m.err == nil {
+		t.Error("the failure should be recorded")
 	}
 }

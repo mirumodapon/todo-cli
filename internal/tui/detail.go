@@ -50,16 +50,11 @@ func (m Model) detailRows(t task.Task) [][2]string {
 	return rows
 }
 
-// updateDetail handles keys while a task is open. Every key but e closes the
-// view: it is a look, not a place to be.
-func (m Model) updateDetail(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	t, ok := m.current()
-	if msg.String() != "e" || !ok {
-		m.mode = modeList
-		return m, nil
-	}
+// editDescCmd hands one task's description to the editor. The result comes back
+// as a descMsg, so the write itself still happens in a cmd like every other.
+func (m Model) editDescCmd(t task.Task) tea.Cmd {
 	now := m.now()
-	return m, m.edit(t.Desc, func(s string, err error) tea.Msg {
+	return m.edit(t.Desc, func(s string, err error) tea.Msg {
 		if err != nil {
 			return errMsg{err}
 		}
@@ -68,7 +63,18 @@ func (m Model) updateDetail(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	})
 }
 
-var detailHint = styleHint.Render("e edit the description in $EDITOR · any other key goes back")
+// updateDetail handles keys while a task is open. Every key but E closes the
+// view: it is a look, not a place to be.
+func (m Model) updateDetail(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	t, ok := m.current()
+	if msg.String() != "E" || !ok {
+		m.mode = modeList
+		return m, nil
+	}
+	return m, m.editDescCmd(t)
+}
+
+var detailHint = styleHint.Render("E edit the description in $EDITOR · any other key goes back")
 
 func (m Model) viewDetail() string {
 	t, ok := m.current()

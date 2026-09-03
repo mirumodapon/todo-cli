@@ -185,6 +185,7 @@ and it has no columns to keep narrow. Several ids at once are fine:
 | `enter` | Show the full task |
 | `space` | Toggle done (asks first) |
 | `a` / `e` | Add / edit |
+| `E` | Edit the description in $EDITOR |
 | `d` | Delete (asks first) |
 | `u` | Undo the last delete |
 | `/` | Search titles |
@@ -201,9 +202,13 @@ accepts, so a mistyped key cannot confirm. A delete can still be taken back
 with `u` for as long as the TUI is open.
 
 `enter` opens the task under the cursor in full, the same fields `todo details`
-prints. From there `e` hands the description to `$EDITOR`: the interface steps
-aside while the editor owns the terminal and comes back when it exits. Any
-other key closes the view.
+prints. Any key but `E` closes it again.
+
+`E` hands that task's description to `$EDITOR`, from the list or from the
+detail view: the interface steps aside while the editor owns the terminal and
+comes back when it exits. Lowercase `e` opens the form, which covers the five
+short fields; a description is prose and belongs in a real editor, so the form
+does not touch it.
 
 `ctrl+n` and `ctrl+p` move everywhere, including the places where `j` and `k`
 are text: while searching they walk the results without leaving the field, and

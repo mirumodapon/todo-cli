@@ -218,6 +218,12 @@ func (m Model) updateList(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if t, ok := m.current(); ok {
 			return m.openForm(t, true), nil
 		}
+	// Uppercase for the longer edit: e opens the form over the five short
+	// fields, E hands the description to a real editor.
+	case "E":
+		if t, ok := m.current(); ok {
+			return m, m.editDescCmd(t)
+		}
 	case "enter":
 		if _, ok := m.current(); ok {
 			m.mode = modeDetail

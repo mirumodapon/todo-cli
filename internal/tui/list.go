@@ -152,6 +152,7 @@ func itoa(n int64) string { return strconv.FormatInt(n, 10) }
 // the two agree, so the documentation cannot drift from the bindings.
 var helpRows = [][2]string{
 	{"j / k / ↑ / ↓", "Move"},
+	{"ctrl+n / ctrl+p", "Move, including while typing"},
 	{"g / G", "Jump to top / bottom"},
 	{"space", "Toggle done (asks first)"},
 	{"a / e", "Add / edit"},
@@ -169,9 +170,15 @@ var helpRows = [][2]string{
 
 func viewHelp() string {
 	var b strings.Builder
+	// As in the form, the key column is derived rather than hard-coded, so a
+	// longer binding cannot run into its description.
+	var w int
+	for _, r := range helpRows {
+		w = max(w, lipgloss.Width(r[0]))
+	}
 	b.WriteString("Keys\n\n")
 	for _, r := range helpRows {
-		b.WriteString("  " + pad(r[0], 16) + r[1] + "\n")
+		b.WriteString("  " + pad(r[0], w+2) + r[1] + "\n")
 	}
 	b.WriteString("\n" + styleHint.Render("Press any key to go back"))
 	return b.String()

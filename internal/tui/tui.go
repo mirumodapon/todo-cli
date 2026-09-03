@@ -75,6 +75,12 @@ func Run(s store.Store, now func() time.Time, cwd string) error {
 
 func (m Model) Init() tea.Cmd { return m.loadCmd() }
 
+// moveCursor shifts the cursor by d, clamped to the loaded tasks. Every mode
+// that moves the list goes through here so the clamping cannot disagree.
+func (m *Model) moveCursor(d int) {
+	m.cursor = min(max(0, m.cursor+d), max(0, len(m.tasks)-1))
+}
+
 // current returns the item under the cursor.
 func (m Model) current() (task.Task, bool) {
 	if m.cursor < 0 || m.cursor >= len(m.tasks) {
@@ -146,14 +152,10 @@ func (m Model) updateList(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "q", "ctrl+c":
 		return m, tea.Quit
-	case "j", "down":
-		if m.cursor < len(m.tasks)-1 {
-			m.cursor++
-		}
-	case "k", "up":
-		if m.cursor > 0 {
-			m.cursor--
-		}
+	case "j", "down", "ctrl+n":
+		m.moveCursor(1)
+	case "k", "up", "ctrl+p":
+		m.moveCursor(-1)
 	case "g":
 		m.cursor = 0
 	case "G":
@@ -225,6 +227,14 @@ func (m Model) updateSearch(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "enter":
 		m.mode = modeList
 		m.search.Blur()
+		return m, nil
+	// The results are right there while you type, so let the cursor reach them
+	// without leaving the field. j and k cannot do this: they are text here.
+	case "ctrl+n":
+		m.moveCursor(1)
+		return m, nil
+	case "ctrl+p":
+		m.moveCursor(-1)
 		return m, nil
 	case "esc":
 		m.mode = modeList

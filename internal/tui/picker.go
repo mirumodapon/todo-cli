@@ -63,11 +63,11 @@ func (m Model) updatePicker(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "esc", "q":
 		m.mode = modeList
 		return m, nil
-	case "j", "down":
+	case "j", "down", "ctrl+n":
 		if m.picker.cursor < len(m.picker.items)-1 {
 			m.picker.cursor++
 		}
-	case "k", "up":
+	case "k", "up", "ctrl+p":
 		if m.picker.cursor > 0 {
 			m.picker.cursor--
 		}
@@ -131,6 +131,6 @@ func (m Model) viewPicker() string {
 		}
 		b.WriteString(m.pickerMarker(i) + line + "\n")
 	}
-	b.WriteString("\n" + styleHint.Render("j/k move · enter select · esc cancel"))
+	b.WriteString("\n" + styleHint.Render("j/k or ctrl+n/p move · enter select · esc cancel"))
 	return b.String()
 }

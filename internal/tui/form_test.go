@@ -148,9 +148,9 @@ func TestFormFillsProjectFromCwd(t *testing.T) {
 		t.Fatal(err)
 	}
 	m = press(t, m, "a")
-	m = press(t, m, "ctrl+p")
+	m = press(t, m, "ctrl+r")
 	if !strings.Contains(m.View(), filepath.Base(m.cwd)) {
-		t.Errorf("ctrl+p should fill in the current directory's project:\n%s", m.View())
+		t.Errorf("ctrl+r should fill in the current directory's project:\n%s", m.View())
 	}
 }
 

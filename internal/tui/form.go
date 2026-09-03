@@ -51,7 +51,7 @@ func (m Model) openForm(t task.Task, editing bool) Model {
 	}
 	placeholders := [fieldCount]string{
 		"what needs doing",
-		"empty = uncategorized (ctrl+p fills the current directory)",
+		"empty = uncategorized (ctrl+r fills the current directory)",
 		"comma separated",
 		"tomorrow, fri, +3d, 2026-09-01, today 15:00",
 		"low, med, high or !, !!, !!!",
@@ -75,17 +75,19 @@ func (m Model) updateForm(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "esc":
 		m.mode = modeList
 		return m, nil
-	case "tab", "down":
+	case "tab", "down", "ctrl+n":
 		m.form.inputs[m.form.focus].Blur()
 		m.form.focus = (m.form.focus + 1) % fieldCount
 		m.form.inputs[m.form.focus].Focus()
 		return m, nil
-	case "shift+tab", "up":
+	case "shift+tab", "up", "ctrl+p":
 		m.form.inputs[m.form.focus].Blur()
 		m.form.focus = (m.form.focus - 1 + fieldCount) % fieldCount
 		m.form.inputs[m.form.focus].Focus()
 		return m, nil
-	case "ctrl+p":
+	// ctrl+r, not ctrl+p: ctrl+p now moves between fields, and r is for the
+	// repository root, which is what the current directory resolves to.
+	case "ctrl+r":
 		p, err := project.Current(m.cwd)
 		if err != nil {
 			m.form.errText = err.Error()
@@ -169,6 +171,6 @@ func (m Model) viewForm() string {
 	if m.form.errText != "" {
 		b.WriteString(styleErr.Render(m.form.errText) + "\n")
 	}
-	b.WriteString(styleHint.Render("tab next field · ctrl+p fill current directory · enter save · esc cancel"))
+	b.WriteString(styleHint.Render("tab/ctrl+n next field · ctrl+r fill current directory · enter save · esc cancel"))
 	return b.String()
 }

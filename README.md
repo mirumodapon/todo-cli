@@ -140,6 +140,7 @@ the hours left in it.
 | Key | Action |
 |---|---|
 | `j` / `k` / `↑` / `↓` | Move |
+| `ctrl+n` / `ctrl+p` | Move, including while typing |
 | `g` / `G` | Jump to top / bottom |
 | `space` | Toggle done (asks first) |
 | `a` / `e` | Add / edit |
@@ -158,9 +159,14 @@ Completing and deleting both ask before they touch anything, and only `y`
 accepts, so a mistyped key cannot confirm. A delete can still be taken back
 with `u` for as long as the TUI is open.
 
-In the add and edit form, `tab` and `shift+tab` move between fields, `ctrl+p`
-fills in the current directory's project, `enter` saves and `esc` cancels. In
-the project and tag menus, `j` and `k` move, `enter` selects and `esc` closes.
+`ctrl+n` and `ctrl+p` move everywhere, including the places where `j` and `k`
+are text: while searching they walk the results without leaving the field, and
+in the form they step between fields.
+
+In the add and edit form, `tab` and `shift+tab` also move between fields,
+`ctrl+r` fills in the current directory's project, `enter` saves and `esc`
+cancels. In the project and tag menus, `j` and `k` move, `enter` selects and
+`esc` closes.
 
 The header names what you are looking at (`uncategorized`, a project, or
 `all projects`), so the current filter is never invisible state. `P` lists each

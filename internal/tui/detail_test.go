@@ -1,0 +1,82 @@
+package tui
+
+import (
+	"strings"
+	"testing"
+
+	"github.com/charmbracelet/lipgloss"
+)
+
+// withDesc gives the first task a description and reloads.
+func withDesc(t *testing.T, m Model, desc string) Model {
+	t.Helper()
+	first := m.tasks[0]
+	first.Desc = desc
+	if err := m.store.Update(first); err != nil {
+		t.Fatal(err)
+	}
+	m, msg := run(t, m, m.loadCmd())
+	m, _ = send(t, m, msg)
+	return m
+}
+
+func TestEnterOpensTheDetailView(t *testing.T) {
+	m, _ := newModel(t)
+	m = withDesc(t, m, "semi-skimmed\ntwo litres")
+
+	m = press(t, m, "enter")
+	if m.mode != modeDetail {
+		t.Fatalf("enter should open the detail view, mode = %v", m.mode)
+	}
+	v := m.View()
+	for _, want := range []string{"first", "semi-skimmed", "two litres", "@urgent", "high", "open"} {
+		if !strings.Contains(v, want) {
+			t.Errorf("the detail view is missing %q:\n%s", want, v)
+		}
+	}
+	m = press(t, m, "esc")
+	if m.mode != modeList {
+		t.Error("esc should close the detail view")
+	}
+}
+
+// The description is the whole point of the view, so say when there is none
+// rather than showing a page that looks broken.
+func TestDetailViewWithoutADescription(t *testing.T) {
+	m, _ := newModel(t)
+	m = press(t, m, "j") // second, which has no description
+	m = press(t, m, "enter")
+	if m.mode != modeDetail {
+		t.Fatal("enter should open the detail view")
+	}
+	if !strings.Contains(m.View(), "No description") {
+		t.Errorf("it should say the description is empty:\n%s", m.View())
+	}
+}
+
+func TestEnterOnAnEmptyListDoesNothing(t *testing.T) {
+	m, _ := newModel(t)
+	m = press(t, m, "/")
+	m = press(t, m, "zzzz") // matches nothing
+	m = press(t, m, "enter")
+	m = press(t, m, "enter")
+	if m.mode == modeDetail {
+		t.Error("there is nothing under the cursor to show")
+	}
+}
+
+// A long description is wrapped to the frame, and the padding that wrapping
+// leaves behind must not survive into the output.
+func TestDetailViewWrapsWithoutTrailingSpaces(t *testing.T) {
+	m, _ := newModel(t)
+	m = withDesc(t, m, strings.Repeat("a long line that has to wrap somewhere ", 6))
+	m = press(t, m, "enter")
+	for _, line := range strings.Split(m.View(), "\n") {
+		if strings.HasSuffix(line, " ") {
+			t.Errorf("trailing whitespace: %q", line)
+		}
+		if lipgloss.Width(line) > 80 {
+			t.Errorf("line wider than the 80-column frame: %q", line)
+		}
+	}
+}

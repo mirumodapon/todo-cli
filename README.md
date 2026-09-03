@@ -49,6 +49,7 @@ go build -ldflags "-X main.version=v1.2.3" ./cmd/todo
 ```
 todo add <title> [flags]        Add a task
 todo ls, list [flags]           List tasks
+todo details <id>...            Show tasks in full, description included
 todo done <id>...               Mark tasks as done
 todo undone <id>...             Mark tasks as not done
 todo edit <id> [new title]      Change a task
@@ -69,6 +70,7 @@ todo tui                        Open the interactive interface
 | `-t`, `--tag` | Repeatable. |
 | `-d`, `--due` | `today`, `tomorrow`, `fri`, `+3d`, `+2w`, `2026-09-01`, each optionally with a time (`today 15:00`). A bare `18:00` means today. |
 | `--pri` | `low`, `med`, `high`, or the marks a listing shows: `!`, `!!`, `!!!`. Quote the marks — most shells treat `!!` as history expansion: `--pri '!!!'`. |
+| `--desc` | The long form of the task, over as many lines as it takes. Listings show only the title; `todo details` and `enter` in the TUI show this. |
 
 `edit` touches only the fields you pass, so an omitted flag and an empty value
 mean different things:
@@ -133,6 +135,30 @@ reads as `today` or as the time of day when the task has one. A due date with
 no time of day runs to the end of that day, so something due today still shows
 the hours left in it.
 
+### Details
+
+A listing shows one line per task. `todo details` shows everything one task
+carries, including the description:
+
+```
+$ todo details 1
+#1  renew the passport
+  status    open
+  due       2026-09-12  (9d)
+  priority  !!! high
+  tags      @admin
+  created   2026-09-03 17:09
+
+  form DS-82, two photos taken in the last six months
+  the post office on the corner does them for a fiver
+```
+
+Fields with nothing in them are left out, so a task with only a title prints
+two lines rather than a column of blanks. The due date is written out in full
+here — this is the view you come to when you want to settle what a date is,
+and it has no columns to keep narrow. Several ids at once are fine:
+`todo details 1 2 3`.
+
 ## Terminal UI
 
 `todo tui` opens the list. It starts on uncategorized tasks, like `todo ls`.
@@ -142,6 +168,7 @@ the hours left in it.
 | `j` / `k` / `↑` / `↓` | Move |
 | `ctrl+n` / `ctrl+p` | Move, including while typing |
 | `g` / `G` | Jump to top / bottom |
+| `enter` | Show the full task |
 | `space` | Toggle done (asks first) |
 | `a` / `e` | Add / edit |
 | `d` | Delete (asks first) |
@@ -158,6 +185,10 @@ the hours left in it.
 Completing and deleting both ask before they touch anything, and only `y`
 accepts, so a mistyped key cannot confirm. A delete can still be taken back
 with `u` for as long as the TUI is open.
+
+`enter` opens the task under the cursor in full, the same fields `todo details`
+prints. Any key closes it again. Descriptions are written from the command line
+(`--desc`); the form edits the other five fields.
 
 `ctrl+n` and `ctrl+p` move everywhere, including the places where `j` and `k`
 are text: while searching they walk the results without leaving the field, and

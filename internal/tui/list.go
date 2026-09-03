@@ -19,6 +19,9 @@ var (
 	styleDim    = lipgloss.NewStyle().Faint(true)
 	styleErr    = lipgloss.NewStyle().Foreground(lipgloss.Color(theme.Red.Hex()))
 	styleHint   = lipgloss.NewStyle().Faint(true)
+	// styleDescBody indents through padding rather than a literal prefix, so a
+	// wrapped line keeps the indent on every row it takes.
+	styleDescBody = lipgloss.NewStyle().PaddingLeft(2)
 )
 
 func pad(s string, w int) string {
@@ -181,6 +184,7 @@ var helpRows = [][2]string{
 	{"j / k / ↑ / ↓", "Move"},
 	{"ctrl+n / ctrl+p", "Move, including while typing"},
 	{"g / G", "Jump to top / bottom"},
+	{"enter", "Show the full task"},
 	{"space", "Toggle done (asks first)"},
 	{"a / e", "Add / edit"},
 	{"d", "Delete (asks first)"},

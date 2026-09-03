@@ -20,6 +20,7 @@ const (
 	modeForm
 	modeHelp
 	modeConfirm
+	modeDetail
 )
 
 // Model is the root model. Every substate hangs off it and Update dispatches on mode.
@@ -174,6 +175,10 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		case modeConfirm:
 			return m.updateConfirm(msg)
+		case modeDetail:
+			// Like the help, any key closes it: it is a look, not a place to be.
+			m.mode = modeList
+			return m, nil
 		}
 	}
 	return m, nil
@@ -207,6 +212,11 @@ func (m Model) updateList(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if t, ok := m.current(); ok {
 			return m.openForm(t, true), nil
 		}
+	case "enter":
+		if _, ok := m.current(); ok {
+			m.mode = modeDetail
+		}
+		return m, nil
 	case "?":
 		m.mode = modeHelp
 		return m, nil
@@ -300,6 +310,8 @@ func (m Model) View() string {
 		return m.viewForm()
 	case modeHelp:
 		return m.viewHelp()
+	case modeDetail:
+		return m.viewDetail()
 	}
 	return m.viewList()
 }

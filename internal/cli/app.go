@@ -77,6 +77,7 @@ func (a *App) commandList() []command {
 	return []command{
 		{name: "add", args: "<title>", summary: "Add a task.", flags: addFlags, run: a.cmdAdd},
 		{name: "ls", aliases: []string{"list"}, summary: "List uncategorized open tasks; -p selects a project, -a includes done ones.", flags: lsFlags, run: a.cmdLs},
+		{name: "details", args: "<id>...", summary: "Show one or more tasks in full, description included.", run: a.cmdDetails},
 		{name: "done", args: "<id>...", summary: "Mark tasks as done.", run: a.cmdDone},
 		{name: "undone", args: "<id>...", summary: "Mark tasks as not done.", run: a.cmdUndone},
 		{name: "edit", args: "<id> [new title]", summary: "Change a task. Only the fields you pass are touched.", flags: addFlags, run: a.cmdEdit},

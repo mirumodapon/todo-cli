@@ -20,10 +20,11 @@ const (
 
 const schema = `
 CREATE TABLE IF NOT EXISTS tasks (
-  id         INTEGER PRIMARY KEY AUTOINCREMENT,
-  title      TEXT    NOT NULL,
-  project    TEXT    NOT NULL DEFAULT '',
-  due        TEXT    NULL,
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  title       TEXT    NOT NULL,
+  description TEXT    NOT NULL DEFAULT '',
+  project     TEXT    NOT NULL DEFAULT '',
+  due         TEXT    NULL,
   priority   INTEGER NOT NULL DEFAULT 0,
   done_at    TEXT    NULL,
   created_at TEXT    NOT NULL,
@@ -42,7 +43,31 @@ CREATE INDEX IF NOT EXISTS idx_tasks_done ON tasks(done_at);
 CREATE INDEX IF NOT EXISTS idx_tasks_project ON tasks(project);
 `
 
-const taskCols = `id, title, project, due, priority, done_at, created_at, updated_at`
+const taskCols = `id, title, description, project, due, priority, done_at, created_at, updated_at`
+
+// migrations bring a database created by an older build up to date. The schema
+// runs CREATE TABLE IF NOT EXISTS, which does nothing at all to a table that
+// already exists, so every column added later needs its own step here.
+var migrations = []struct{ column, ddl string }{
+	{"description", `ALTER TABLE tasks ADD COLUMN description TEXT NOT NULL DEFAULT ''`},
+}
+
+func migrate(db *sql.DB) error {
+	for _, m := range migrations {
+		var n int
+		if err := db.QueryRow(
+			`SELECT COUNT(*) FROM pragma_table_info('tasks') WHERE name = ?`, m.column).Scan(&n); err != nil {
+			return err
+		}
+		if n > 0 {
+			continue
+		}
+		if _, err := db.Exec(m.ddl); err != nil {
+			return fmt.Errorf("adding the %s column: %w", m.column, err)
+		}
+	}
+	return nil
+}
 
 type sqlStore struct{ db *sql.DB }
 
@@ -60,6 +85,10 @@ func OpenSQLite(path string) (Store, error) {
 		return nil, err
 	}
 	if _, err := db.Exec(schema); err != nil {
+		db.Close()
+		return nil, err
+	}
+	if err := migrate(db); err != nil {
 		db.Close()
 		return nil, err
 	}
@@ -123,7 +152,7 @@ func scanTask(sc scanner) (task.Task, error) {
 		created, updated string
 		pri              int
 	)
-	if err := sc.Scan(&t.ID, &t.Title, &t.Project, &due, &pri, &doneAt, &created, &updated); err != nil {
+	if err := sc.Scan(&t.ID, &t.Title, &t.Desc, &t.Project, &due, &pri, &doneAt, &created, &updated); err != nil {
 		return task.Task{}, err
 	}
 	t.Priority = task.Priority(pri)
@@ -181,9 +210,9 @@ func (s *sqlStore) loadTags(id int64) ([]string, error) {
 
 func (s *sqlStore) Add(t task.Task) (task.Task, error) {
 	res, err := s.db.Exec(
-		`INSERT INTO tasks (title, project, due, priority, done_at, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
-		t.Title, t.Project, dueVal(t.Due, t.DueHasTime), int(t.Priority), tsVal(t.DoneAt),
+		`INSERT INTO tasks (title, description, project, due, priority, done_at, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		t.Title, t.Desc, t.Project, dueVal(t.Due, t.DueHasTime), int(t.Priority), tsVal(t.DoneAt),
 		t.CreatedAt.Format(time.RFC3339), t.UpdatedAt.Format(time.RFC3339))
 	if err != nil {
 		return task.Task{}, err
@@ -316,9 +345,9 @@ func (s *sqlStore) List(f task.Filter, now time.Time) ([]task.Task, error) {
 
 func (s *sqlStore) Update(t task.Task) error {
 	res, err := s.db.Exec(
-		`UPDATE tasks SET title = ?, project = ?, due = ?, priority = ?, done_at = ?, updated_at = ?
+		`UPDATE tasks SET title = ?, description = ?, project = ?, due = ?, priority = ?, done_at = ?, updated_at = ?
 		 WHERE id = ?`,
-		t.Title, t.Project, dueVal(t.Due, t.DueHasTime), int(t.Priority), tsVal(t.DoneAt),
+		t.Title, t.Desc, t.Project, dueVal(t.Due, t.DueHasTime), int(t.Priority), tsVal(t.DoneAt),
 		t.UpdatedAt.Format(time.RFC3339), t.ID)
 	if err != nil {
 		return err
@@ -372,9 +401,9 @@ func (s *sqlStore) SetDone(id int64, done bool, now time.Time) error {
 // Restore reinserts under the original id. AUTOINCREMENT never reuses numbers, so that id is still free.
 func (s *sqlStore) Restore(t task.Task) error {
 	_, err := s.db.Exec(
-		`INSERT INTO tasks (id, title, project, due, priority, done_at, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		t.ID, t.Title, t.Project, dueVal(t.Due, t.DueHasTime), int(t.Priority), tsVal(t.DoneAt),
+		`INSERT INTO tasks (id, title, description, project, due, priority, done_at, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		t.ID, t.Title, t.Desc, t.Project, dueVal(t.Due, t.DueHasTime), int(t.Priority), tsVal(t.DoneAt),
 		t.CreatedAt.Format(time.RFC3339), t.UpdatedAt.Format(time.RFC3339))
 	if err != nil {
 		return err

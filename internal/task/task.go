@@ -64,8 +64,11 @@ func (p Priority) String() string {
 
 // Task is one todo item. An empty Project means globally uncategorized.
 type Task struct {
-	ID      int64
-	Title   string
+	ID    int64
+	Title string
+	// Desc is the long form of the task, free text over as many lines as it
+	// takes. Listings show only the title; Desc is what the detail view is for.
+	Desc    string
 	Project string
 	Due     *time.Time
 	// DueHasTime distinguishes "due on that day" from "due at that moment".

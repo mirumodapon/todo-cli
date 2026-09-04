@@ -106,3 +106,37 @@ func TestParseSortBy(t *testing.T) {
 		t.Error("an unknown sort field should fail")
 	}
 }
+
+func TestParseDueFilter(t *testing.T) {
+	now := time.Date(2026, 8, 29, 15, 0, 0, 0, time.Local)
+	cases := []struct {
+		in     string
+		want   DueRange
+		wantOn string
+	}{
+		{"", DueAny, ""},
+		{"today", DueToday, ""},
+		{" Week ", DueWeek, ""},
+		{"overdue", DueOverdue, ""},
+		{"2026-09-01", DueOn, "2026-09-01"},
+		{"tomorrow", DueOn, "2026-08-30"},
+		// A time of day cannot narrow a filter that works by day.
+		{"2026-09-01 15:00", DueOn, "2026-09-01"},
+	}
+	for _, c := range cases {
+		got, on, err := ParseDueFilter(c.in, now)
+		if err != nil {
+			t.Errorf("ParseDueFilter(%q): %v", c.in, err)
+			continue
+		}
+		if got != c.want {
+			t.Errorf("ParseDueFilter(%q) = %v, want %v", c.in, got, c.want)
+		}
+		if c.wantOn != "" && on.Format("2006-01-02") != c.wantOn {
+			t.Errorf("ParseDueFilter(%q) on = %s, want %s", c.in, on.Format("2006-01-02"), c.wantOn)
+		}
+	}
+	if _, _, err := ParseDueFilter("someday", now); err == nil {
+		t.Error("an unreadable date should be an error")
+	}
+}

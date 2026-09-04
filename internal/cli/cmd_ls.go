@@ -3,10 +3,8 @@ package cli
 import (
 	"errors"
 	"fmt"
-	"strings"
 
 	"todo.mirumo.net/internal/argparse"
-	"todo.mirumo.net/internal/datearg"
 	"todo.mirumo.net/internal/task"
 )
 
@@ -78,20 +76,8 @@ func (a *App) cmdLs(args []string) error {
 		f.Priority = &p
 	}
 	if r.Changed("due") {
-		switch v := strings.ToLower(strings.TrimSpace(r.String("due"))); v {
-		case "today":
-			f.DueRange = task.DueToday
-		case "week":
-			f.DueRange = task.DueWeek
-		case "overdue":
-			f.DueRange = task.DueOverdue
-		default:
-			d, _, err := datearg.Parse(v, a.Now())
-			if err != nil {
-				return err
-			}
-			// Filtering is by day; a time of day in -d narrows nothing.
-			f.DueRange, f.DueOn = task.DueOn, d
+		if f.DueRange, f.DueOn, err = task.ParseDueFilter(r.String("due"), a.Now()); err != nil {
+			return err
 		}
 	}
 	if f.Sort, err = task.ParseSortBy(r.String("sort")); err != nil {

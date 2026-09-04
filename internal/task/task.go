@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"todo.mirumo.net/internal/datearg"
 )
 
 // Priority ranks a task. Values ascend from low to high so SQL can ORDER BY it directly.
@@ -140,6 +142,31 @@ const (
 	DueOverdue
 	DueOn
 )
+
+// ParseDueFilter reads what a user writes for a due-date filter: the three
+// range words, or a date in any form datearg takes. Both the CLI and the MCP
+// server go through here, so the two cannot come to disagree about what
+// "week" means.
+//
+// Filtering is by day, so a time of day narrows nothing and is dropped.
+func ParseDueFilter(s string, now time.Time) (DueRange, time.Time, error) {
+	switch v := strings.ToLower(strings.TrimSpace(s)); v {
+	case "":
+		return DueAny, time.Time{}, nil
+	case "today":
+		return DueToday, time.Time{}, nil
+	case "week":
+		return DueWeek, time.Time{}, nil
+	case "overdue":
+		return DueOverdue, time.Time{}, nil
+	default:
+		d, _, err := datearg.Parse(v, now)
+		if err != nil {
+			return DueAny, time.Time{}, err
+		}
+		return DueOn, d, nil
+	}
+}
 
 // Filter describes one query. A nil Project means no project filtering;
 // a pointer to an empty string means uncategorized tasks only.

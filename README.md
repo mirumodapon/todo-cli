@@ -57,6 +57,7 @@ todo rm <id>...                 Delete tasks
 todo projects                   Projects with their open counts
 todo tags                       Tags that are in use
 todo tui                        Open the interactive interface
+todo mcp                        Serve the task list over MCP on stdin/stdout
 ```
 
 `todo --help` lists them; `todo <command> --help` explains one.
@@ -245,6 +246,60 @@ The header names what you are looking at (`uncategorized`, a project, or
 `all projects`, plus any tag), so the current filter is never invisible state.
 `P` lists each project with how much is open in it.
 
+## MCP
+
+`todo mcp` speaks the [Model Context Protocol](https://modelcontextprotocol.io)
+over stdin and stdout, so an MCP client can work with the same `~/.todo` the CLI
+and the TUI use. It is a third interface over one database, not a copy of it.
+
+For Claude Code:
+
+```sh
+claude mcp add todo -- todo mcp
+```
+
+For a client configured by file:
+
+```json
+{
+  "mcpServers": {
+    "todo": { "command": "todo", "args": ["mcp"] }
+  }
+}
+```
+
+Add `"env": {"TODO_DB": "/path/to/todo.db"}` to point one client at a different
+database — handy for trying it out without touching your real list.
+
+### What it exposes
+
+| Tool | Does |
+|---|---|
+| `list_tasks` | Filter by project, tags, due range, priority, or text. Read-only. |
+| `get_task` | One task in full, description included. Read-only. |
+| `add_task` | Add a task, returning its id. |
+| `edit_task` | Change a task. Only the fields you pass are touched. |
+| `complete_task`, `reopen_task` | Mark done, or undo that. |
+| `delete_task` | Delete a task, annotated destructive so a client can ask first. |
+
+Two resources — `todo://projects` and `todo://tags` — carry the project list
+with open counts, and the tags in use. Two prompts write the current tasks into
+the request: `plan_today` splits what is overdue, due today, and due later this
+week; `review_project` walks one project's open work.
+
+Listings leave descriptions out and set `has_desc` instead, so a long list
+cannot become a wall of prose; `get_task` fetches the one you want.
+
+A tool that fails answers with a result marked `isError` rather than a protocol
+error, because the message is meant for the model to read and act on. Asking for
+a tool that does not exist is a protocol error, because retrying will not help.
+
+Requests are handled one at a time. This is one person's task list, and a queue
+of one removes every question about concurrent writes.
+
+Nothing here opens a socket: the transport is the pipe the client already
+started the process on, and stdout carries JSON-RPC and nothing else.
+
 ## Data
 
 `~/.todo/todo.db`, a SQLite database, created on first use with mode `0700`.
@@ -283,17 +338,24 @@ Dependencies point inward, and the inner packages perform no IO.
 | `internal/datearg` | Due date parsing and display. |
 | `internal/project` | Turns a directory into a project path. |
 | `internal/store` | The `Store` interface and its SQLite implementation. |
+| `internal/editor` | Hands text to `$EDITOR` and reads back what came out. |
+| `internal/taskfile` | Renders a task as an editable file and parses it back. |
 | `internal/cli` | Subcommands, flags, output formatting. |
 | `internal/tui` | Bubble Tea model, update, view. |
+| `internal/mcp` | The MCP server: JSON-RPC over stdio, tools, resources, prompts. |
 | `cmd/todo` | Wiring and the exit code. |
 
-`cli` and `tui` depend only on the `Store` interface, and neither imports the
-other: `cmd/todo` hands the CLI a function that starts the TUI. Tests run
-against an in-memory database and never touch `~/.todo`.
+`cli`, `tui` and `mcp` depend only on the `Store` interface, and none imports
+another: `cmd/todo` hands the CLI the functions that start the other two. Tests
+run against an in-memory database and never touch `~/.todo`.
 
 Argument parsing is hand-written because `-p` needs an optional value — no
 value means the current directory, a value names a project — and neither
 `pflag` nor the standard library's `flag` supports that.
+
+The MCP transport is hand-written for the same reason as the flag parser: it is
+JSON-RPC 2.0, one object per line, which is small enough that a dependency would
+cost more than it saved.
 
 `tui.Update` performs no IO. Every database action is a `tea.Cmd` whose result
 comes back as a message, which keeps the update function pure and makes the

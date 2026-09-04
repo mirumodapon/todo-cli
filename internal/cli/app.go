@@ -23,8 +23,10 @@ type App struct {
 	Now   func() time.Time
 	Cwd   string
 	Color bool
-	// RunTUI is injected by cmd/todo. cli does not import tui; they stay siblings.
+	// RunTUI and RunMCP are injected by cmd/todo. cli imports neither tui nor
+	// mcp; the three stay siblings over the same Store.
 	RunTUI func() error
+	RunMCP func() error
 	// EditText opens the user's editor on a piece of text. It is nil in normal
 	// use, where editText falls back to the real editor; tests replace it so
 	// nothing spawns vi.
@@ -97,6 +99,7 @@ func (a *App) commandList() []command {
 		{name: "projects", summary: "List projects with their open task counts.", run: a.cmdProjects},
 		{name: "tags", summary: "List tags that are in use.", run: a.cmdTags},
 		{name: "tui", summary: "Open the interactive interface.", run: a.cmdTUI},
+		{name: "mcp", summary: "Serve the task list over MCP on stdin and stdout.", run: a.cmdMCP},
 	}
 }
 
@@ -186,6 +189,18 @@ func (a *App) cmdTUI(args []string) error {
 		return errors.New("the TUI is not enabled in this build")
 	}
 	return a.RunTUI()
+}
+
+// cmdMCP hands stdin and stdout to the MCP server. Nothing here may print:
+// stdout is the transport, and one stray line would corrupt the session.
+func (a *App) cmdMCP(args []string) error {
+	if len(args) > 0 {
+		return fmt.Errorf("todo mcp takes no arguments, got %q", args[0])
+	}
+	if a.RunMCP == nil {
+		return errors.New("the MCP server is not enabled in this build")
+	}
+	return a.RunMCP()
 }
 
 // SplitGlobal pulls leading --db occurrences off args and returns the rest.

@@ -197,3 +197,27 @@ func TestParseIDs(t *testing.T) {
 		}
 	}
 }
+
+func TestMCPRunsOnItsOwnSubcommand(t *testing.T) {
+	app, out, _ := newApp(t)
+	called := false
+	app.RunMCP = func() error { called = true; return nil }
+
+	if code := app.Run(nil); code != 0 || called {
+		t.Error("bare todo must not start the MCP server")
+	}
+	out.Reset()
+	if code := app.Run([]string{"mcp"}); code != 0 {
+		t.Errorf("exit code = %d, want 0", code)
+	}
+	if !called {
+		t.Error("todo mcp should start the server")
+	}
+	// stdout is the transport: the command must not print anything of its own.
+	if out.String() != "" {
+		t.Errorf("todo mcp wrote %q to stdout, which would corrupt the session", out.String())
+	}
+	if code := app.Run([]string{"mcp", "extra"}); code != 1 {
+		t.Errorf("exit code = %d, want 1 for an unexpected argument", code)
+	}
+}

@@ -144,6 +144,14 @@ func (s *Server) dispatch(req request) (any, *rpcError) {
 		return s.listTools()
 	case "tools/call":
 		return s.callTool(req.Params)
+	case "resources/list":
+		return s.listResources()
+	case "resources/read":
+		return s.readResource(req.Params)
+	case "prompts/list":
+		return s.listPrompts()
+	case "prompts/get":
+		return s.getPrompt(req.Params)
 	case "notifications/initialized", "notifications/cancelled":
 		return nil, nil
 	}

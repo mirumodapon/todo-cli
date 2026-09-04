@@ -271,6 +271,61 @@ For a client configured by file:
 Add `"env": {"TODO_DB": "/path/to/todo.db"}` to point one client at a different
 database — handy for trying it out without touching your real list.
 
+### Using it
+
+Once connected, ask in plain language and the client picks the tools:
+
+> **What have I got due this week?**
+> → `list_tasks` with `due: "week"`
+
+> **Add "renew the passport" for Friday, high priority, tagged admin.**
+> → `add_task` with `due: "fri"`, `priority: "high"`, `tags: ["admin"]`
+
+> **What was that passport one about?**
+> → `get_task`, which is the one that carries the description
+
+> **I did the milk one.**
+> → `complete_task`
+
+Dates go in the way they do on the command line — `tomorrow`, `fri`, `+3d`,
+`2026-09-01`, optionally with a time — because both go through the same parser.
+Priorities take `low`/`med`/`high` or `!`/`!!`/`!!!`.
+
+The two prompts are worth reaching for by name rather than describing what you
+want: `plan_today` and `review_project` (which takes a project path). A client
+lists them wherever it lists its prompts — in Claude Code they show up among the
+slash commands. They arrive with your current tasks already written into them,
+so the model is not planning a day it cannot see.
+
+`list_tasks` reads `project` in three ways, which is the same distinction the
+CLI draws with `-p`:
+
+| `project` | Means |
+|---|---|
+| left out | every project |
+| `""` | uncategorized only |
+| `"/path/to/repo"` | that project |
+
+### Checking it by hand
+
+The server is a pipe, so it can be driven without a client at all — which is
+how to tell a broken server from a broken client:
+
+```sh
+printf '%s\n' \
+  '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"sh","version":"1"}}}' \
+  '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"list_tasks","arguments":{"project":""}}}' \
+  | todo mcp
+```
+
+```
+{"jsonrpc":"2.0","id":1,"result":{"capabilities":{...},"protocolVersion":"2025-06-18","serverInfo":{"name":"todo",...}}}
+{"jsonrpc":"2.0","id":2,"result":{"content":[{"text":"[{\"id\":1,\"title\":\"buy milk\",...}]","type":"text"}],"isError":false}}
+```
+
+`tools/list`, `resources/list` and `prompts/list` take no parameters and are the
+quickest way to see what a build offers.
+
 ### What it exposes
 
 | Tool | Does |

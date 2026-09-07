@@ -185,8 +185,8 @@ func (s *Server) initialize(params json.RawMessage) (any, *rpcError) {
 			"prompts":   map[string]any{},
 		},
 		"serverInfo": map[string]any{
-			"name":    "todo",
-			"title":   "todo — a local task list",
+			"name":    "task",
+			"title":   "task — a local task list",
 			"version": s.version(),
 		},
 	}, nil

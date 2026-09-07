@@ -28,12 +28,12 @@ func (a *App) cmdAdd(args []string) error {
 	}
 	pos := r.Args()
 	if len(pos) == 0 {
-		// The common mistake: todo add -p "buy milk", where -p swallowed the title.
+		// The common mistake: task add -p "buy milk", where -p swallowed the title.
 		if v, has := r.Optional("project"); has {
 			return fmt.Errorf("missing title: %q was taken as the value of --project.\n"+
-				"Put the title before the flags (todo add %q -p), or write --project=%s", v, v, v)
+				"Put the title before the flags (task add %q -p), or write --project=%s", v, v, v)
 		}
-		return errors.New("usage: todo add <title> [flags]")
+		return errors.New("usage: task add <title> [flags]")
 	}
 	if len(pos) > 1 {
 		return fmt.Errorf("only one title is allowed, got %d positional arguments; quote a title that contains spaces", len(pos))

@@ -12,7 +12,7 @@ import (
 
 // tempPrefix names the directories this package creates, and is what Discard
 // checks before removing one.
-const tempPrefix = "todo-"
+const tempPrefix = "task-"
 
 // Command builds the command that opens path for editing. VISUAL wins over
 // EDITOR, and vi is the fallback: a machine without vi is rarer than a user who

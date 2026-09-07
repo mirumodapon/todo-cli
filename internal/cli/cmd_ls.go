@@ -31,7 +31,7 @@ func (a *App) cmdLs(args []string) error {
 		return err
 	}
 	if pos := r.Args(); len(pos) > 0 {
-		return fmt.Errorf("ls takes no positional arguments, got %q; press / inside todo tui to search titles", pos[0])
+		return fmt.Errorf("ls takes no positional arguments, got %q; press / inside task tui to search titles", pos[0])
 	}
 
 	f := task.Filter{

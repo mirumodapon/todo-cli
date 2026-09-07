@@ -73,7 +73,7 @@ func TestInitializeAnswersWithCapabilities(t *testing.T) {
 		}
 	}
 	info, _ := res["serverInfo"].(map[string]any)
-	if info["name"] != "todo" {
+	if info["name"] != "task" {
 		t.Errorf("serverInfo = %v", info)
 	}
 }

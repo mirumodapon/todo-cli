@@ -61,7 +61,7 @@ type Model struct {
 func (m Model) listHeight() int { return max(1, m.height-4) }
 
 // defaultFilter is what the list starts on and what esc returns to:
-// uncategorized tasks only, matching what a plain "todo ls" prints.
+// uncategorized tasks only, matching what a plain "task ls" prints.
 // Project tasks are one P away.
 func defaultFilter() task.Filter {
 	uncategorized := ""

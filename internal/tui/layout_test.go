@@ -77,7 +77,7 @@ func TestListScrollsToKeepTheCursorVisible(t *testing.T) {
 	if strings.Contains(v, "first") {
 		t.Errorf("the top of the list should have scrolled away:\n%s", v)
 	}
-	if !strings.Contains(v, "todo — ") {
+	if !strings.Contains(v, "· uncategorized") {
 		t.Errorf("the header must survive scrolling:\n%s", v)
 	}
 

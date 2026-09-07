@@ -1,9 +1,9 @@
-# todo — a local task list
+# task — a local task list
 #
 # Run "make" or "make help" to see the available targets.
 
-BINARY := todo
-CMD    := ./cmd/todo
+BINARY := task
+CMD    := ./cmd/task
 BIN    := bin
 GOBIN  ?= $(shell go env GOPATH)/bin
 

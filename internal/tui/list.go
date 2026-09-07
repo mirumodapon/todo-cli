@@ -143,7 +143,7 @@ func (m Model) header() string {
 	if len(m.tasks) == 1 {
 		unit = "task"
 	}
-	h := fmt.Sprintf("todo — %d %s · %s", len(m.tasks), unit, m.scope())
+	h := fmt.Sprintf("%d %s · %s", len(m.tasks), unit, m.scope())
 	if m.filter.Untagged {
 		h += "  untagged"
 	} else if len(m.filter.Tags) > 0 {

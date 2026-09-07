@@ -1,4 +1,4 @@
-// Package cli implements the todo command line interface.
+// Package cli implements the task command line interface.
 package cli
 
 import (
@@ -23,7 +23,7 @@ type App struct {
 	Now   func() time.Time
 	Cwd   string
 	Color bool
-	// RunTUI and RunMCP are injected by cmd/todo. cli imports neither tui nor
+	// RunTUI and RunMCP are injected by cmd/task. cli imports neither tui nor
 	// mcp; the three stay siblings over the same Store.
 	RunTUI func() error
 	RunMCP func() error
@@ -64,7 +64,7 @@ func (c command) listing() string {
 // usageLine is the first line of a subcommand's help. It names one command,
 // not the aliases, so there is a single obvious way to write it.
 func (c command) usageLine() string {
-	u := "todo " + c.name
+	u := "task " + c.name
 	if c.args != "" {
 		u += " " + c.args
 	}
@@ -125,7 +125,7 @@ func (a *App) usage() string {
 		w = max(w, len(c.listing()))
 	}
 	var b strings.Builder
-	b.WriteString("todo — a local task list\n\nUsage:\n  todo <command> [flags]\n\nCommands:\n")
+	b.WriteString("task — a local task list\n\nUsage:\n  task <command> [flags]\n\nCommands:\n")
 	for _, c := range cmds {
 		fmt.Fprintf(&b, "  %-*s  %s\n", w, c.listing(), c.summary)
 	}
@@ -133,7 +133,7 @@ func (a *App) usage() string {
 	b.WriteString("  --db <path>           Database file (default ~/.todo/todo.db, or $TODO_DB)\n")
 	b.WriteString("  -h, --help            Show help\n")
 	b.WriteString("  --version             Show the version\n")
-	b.WriteString("\nRun \"todo <command> --help\" for details on one command.\n")
+	b.WriteString("\nRun \"task <command> --help\" for details on one command.\n")
 	return b.String()
 }
 
@@ -145,7 +145,7 @@ func (a *App) Run(args []string) int {
 	}
 	name, rest := args[0], args[1:]
 
-	// todo -h / --help / help [<command>]
+	// task -h / --help / help [<command>]
 	if name == "-h" || name == "--help" || name == "help" {
 		if len(rest) > 0 {
 			if c, ok := a.findCommand(rest[0]); ok {
@@ -167,7 +167,7 @@ func (a *App) Run(args []string) int {
 		return 2
 	}
 	// A subcommand's flag set does not know -h, so catch it before parsing;
-	// otherwise todo add -h reports an unknown flag, which is a poor experience.
+	// otherwise task add -h reports an unknown flag, which is a poor experience.
 	for _, x := range rest {
 		if x == "-h" || x == "--help" {
 			fmt.Fprint(a.Out, c.help())
@@ -183,7 +183,7 @@ func (a *App) Run(args []string) int {
 
 func (a *App) cmdTUI(args []string) error {
 	if len(args) > 0 {
-		return fmt.Errorf("todo tui takes no arguments, got %q", args[0])
+		return fmt.Errorf("task tui takes no arguments, got %q", args[0])
 	}
 	if a.RunTUI == nil {
 		return errors.New("the TUI is not enabled in this build")
@@ -195,7 +195,7 @@ func (a *App) cmdTUI(args []string) error {
 // stdout is the transport, and one stray line would corrupt the session.
 func (a *App) cmdMCP(args []string) error {
 	if len(args) > 0 {
-		return fmt.Errorf("todo mcp takes no arguments, got %q", args[0])
+		return fmt.Errorf("task mcp takes no arguments, got %q", args[0])
 	}
 	if a.RunMCP == nil {
 		return errors.New("the MCP server is not enabled in this build")

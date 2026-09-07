@@ -1,4 +1,4 @@
-// Package task defines the todo domain types. It performs no IO.
+// Package task defines the domain types. It performs no IO.
 package task
 
 import (
@@ -64,7 +64,7 @@ func (p Priority) String() string {
 	return ""
 }
 
-// Task is one todo item. An empty Project means globally uncategorized.
+// Task is one piece of work. An empty Project means globally uncategorized.
 type Task struct {
 	ID    int64
 	Title string

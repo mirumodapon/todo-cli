@@ -15,7 +15,7 @@ func TestResourcesListNamesBoth(t *testing.T) {
 		m := x.(map[string]any)
 		seen[m["uri"].(string)] = m
 	}
-	for _, uri := range []string{"todo://projects", "todo://tags"} {
+	for _, uri := range []string{"task://projects", "task://tags"} {
 		m, ok := seen[uri]
 		if !ok {
 			t.Fatalf("no resource at %s, got %v", uri, seen)
@@ -30,14 +30,14 @@ func TestResourcesListNamesBoth(t *testing.T) {
 }
 
 func TestReadTheProjectsResource(t *testing.T) {
-	got := serveWith(t, seeded(t), `{"jsonrpc":"2.0","id":1,"method":"resources/read","params":{"uri":"todo://projects"}}`)
+	got := serveWith(t, seeded(t), `{"jsonrpc":"2.0","id":1,"method":"resources/read","params":{"uri":"task://projects"}}`)
 	res := got[0]["result"].(map[string]any)
 	contents, _ := res["contents"].([]any)
 	if len(contents) != 1 {
 		t.Fatalf("contents = %v", res["contents"])
 	}
 	first := contents[0].(map[string]any)
-	if first["uri"] != "todo://projects" {
+	if first["uri"] != "task://projects" {
 		t.Errorf("a read should say what it read: %v", first)
 	}
 	var out []map[string]any
@@ -57,7 +57,7 @@ func TestReadTheProjectsResource(t *testing.T) {
 }
 
 func TestReadTheTagsResource(t *testing.T) {
-	got := serveWith(t, seeded(t), `{"jsonrpc":"2.0","id":1,"method":"resources/read","params":{"uri":"todo://tags"}}`)
+	got := serveWith(t, seeded(t), `{"jsonrpc":"2.0","id":1,"method":"resources/read","params":{"uri":"task://tags"}}`)
 	res := got[0]["result"].(map[string]any)
 	first := res["contents"].([]any)[0].(map[string]any)
 	var tags []string
@@ -70,12 +70,12 @@ func TestReadTheTagsResource(t *testing.T) {
 }
 
 func TestReadingSomethingElseIsAnError(t *testing.T) {
-	got := serve(t, `{"jsonrpc":"2.0","id":1,"method":"resources/read","params":{"uri":"todo://nothing"}}`)
+	got := serve(t, `{"jsonrpc":"2.0","id":1,"method":"resources/read","params":{"uri":"task://nothing"}}`)
 	e := errorOf(got[0])
 	if e == nil || e["code"].(float64) != -32002 {
 		t.Fatalf("want a resource-not-found error, got %v", got[0])
 	}
-	if !strings.Contains(e["message"].(string), "todo://nothing") {
+	if !strings.Contains(e["message"].(string), "task://nothing") {
 		t.Errorf("the message should name the uri: %v", e["message"])
 	}
 }

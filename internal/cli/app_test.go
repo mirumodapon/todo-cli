@@ -13,13 +13,13 @@ func TestRunNoArgsPrintsUsage(t *testing.T) {
 		t.Errorf("exit code = %d, want 0", code)
 	}
 	if !strings.Contains(out.String(), "Usage:") {
-		t.Errorf("bare todo should print usage, got %q", out.String())
+		t.Errorf("a bare task should print usage, got %q", out.String())
 	}
 	if !strings.Contains(out.String(), "Commands:") {
 		t.Errorf("the global help should list the subcommands, got %q", out.String())
 	}
 	if strings.Contains(out.String(), "No matching tasks") {
-		t.Error("bare todo must not enter the list or the TUI")
+		t.Error("a bare task must not enter the list or the TUI")
 	}
 }
 
@@ -43,7 +43,7 @@ func TestSubcommandHelpIsSpecificToThatCommand(t *testing.T) {
 		t.Errorf("exit code = %d, want 0; stderr = %q", code, errBuf.String())
 	}
 	s := out.String()
-	if !strings.Contains(s, "todo add <title>") {
+	if !strings.Contains(s, "task add <title>") {
 		t.Errorf("it should print add's own usage line, got %q", s)
 	}
 	if !strings.Contains(s, "-p, --project") || !strings.Contains(s, "-d, --due") {
@@ -62,7 +62,7 @@ func TestEverySubcommandHasHelp(t *testing.T) {
 			continue
 		}
 		s := out.String()
-		if !strings.Contains(s, "Usage:") || !strings.Contains(s, "todo "+name) {
+		if !strings.Contains(s, "Usage:") || !strings.Contains(s, "task "+name) {
 			t.Errorf("%s --help did not print its own usage: %q", name, s)
 		}
 	}
@@ -73,8 +73,8 @@ func TestHelpSubcommandTakesACommandName(t *testing.T) {
 	if code := app.Run([]string{"help", "ls"}); code != 0 {
 		t.Fatalf("exit code = %d", code)
 	}
-	if !strings.Contains(out.String(), "todo ls") || strings.Contains(out.String(), "Commands:") {
-		t.Errorf("todo help ls should print ls's help: %q", out.String())
+	if !strings.Contains(out.String(), "task ls") || strings.Contains(out.String(), "Commands:") {
+		t.Errorf("task help ls should print ls's help: %q", out.String())
 	}
 }
 
@@ -96,7 +96,7 @@ func TestListIsAnAliasForLs(t *testing.T) {
 		t.Fatalf("exit code = %d; stderr = %q", code, errBuf.String())
 	}
 	if !strings.Contains(out.String(), "buy milk") {
-		t.Errorf("todo list should behave like todo ls, got %q", out.String())
+		t.Errorf("task list should behave like task ls, got %q", out.String())
 	}
 }
 
@@ -110,8 +110,8 @@ func TestAliasIsDiscoverableInHelp(t *testing.T) {
 	out.Reset()
 	app.Run([]string{"help", "list"})
 	s := out.String()
-	if !strings.Contains(s, "todo ls") {
-		t.Errorf("todo help list should print ls's help: %q", s)
+	if !strings.Contains(s, "task ls") {
+		t.Errorf("task help list should print ls's help: %q", s)
 	}
 	if !strings.Contains(s, "Aliases: list") {
 		t.Errorf("the subcommand help should name its aliases: %q", s)
@@ -134,13 +134,13 @@ func TestTUIOnlyOnExplicitSubcommand(t *testing.T) {
 	app.RunTUI = func() error { called = true; return nil }
 
 	if code := app.Run(nil); code != 0 || called {
-		t.Error("bare todo must not start the TUI")
+		t.Error("a bare task must not start the TUI")
 	}
 	if code := app.Run([]string{"tui"}); code != 0 {
 		t.Errorf("exit code = %d, want 0", code)
 	}
 	if !called {
-		t.Error("todo tui should start the TUI")
+		t.Error("task tui should start the TUI")
 	}
 }
 
@@ -204,18 +204,18 @@ func TestMCPRunsOnItsOwnSubcommand(t *testing.T) {
 	app.RunMCP = func() error { called = true; return nil }
 
 	if code := app.Run(nil); code != 0 || called {
-		t.Error("bare todo must not start the MCP server")
+		t.Error("a bare task must not start the MCP server")
 	}
 	out.Reset()
 	if code := app.Run([]string{"mcp"}); code != 0 {
 		t.Errorf("exit code = %d, want 0", code)
 	}
 	if !called {
-		t.Error("todo mcp should start the server")
+		t.Error("task mcp should start the server")
 	}
 	// stdout is the transport: the command must not print anything of its own.
 	if out.String() != "" {
-		t.Errorf("todo mcp wrote %q to stdout, which would corrupt the session", out.String())
+		t.Errorf("task mcp wrote %q to stdout, which would corrupt the session", out.String())
 	}
 	if code := app.Run([]string{"mcp", "extra"}); code != 1 {
 		t.Errorf("exit code = %d, want 1 for an unexpected argument", code)

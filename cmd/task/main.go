@@ -1,4 +1,4 @@
-// Command todo is a local task list.
+// Command task is a local task list.
 package main
 
 import (
@@ -18,7 +18,7 @@ import (
 // version is empty for ordinary builds, where the value is recovered from the
 // build info instead. Release builds may stamp it:
 //
-//	go build -ldflags "-X main.version=v1.2.3" ./cmd/todo
+//	go build -ldflags "-X main.version=v1.2.3" ./cmd/task
 var version = ""
 
 func main() { os.Exit(run()) }
@@ -29,7 +29,7 @@ func run() int {
 	// version should not create a database directory.
 	if wantsVersion(os.Args[1:]) {
 		bi, ok := debug.ReadBuildInfo()
-		fmt.Printf("todo %s\n", versionString(version, bi, ok))
+		fmt.Printf("task %s\n", versionString(version, bi, ok))
 		if ok {
 			fmt.Printf("built with %s for %s/%s\n", bi.GoVersion, runtime.GOOS, runtime.GOARCH)
 		}

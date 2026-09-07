@@ -1,4 +1,4 @@
-// Package store persists todo items.
+// Package store persists tasks.
 package store
 
 import (

@@ -332,7 +332,7 @@ func (s *sqlStore) List(f task.Filter, now time.Time) ([]task.Task, error) {
 	}
 	rows.Close()
 
-	// For a personal todo list the N+1 cost of loading tags per row is negligible, and the code stays simple.
+	// For a personal task list the N+1 cost of loading tags per row is negligible, and the code stays simple.
 	for i := range out {
 		tags, err := s.loadTags(out[i].ID)
 		if err != nil {

@@ -42,7 +42,7 @@ func (s *Server) prompts() []prompt {
 			name: "review_project", title: "Review a project",
 			description: "Go through everything still open in one project.",
 			args: []promptArg{
-				{name: "project", description: "The project path, as todo://projects lists it.", required: true},
+				{name: "project", description: "The project path, as task://projects lists it.", required: true},
 			},
 			build: (*Server).reviewProject,
 		},

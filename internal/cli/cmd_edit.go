@@ -16,7 +16,7 @@ func (a *App) cmdEdit(args []string) error {
 	}
 	pos := r.Args()
 	if len(pos) == 0 {
-		return errors.New("usage: todo edit <id> [new title] [flags]")
+		return errors.New("usage: task edit <id> [new title] [flags]")
 	}
 	if len(pos) > 2 {
 		return fmt.Errorf("at most two positional arguments are accepted, <id> and a new title, got %d", len(pos))

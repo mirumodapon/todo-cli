@@ -1,16 +1,16 @@
-# todo
+# task
 
 A local task list with a command line and a terminal UI. Everything stays on
 your machine in a SQLite file under `~/.todo`; nothing is sent anywhere.
 
 ```
-$ todo add "buy milk" -t shopping -d "today 17:00" --pri high
+$ task add "buy milk" -t shopping -d "today 17:00" --pri high
 added #1: buy milk
 
-$ todo add "fix the parser" -p
+$ task add "fix the parser" -p
 added #2: fix the parser
 
-$ todo ls
+$ task ls
 1 [ ] !!! 2h buy milk  @shopping
 ```
 
@@ -31,37 +31,37 @@ make install          # into $(go env GOPATH)/bin
 Or build without installing:
 
 ```sh
-make build            # produces ./bin/todo
+make build            # produces ./bin/task
 ```
 
 There is no cgo: the SQLite driver is pure Go, so a plain `go build` is enough
 on any platform Go targets.
 
-`todo --version` reports the revision it was built from. Release builds can
+`task --version` reports the revision it was built from. Release builds can
 stamp a version instead:
 
 ```sh
-go build -ldflags "-X main.version=v1.2.3" ./cmd/todo
+go build -ldflags "-X main.version=v1.2.3" ./cmd/task
 ```
 
 ## Commands
 
 ```
-todo add <title> [flags]        Add a task
-todo ls, list [flags]           List tasks
-todo details <id>...            Show tasks in full, description included
-todo done <id>...               Mark tasks as done
-todo undone <id>...             Mark tasks as not done
-todo edit <id> [new title]      Change a task
-todo rm <id>...                 Delete tasks
-todo projects                   Projects with their open counts
-todo tags                       Tags that are in use
-todo tui                        Open the interactive interface
-todo mcp                        Serve the task list over MCP on stdin/stdout
+task add <title> [flags]        Add a task
+task ls, list [flags]           List tasks
+task details <id>...            Show tasks in full, description included
+task done <id>...               Mark tasks as done
+task undone <id>...             Mark tasks as not done
+task edit <id> [new title]      Change a task
+task rm <id>...                 Delete tasks
+task projects                   Projects with their open counts
+task tags                       Tags that are in use
+task tui                        Open the interactive interface
+task mcp                        Serve the task list over MCP on stdin/stdout
 ```
 
-`todo --help` lists them; `todo <command> --help` explains one.
-`todo --version` reports the build.
+`task --help` lists them; `task <command> --help` explains one.
+`task --version` reports the build.
 
 ### Fields
 
@@ -71,16 +71,16 @@ todo mcp                        Serve the task list over MCP on stdin/stdout
 | `-t`, `--tag` | Repeatable. |
 | `-d`, `--due` | `today`, `tomorrow`, `fri`, `+3d`, `+2w`, `2026-09-01`, each optionally with a time (`today 15:00`). A bare `18:00` means today. |
 | `--pri` | `low`, `med`, `high`, or the marks a listing shows: `!`, `!!`, `!!!`. Quote the marks — most shells treat `!!` as history expansion: `--pri '!!!'`. |
-| `--desc` | The long form of the task, over as many lines as it takes. With no value it opens `$EDITOR`; with one it takes the value. Listings show only the title; `todo details` and `enter` in the TUI show it. |
+| `--desc` | The long form of the task, over as many lines as it takes. With no value it opens `$EDITOR`; with one it takes the value. Listings show only the title; `task details` and `enter` in the TUI show it. |
 
 `edit` touches only the fields you pass, so an omitted flag and an empty value
 mean different things:
 
 ```sh
-todo edit 3 --pri low       # priority changes, due date untouched
-todo edit 3 --due ""        # due date cleared
-todo edit 3 "a new title"   # title changes, nothing else
-todo edit 3 --project=      # back to uncategorized
+task edit 3 --pri low       # priority changes, due date untouched
+task edit 3 --due ""        # due date cleared
+task edit 3 "a new title"   # title changes, nothing else
+task edit 3 --project=      # back to uncategorized
 ```
 
 ### Projects
@@ -91,23 +91,23 @@ checkout maps to the same project. The absolute path is what gets stored —
 directory names collide, paths do not — while listings show the basename.
 
 ```sh
-todo add "fix the parser" -p       # project = this repository
-todo ls -p                         # what is open in this repository
-todo ls -p work                    # a project named by hand
-todo ls --all-projects             # everything, whatever its project
-todo ls                            # uncategorized only (the default)
+task add "fix the parser" -p       # project = this repository
+task ls -p                         # what is open in this repository
+task ls -p work                    # a project named by hand
+task ls --all-projects             # everything, whatever its project
+task ls                            # uncategorized only (the default)
 ```
 
 ### Listing
 
 ```sh
-todo ls -a                  # include done tasks
-todo ls --done              # only done tasks
-todo ls -d today            # due today; also week, overdue, or a date
-todo ls -t urgent -t home   # tasks carrying every one of these tags
-todo ls -s pri              # sort by priority; also due (default) or created
-todo ls -c | less -R        # force colour through a pipe
-todo ls --dates             # calendar dates instead of time remaining
+task ls -a                  # include done tasks
+task ls --done              # only done tasks
+task ls -d today            # due today; also week, overdue, or a date
+task ls -t urgent -t home   # tasks carrying every one of these tags
+task ls -s pri              # sort by priority; also due (default) or created
+task ls -c | less -R        # force colour through a pipe
+task ls --dates             # calendar dates instead of time remaining
 ```
 
 Colour is on when the output is a terminal and off when it is redirected, so
@@ -138,11 +138,11 @@ the hours left in it.
 
 ### Details
 
-A listing shows one line per task. `todo details` shows everything one task
+A listing shows one line per task. `task details` shows everything one task
 carries, including the description:
 
 ```
-$ todo details 1
+$ task details 1
 #1  renew the passport
   status    open
   due       2026-09-12  (9d)
@@ -159,9 +159,9 @@ line, so `--desc` with no value opens your editor on it — `$VISUAL`, then
 `$EDITOR`, then `vi`, run through a shell so `EDITOR="code -w"` works:
 
 ```sh
-todo add "renew the passport" --desc   # opens an empty file
-todo edit 1 --desc                     # opens the current text
-todo edit 1 --desc ""                  # clears it, no editor
+task add "renew the passport" --desc   # opens an empty file
+task edit 1 --desc                     # opens the current text
+task edit 1 --desc ""                  # clears it, no editor
 ```
 
 The file has no comment lines to strip, so a description may start with `#`,
@@ -172,11 +172,11 @@ Fields with nothing in them are left out, so a task with only a title prints
 two lines rather than a column of blanks. The due date is written out in full
 here — this is the view you come to when you want to settle what a date is,
 and it has no columns to keep narrow. Several ids at once are fine:
-`todo details 1 2 3`.
+`task details 1 2 3`.
 
 ## Terminal UI
 
-`todo tui` opens the list. It starts on uncategorized tasks, like `todo ls`.
+`task tui` opens the list. It starts on uncategorized tasks, like `task ls`.
 
 | Key | Action |
 |---|---|
@@ -202,7 +202,7 @@ Completing and deleting both ask before they touch anything, and only `y`
 accepts, so a mistyped key cannot confirm. A delete can still be taken back
 with `u` for as long as the TUI is open.
 
-`enter` opens the task under the cursor in full, the same fields `todo details`
+`enter` opens the task under the cursor in full, the same fields `task details`
 prints. Any key but `E` closes it again.
 
 `E` hands the whole task to `$EDITOR`, from the list or from the detail view:
@@ -248,14 +248,14 @@ The header names what you are looking at (`uncategorized`, a project, or
 
 ## MCP
 
-`todo mcp` speaks the [Model Context Protocol](https://modelcontextprotocol.io)
+`task mcp` speaks the [Model Context Protocol](https://modelcontextprotocol.io)
 over stdin and stdout, so an MCP client can work with the same `~/.todo` the CLI
 and the TUI use. It is a third interface over one database, not a copy of it.
 
 For Claude Code:
 
 ```sh
-claude mcp add todo -- todo mcp
+claude mcp add task -- task mcp
 ```
 
 For a client configured by file:
@@ -263,7 +263,7 @@ For a client configured by file:
 ```json
 {
   "mcpServers": {
-    "todo": { "command": "todo", "args": ["mcp"] }
+    "task": { "command": "task", "args": ["mcp"] }
   }
 }
 ```
@@ -315,11 +315,11 @@ how to tell a broken server from a broken client:
 printf '%s\n' \
   '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"sh","version":"1"}}}' \
   '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"list_tasks","arguments":{"project":""}}}' \
-  | todo mcp
+  | task mcp
 ```
 
 ```
-{"jsonrpc":"2.0","id":1,"result":{"capabilities":{...},"protocolVersion":"2025-06-18","serverInfo":{"name":"todo",...}}}
+{"jsonrpc":"2.0","id":1,"result":{"capabilities":{...},"protocolVersion":"2025-06-18","serverInfo":{"name":"task",...}}}
 {"jsonrpc":"2.0","id":2,"result":{"content":[{"text":"[{\"id\":1,\"title\":\"buy milk\",...}]","type":"text"}],"isError":false}}
 ```
 
@@ -337,7 +337,7 @@ quickest way to see what a build offers.
 | `complete_task`, `reopen_task` | Mark done, or undo that. |
 | `delete_task` | Delete a task, annotated destructive so a client can ask first. |
 
-Two resources — `todo://projects` and `todo://tags` — carry the project list
+Two resources — `task://projects` and `task://tags` — carry the project list
 with open counts, and the tags in use. Two prompts write the current tasks into
 the request: `plan_today` splits what is overdue, due today, and due later this
 week; `review_project` walks one project's open work.
@@ -358,10 +358,13 @@ started the process on, and stdout carries JSON-RPC and nothing else.
 ## Data
 
 `~/.todo/todo.db`, a SQLite database, created on first use with mode `0700`.
+The directory keeps the older name, so a database written before the command
+was called `task` is still the one it opens. `TODO_DB` is unchanged for the same
+reason.
 
 ```sh
-todo --db /tmp/scratch.db ls    # somewhere else, once
-TODO_DB=/tmp/scratch.db todo ls # or for the whole session
+task --db /tmp/scratch.db ls    # somewhere else, once
+TODO_DB=/tmp/scratch.db task ls # or for the whole session
 ```
 
 `--db` wins over `TODO_DB`. Both are ordinary SQLite files, so `sqlite3` reads
@@ -398,10 +401,10 @@ Dependencies point inward, and the inner packages perform no IO.
 | `internal/cli` | Subcommands, flags, output formatting. |
 | `internal/tui` | Bubble Tea model, update, view. |
 | `internal/mcp` | The MCP server: JSON-RPC over stdio, tools, resources, prompts. |
-| `cmd/todo` | Wiring and the exit code. |
+| `cmd/task` | Wiring and the exit code. |
 
 `cli`, `tui` and `mcp` depend only on the `Store` interface, and none imports
-another: `cmd/todo` hands the CLI the functions that start the other two. Tests
+another: `cmd/task` hands the CLI the functions that start the other two. Tests
 run against an in-memory database and never touch `~/.todo`.
 
 Argument parsing is hand-written because `-p` needs an optional value — no

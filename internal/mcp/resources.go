@@ -21,12 +21,12 @@ type resource struct {
 func (s *Server) resources() []resource {
 	return []resource{
 		{
-			uri: "todo://projects", name: "projects", title: "Projects",
+			uri: "task://projects", name: "projects", title: "Projects",
 			description: "Every project that has tasks, with how many are still open.",
 			read:        (*Server).readProjects,
 		},
 		{
-			uri: "todo://tags", name: "tags", title: "Tags",
+			uri: "task://tags", name: "tags", title: "Tags",
 			description: "Every tag at least one task carries.",
 			read:        (*Server).readTags,
 		},

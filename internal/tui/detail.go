@@ -18,7 +18,7 @@ const stampLayout = "2006-01-02 15:04"
 
 // detailRows lists what a task is, one label and value per row. Empty fields are
 // left out: a column of blank labels buries the ones that say something. The
-// labels and the order match todo details, so the two views read the same.
+// labels and the order match task details, so the two views read the same.
 func (m Model) detailRows(t task.Task) [][2]string {
 	status := "open"
 	if t.Done() {

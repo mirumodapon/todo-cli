@@ -176,7 +176,19 @@ and it has no columns to keep narrow. Several ids at once are fine:
 
 ## Terminal UI
 
-`task tui` opens the list. It starts on uncategorized tasks, like `task ls`.
+`task tui` opens the list. With no flags it starts on uncategorized tasks, like
+`task ls`, and it takes the same filters — a query worth typing once does not
+have to be rebuilt with keystrokes after the interface opens:
+
+```sh
+task tui -p                    # this repository's tasks
+task tui -t urgent -d week     # tagged urgent and due within the week
+task tui --all-projects -a     # everything, done ones included
+```
+
+`esc` returns to whatever those flags asked for, not to the built-in default:
+what you typed to open the interface is this session's default. `-c` is the one
+flag `ls` has that `tui` does not — the interface always colours.
 
 | Key | Action |
 |---|---|
@@ -194,7 +206,7 @@ and it has no columns to keep narrow. Several ids at once are fine:
 | `A` | Show or hide done tasks |
 | `s` | Cycle sort order |
 | `D` | Switch between time remaining and dates |
-| `esc` | Back to the uncategorized default |
+| `esc` | Back to the filter it opened on |
 | `?` | This help |
 | `q` | Quit |
 

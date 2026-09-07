@@ -195,7 +195,7 @@ var helpRows = [][2]string{
 	{"A", "Show or hide done tasks"},
 	{"s", "Cycle sort order"},
 	{"D", "Switch between time remaining and dates"},
-	{"esc", "Back to the uncategorized default"},
+	{"esc", "Back to the filter it opened on"},
 	{"?", "This help"},
 	{"q", "Quit"},
 }

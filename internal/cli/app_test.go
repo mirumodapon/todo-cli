@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 	"unicode"
+
+	"todo.mirumo.net/internal/task"
 )
 
 func TestRunNoArgsPrintsUsage(t *testing.T) {
@@ -131,7 +133,7 @@ func TestRunUnknownCommand(t *testing.T) {
 func TestTUIOnlyOnExplicitSubcommand(t *testing.T) {
 	app, _, _ := newApp(t)
 	called := false
-	app.RunTUI = func() error { called = true; return nil }
+	app.RunTUI = func(task.Filter, bool) error { called = true; return nil }
 
 	if code := app.Run(nil); code != 0 || called {
 		t.Error("a bare task must not start the TUI")
@@ -146,7 +148,7 @@ func TestTUIOnlyOnExplicitSubcommand(t *testing.T) {
 
 func TestTUIErrorBecomesExitCode1(t *testing.T) {
 	app, _, errBuf := newApp(t)
-	app.RunTUI = func() error { return errors.New("the terminal broke") }
+	app.RunTUI = func(task.Filter, bool) error { return errors.New("the terminal broke") }
 	if code := app.Run([]string{"tui"}); code != 1 {
 		t.Errorf("exit code = %d, want 1", code)
 	}

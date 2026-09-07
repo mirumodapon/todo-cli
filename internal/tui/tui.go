@@ -33,6 +33,9 @@ type Model struct {
 	tasks  []task.Task
 	cursor int
 	filter task.Filter
+	// start is the filter the interface opened on, and what esc returns to.
+	// What you asked for on the command line is the default for this session.
+	start task.Filter
 
 	search textinput.Model
 	picker pickerState
@@ -60,29 +63,36 @@ type Model struct {
 // line under it, and the blank line above the hint.
 func (m Model) listHeight() int { return max(1, m.height-4) }
 
-// defaultFilter is what the list starts on and what esc returns to:
-// uncategorized tasks only, matching what a plain "task ls" prints.
-// Project tasks are one P away.
-func defaultFilter() task.Filter {
-	uncategorized := ""
-	return task.Filter{Project: &uncategorized}
+// Start is where the interface opens: the filter the command line asked for,
+// and whether due dates read as calendar dates.
+type Start struct {
+	Filter task.Filter
+	Dates  bool
 }
 
-// New builds a Model.
-func New(s store.Store, now func() time.Time, cwd string) Model {
+// DefaultStart is a plain "task tui": uncategorized tasks only, matching what a
+// plain "task ls" prints. Project tasks are one P away.
+func DefaultStart() Start {
+	uncategorized := ""
+	return Start{Filter: task.Filter{Project: &uncategorized}}
+}
+
+// New builds a Model opening on start.
+func New(s store.Store, now func() time.Time, cwd string, start Start) Model {
 	ti := textinput.New()
 	ti.Prompt = "/"
 	ti.Placeholder = "search titles"
 	return Model{
 		store: s, now: now, cwd: cwd,
-		mode: modeList, search: ti, filter: defaultFilter(),
+		mode: modeList, search: ti,
+		start: start.Filter, filter: start.Filter, dates: start.Dates,
 		width: 80, height: 24, edit: execEditor,
 	}
 }
 
 // Run starts the interactive interface.
-func Run(s store.Store, now func() time.Time, cwd string) error {
-	_, err := tea.NewProgram(New(s, now, cwd), tea.WithAltScreen()).Run()
+func Run(s store.Store, now func() time.Time, cwd string, start Start) error {
+	_, err := tea.NewProgram(New(s, now, cwd, start), tea.WithAltScreen()).Run()
 	return err
 }
 
@@ -265,7 +275,7 @@ func (m Model) updateList(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.status = "sort: " + sortLabel(m.filter.Sort)
 		return m, m.loadCmd()
 	case "esc":
-		m.filter = defaultFilter()
+		m.filter = m.start
 		m.search.SetValue("")
 		m.status = ""
 		return m, m.loadCmd()

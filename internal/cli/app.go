@@ -13,6 +13,7 @@ import (
 	"todo.mirumo.net/internal/editor"
 	"todo.mirumo.net/internal/project"
 	"todo.mirumo.net/internal/store"
+	"todo.mirumo.net/internal/task"
 )
 
 // App holds everything one run needs. All of it is injectable so tests stay isolated.
@@ -24,8 +25,9 @@ type App struct {
 	Cwd   string
 	Color bool
 	// RunTUI and RunMCP are injected by cmd/task. cli imports neither tui nor
-	// mcp; the three stay siblings over the same Store.
-	RunTUI func() error
+	// mcp; the three stay siblings over the same Store. RunTUI is handed the
+	// filter to open on, which is why it speaks task.Filter and not a tui type.
+	RunTUI func(start task.Filter, dates bool) error
 	RunMCP func() error
 	// EditText opens the user's editor on a piece of text. It is nil in normal
 	// use, where editText falls back to the real editor; tests replace it so
@@ -98,7 +100,7 @@ func (a *App) commandList() []command {
 		{name: "rm", args: "<id>...", summary: "Delete tasks.", run: a.cmdRm},
 		{name: "projects", summary: "List projects with their open task counts.", run: a.cmdProjects},
 		{name: "tags", summary: "List tags that are in use.", run: a.cmdTags},
-		{name: "tui", summary: "Open the interactive interface.", run: a.cmdTUI},
+		{name: "tui", summary: "Open the interactive interface, on the same filters ls takes.", flags: tuiFlags, run: a.cmdTUI},
 		{name: "mcp", summary: "Serve the task list over MCP on stdin and stdout.", run: a.cmdMCP},
 	}
 }
@@ -181,14 +183,24 @@ func (a *App) Run(args []string) int {
 	return 0
 }
 
+// cmdTUI opens the interface on whatever the flags narrow it to, so a filter
+// worth typing once does not have to be rebuilt with keystrokes after it opens.
 func (a *App) cmdTUI(args []string) error {
-	if len(args) > 0 {
-		return fmt.Errorf("task tui takes no arguments, got %q", args[0])
+	r, err := tuiFlags().Parse(args)
+	if err != nil {
+		return err
+	}
+	if pos := r.Args(); len(pos) > 0 {
+		return fmt.Errorf("task tui takes no positional arguments, got %q", pos[0])
 	}
 	if a.RunTUI == nil {
 		return errors.New("the TUI is not enabled in this build")
 	}
-	return a.RunTUI()
+	f, err := a.filterFrom(r)
+	if err != nil {
+		return err
+	}
+	return a.RunTUI(f, r.Bool("dates"))
 }
 
 // cmdMCP hands stdin and stdout to the MCP server. Nothing here may print:

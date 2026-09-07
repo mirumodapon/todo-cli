@@ -19,8 +19,16 @@ func day(y int, m time.Month, d int) *time.Time {
 	return &t
 }
 
-// newModel builds a Model backed by an in-memory database with its tasks already loaded.
+// newModel builds a Model backed by an in-memory database with its tasks already
+// loaded, opening where a plain "task tui" would.
 func newModel(t *testing.T) (Model, store.Store) {
+	t.Helper()
+	return newModelStart(t, DefaultStart())
+}
+
+// newModelStart is newModel opening on a given filter, as the command line flags
+// would have it.
+func newModelStart(t *testing.T, start Start) (Model, store.Store) {
 	t.Helper()
 	s, err := store.OpenSQLite(":memory:")
 	if err != nil {
@@ -40,7 +48,7 @@ func newModel(t *testing.T) (Model, store.Store) {
 			t.Fatal(err)
 		}
 	}
-	m := New(s, refTime, t.TempDir())
+	m := New(s, refTime, t.TempDir(), start)
 	m, _ = send(t, m, tea.WindowSizeMsg{Width: 80, Height: 24})
 	m, msg := run(t, m, m.Init())
 	m, _ = send(t, m, msg)

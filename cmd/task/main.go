@@ -12,6 +12,7 @@ import (
 	"todo.mirumo.net/internal/cli"
 	"todo.mirumo.net/internal/mcp"
 	"todo.mirumo.net/internal/store"
+	"todo.mirumo.net/internal/task"
 	"todo.mirumo.net/internal/tui"
 )
 
@@ -70,7 +71,9 @@ func run() int {
 		Cwd:   cwd,
 		Color: resolveColor(os.Getenv("NO_COLOR"), os.Getenv("CLICOLOR_FORCE"), isTTY(os.Stdout)),
 	}
-	app.RunTUI = func() error { return tui.Run(st, app.Now, cwd) }
+	app.RunTUI = func(start task.Filter, dates bool) error {
+		return tui.Run(st, app.Now, cwd, tui.Start{Filter: start, Dates: dates})
+	}
 	app.RunMCP = func() error {
 		bi, ok := debug.ReadBuildInfo()
 		srv := &mcp.Server{Store: st, Now: app.Now, Version: versionString(version, bi, ok)}

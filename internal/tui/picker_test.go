@@ -128,7 +128,7 @@ func TestProjectPickerOffersUncategorizedWhenEmpty(t *testing.T) {
 	if _, err := s.Add(task.Task{Title: "work one", Project: "/p/work", CreatedAt: refTime(), UpdatedAt: refTime()}); err != nil {
 		t.Fatal(err)
 	}
-	m := New(s, refTime, t.TempDir())
+	m := New(s, refTime, t.TempDir(), DefaultStart())
 	m, msg := run(t, m, m.Init())
 	m, _ = send(t, m, msg)
 

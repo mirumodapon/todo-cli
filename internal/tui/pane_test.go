@@ -149,3 +149,34 @@ func TestNoPaneWhenThereIsNothingUnderTheCursor(t *testing.T) {
 		t.Errorf("nothing is selected, so there is nothing to detail:\n%s", v)
 	}
 }
+
+// When the pane is open, the detail is what you are reading: a task line is
+// short, so the larger share of the screen belongs to the pane.
+func TestTheDetailGetsTheLargerShare(t *testing.T) {
+	m := sized(t, 120, 24)
+	line := lineWith(m.View(), cursorMarker, "#1")
+	if line == "" {
+		t.Fatalf("no split line to measure:\n%s", m.View())
+	}
+	// The right column is not padded, so the rule's position is what says how
+	// the width was divided.
+	left, _, _ := strings.Cut(line, "│")
+	if lipgloss.Width(left) >= m.width/2 {
+		t.Errorf("the list takes %d of %d columns, leaving the pane less: %q",
+			lipgloss.Width(left), m.width, line)
+	}
+	if lipgloss.Width(left) < 28 {
+		t.Errorf("the list still has to hold a task line, got %d columns", lipgloss.Width(left))
+	}
+}
+
+func TestTheStackedPaneGetsTheLargerShare(t *testing.T) {
+	m := sized(t, 80, 40)
+	body := m.height - 4 // the frame, less the header, its blank line, and the hint's
+	if m.listHeight() >= body-m.listHeight() {
+		t.Errorf("the list takes %d of %d rows, leaving the pane less", m.listHeight(), body)
+	}
+	if m.listHeight() < 6 {
+		t.Errorf("the list still has to be navigable, got %d rows", m.listHeight())
+	}
+}

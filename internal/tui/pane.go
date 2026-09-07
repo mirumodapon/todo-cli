@@ -7,17 +7,39 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// A pane is worth having only when there is room for both halves. At 100
-// columns the list keeps about sixty and the pane takes forty, which is enough
-// for a label column and a sentence. Height is the fallback: a narrow but tall
-// terminal has its spare room underneath instead of beside.
+// A pane is worth having only when there is room for both halves. Height is the
+// fallback: a narrow but tall terminal has its spare room underneath instead of
+// beside.
 const (
 	paneMinWidth  = 100
-	paneWidth     = 40
 	paneMinHeight = 30
-	paneHeight    = 10
 	paneGap       = " │ "
 )
+
+// The pane takes the larger share of the split. A task line is short — a
+// marker, a status, a date and a title — while the pane holds prose, and when
+// the pane is open the detail is what is being read.
+const (
+	listShare    = 0.4
+	minListWidth = 28
+	minListRows  = 6
+)
+
+// listWidth is the column the list keeps when the pane sits beside it.
+func (m Model) listWidth() int {
+	w := int(float64(m.width) * listShare)
+	return max(minListWidth, w)
+}
+
+// paneWidth is everything the list does not take, less the rule between them.
+func (m Model) paneWidth() int {
+	return max(1, m.width-m.listWidth()-lipgloss.Width(paneGap))
+}
+
+// paneRows is what is left under the list once the rule has its line.
+func (m Model) paneRows() int {
+	return max(1, m.height-4-m.listHeight()-1)
+}
 
 type layout int
 
@@ -102,8 +124,8 @@ func (m Model) paneLines(w, h int) []string {
 // beside puts the list and the pane in two columns, with a rule the full height
 // of the body so the split reads as one shape rather than a ragged edge.
 func (m Model) beside(rows []string) string {
-	leftWidth := m.width - paneWidth - lipgloss.Width(paneGap)
-	right := m.paneLines(paneWidth, m.listHeight())
+	leftWidth := m.listWidth()
+	right := m.paneLines(m.paneWidth(), m.listHeight())
 	var b strings.Builder
 	for i := range m.listHeight() {
 		left, detail := "", ""
@@ -131,7 +153,7 @@ func (m Model) under(rows []string) string {
 		b.WriteString("\n")
 	}
 	b.WriteString(styleDim.Render(strings.Repeat("─", m.width)) + "\n")
-	for _, l := range m.paneLines(m.width, paneHeight) {
+	for _, l := range m.paneLines(m.width, m.paneRows()) {
 		b.WriteString(l + "\n")
 	}
 	return b.String()

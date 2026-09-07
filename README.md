@@ -221,20 +221,23 @@ pane that follows the cursor as it moves:
 ```
 3 tasks · uncategorized
 
-▶ [ ] !!! 8h first @urgent        │ #1  first
-  [ ] second                      │
-  [ ] third                       │ status    open
-                                  │ due       2026-08-29  (8h)
-                                  │ priority  !!! high
-                                  │ tags      @urgent
-                                  │
-                                  │ semi-skimmed
+▶ [ ] !!! 8h first @urgent   │ #1  first
+  [ ] second                 │
+  [ ] third                  │ status    open
+                             │ due       2026-08-29  (8h)
+                             │ priority  !!! high
+                             │ tags      @urgent
+                             │
+                             │ semi-skimmed, two litres, from the corner
+                             │ shop before it shuts
 ```
 
 Where the pane goes depends on the shape of the terminal: beside the list from
 100 columns, underneath it from 30 rows, and nowhere at all below both — task
-lines are short, so width is the room worth using first. `v` hides it and gives
-the width back. A description too long for the pane is cut with a marker rather
+lines are short, so width is the room worth using first. The pane takes the
+larger share of the split, around three fifths: a task line is a marker, a
+status, a date and a title, while the pane holds prose. `v` hides it and gives
+the room back. A description too long for the pane is cut with a marker rather
 than run off the edge.
 
 `enter` opens the task under the cursor in full, the same fields `task details`

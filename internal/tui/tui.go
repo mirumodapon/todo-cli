@@ -68,7 +68,8 @@ type Model struct {
 func (m Model) listHeight() int {
 	h := m.height - 4
 	if m.paneLayout() == layoutStacked {
-		h -= paneHeight + 1
+		// The pane takes the larger share here too, less the rule's line.
+		return max(minListRows, int(float64(h)*listShare))
 	}
 	return max(1, h)
 }

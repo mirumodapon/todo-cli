@@ -40,7 +40,10 @@ type Model struct {
 	search textinput.Model
 	picker pickerState
 	// dates swaps the due column from time remaining to calendar dates.
-	dates   bool
+	dates bool
+	// paneOff hides the detail pane. The zero value shows it wherever the
+	// terminal has room, so the default needs no wiring.
+	paneOff bool
 	form    formState
 	confirm confirmState
 	// undo keeps a single level: the last deleted item, discarded when the TUI exits.
@@ -60,8 +63,15 @@ type Model struct {
 }
 
 // listHeight is how many task rows fit: the frame less the header, the blank
-// line under it, and the blank line above the hint.
-func (m Model) listHeight() int { return max(1, m.height-4) }
+// line under it, and the blank line above the hint — less the pane and its rule
+// when the detail sits underneath.
+func (m Model) listHeight() int {
+	h := m.height - 4
+	if m.paneLayout() == layoutStacked {
+		h -= paneHeight + 1
+	}
+	return max(1, h)
+}
 
 // Start is where the interface opens: the filter the command line asked for,
 // and whether due dates read as calendar dates.
@@ -269,6 +279,9 @@ func (m Model) updateList(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, m.loadCmd()
 	case "D":
 		m.dates = !m.dates
+		return m, nil
+	case "v":
+		m.paneOff = !m.paneOff
 		return m, nil
 	case "s":
 		m.filter.Sort = (m.filter.Sort + 1) % 3

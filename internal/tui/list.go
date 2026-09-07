@@ -111,18 +111,34 @@ func (m Model) screen(body, footer string) string {
 	return strings.Join(rows, "\n") + "\n" + footer
 }
 
-func (m Model) viewList() string {
-	var b strings.Builder
-	b.WriteString(m.header() + "\n\n")
+// listRows renders the visible slice of the list, cursor markers included.
+func (m Model) listRows() []string {
 	if len(m.tasks) == 0 {
-		b.WriteString(styleDim.Render("No matching tasks") + "\n")
+		return []string{styleDim.Render("No matching tasks")}
 	}
 	end := min(len(m.tasks), m.offset+m.listHeight())
+	rows := make([]string, 0, end-m.offset)
 	for i := m.offset; i < end; i++ {
 		t := m.tasks[i]
-		b.WriteString(m.marker(i) + m.rowStyle(t).Render(m.taskLine(t)) + "\n")
+		rows = append(rows, m.marker(i)+m.rowStyle(t).Render(m.taskLine(t)))
 	}
-	return m.screen(b.String(), m.footer())
+	return rows
+}
+
+func (m Model) viewList() string {
+	rows := m.listRows()
+	body := m.header() + "\n\n"
+	switch m.paneLayout() {
+	case layoutSide:
+		body += m.beside(rows)
+	case layoutStacked:
+		body += m.under(rows)
+	default:
+		for _, r := range rows {
+			body += clip(r, m.width) + "\n"
+		}
+	}
+	return m.screen(body, m.footer())
 }
 
 // scope names what the list is currently showing, so the project filter is
@@ -195,6 +211,7 @@ var helpRows = [][2]string{
 	{"A", "Show or hide done tasks"},
 	{"s", "Cycle sort order"},
 	{"D", "Switch between time remaining and dates"},
+	{"v", "Show or hide the detail pane"},
 	{"esc", "Back to the filter it opened on"},
 	{"?", "This help"},
 	{"q", "Quit"},

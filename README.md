@@ -206,6 +206,7 @@ flag `ls` has that `tui` does not — the interface always colours.
 | `A` | Show or hide done tasks |
 | `s` | Cycle sort order |
 | `D` | Switch between time remaining and dates |
+| `v` | Show or hide the detail pane |
 | `esc` | Back to the filter it opened on |
 | `?` | This help |
 | `q` | Quit |
@@ -214,8 +215,31 @@ Completing and deleting both ask before they touch anything, and only `y`
 accepts, so a mistyped key cannot confirm. A delete can still be taken back
 with `u` for as long as the TUI is open.
 
+On a terminal with room to spare, the task under the cursor is detailed in a
+pane that follows the cursor as it moves:
+
+```
+3 tasks · uncategorized
+
+▶ [ ] !!! 8h first @urgent        │ #1  first
+  [ ] second                      │
+  [ ] third                       │ status    open
+                                  │ due       2026-08-29  (8h)
+                                  │ priority  !!! high
+                                  │ tags      @urgent
+                                  │
+                                  │ semi-skimmed
+```
+
+Where the pane goes depends on the shape of the terminal: beside the list from
+100 columns, underneath it from 30 rows, and nowhere at all below both — task
+lines are short, so width is the room worth using first. `v` hides it and gives
+the width back. A description too long for the pane is cut with a marker rather
+than run off the edge.
+
 `enter` opens the task under the cursor in full, the same fields `task details`
-prints. Any key but `E` closes it again.
+prints, which is how to read a description the pane had to cut. Any key but `E`
+closes it again.
 
 `E` hands the whole task to `$EDITOR`, from the list or from the detail view:
 the interface steps aside while the editor owns the terminal and comes back when

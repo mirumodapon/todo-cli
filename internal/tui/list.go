@@ -213,6 +213,7 @@ var helpRows = [][2]string{
 	{"D", "Switch between time remaining and dates"},
 	{"v", "Show or hide the detail pane"},
 	{"r", "Reread the database now"},
+	{"ctrl+z", "Suspend to the shell"},
 	{"esc", "Back to the filter it opened on"},
 	{"?", "This help"},
 	{"q", "Quit"},

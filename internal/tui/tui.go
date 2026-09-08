@@ -238,7 +238,19 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.mode = modePicker
 		return m, nil
 
+	case tea.ResumeMsg:
+		// Back from the shell, which is where the database was probably just
+		// changed: that is what people suspend to go and do.
+		return m, m.reloadCmd()
+
 	case tea.KeyMsg:
+		// ctrl+z is job control rather than a binding of ours. Raw mode swallows
+		// the signal the terminal would have sent, so the key has to be answered
+		// here — and before the mode dispatch, because suspending is not
+		// cancelling: whatever was open is still open on the way back.
+		if msg.String() == "ctrl+z" {
+			return m, tea.Suspend
+		}
 		switch m.mode {
 		case modeList:
 			return m.updateList(msg)

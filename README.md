@@ -193,6 +193,13 @@ when the answer changes. A window running `task add`, or an MCP client writing
 through the server, shows up on its own. `r` rereads immediately if you would
 rather not wait.
 
+`ctrl+z` hands the terminal back to the shell, as it does in any other
+program — raw mode swallows the signal the terminal would have sent, so the key
+is answered by the interface instead. It works from anywhere, and suspending is
+not cancelling: a half-typed form is still there on `fg`. Coming back rereads
+the database, because going to a shell to add something is exactly what people
+suspend for.
+
 Nothing moves while a form, a search, or a confirmation is open: the list must
 not shift between the key that chose a task and the key that acts on it. A
 reload keeps the cursor on its task rather than its row, so a task added above
@@ -220,6 +227,7 @@ flag `ls` has that `tui` does not — the interface always colours.
 | `D` | Switch between time remaining and dates |
 | `v` | Show or hide the detail pane |
 | `r` | Reread the database now |
+| `ctrl+z` | Suspend to the shell |
 | `esc` | Back to the filter it opened on |
 | `?` | This help |
 | `q` | Quit |

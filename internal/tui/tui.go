@@ -251,6 +251,12 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.String() == "ctrl+z" {
 			return m, tea.Suspend
 		}
+		// ctrl+c is never text, so it reaches for the door from anywhere. A
+		// question already on screen is answered first, though: stacking another
+		// on top of it would be a way to confirm something you never read.
+		if msg.String() == "ctrl+c" && m.mode != modeConfirm {
+			return m.askQuit(), nil
+		}
 		switch m.mode {
 		case modeList:
 			return m.updateList(msg)
@@ -274,8 +280,10 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m Model) updateList(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
-	case "q", "ctrl+c":
-		return m, tea.Quit
+	// ctrl+d is the shell's "nothing more to type", which only means that where
+	// nothing is being typed; in a field it stays a text key.
+	case "q", "ctrl+d":
+		return m.askQuit(), nil
 	case "j", "down", "ctrl+n":
 		m.moveCursor(1)
 	case "k", "up", "ctrl+p":
@@ -405,8 +413,26 @@ func sortLabel(s task.SortBy) string {
 	return "due date"
 }
 
+// viewMode is the screen to draw. A question does not replace what you were
+// looking at; it is asked at the bottom of it.
+func (m Model) viewMode() mode {
+	if m.mode == modeConfirm {
+		return m.confirm.back
+	}
+	return m.mode
+}
+
+// hint is what the last line says: the pending question wherever there is one,
+// and the screen's own hint otherwise.
+func (m Model) hint(h string) string {
+	if m.mode == modeConfirm {
+		return m.confirm.prompt
+	}
+	return h
+}
+
 func (m Model) View() string {
-	switch m.mode {
+	switch m.viewMode() {
 	case modePicker:
 		return m.viewPicker()
 	case modeForm:

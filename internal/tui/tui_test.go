@@ -57,6 +57,9 @@ func newModelStart(t *testing.T, start Start) (Model, store.Store) {
 	return m, s
 }
 
+// keyMsg is key, named for use where a msg is fed to Update directly.
+func keyMsg(s string) tea.KeyMsg { return key(s) }
+
 // key turns a key name into a tea.KeyMsg.
 func key(s string) tea.KeyMsg {
 	switch s {
@@ -82,6 +85,10 @@ func key(s string) tea.KeyMsg {
 		return tea.KeyMsg{Type: tea.KeyCtrlR}
 	case "ctrl+z":
 		return tea.KeyMsg{Type: tea.KeyCtrlZ}
+	case "ctrl+c":
+		return tea.KeyMsg{Type: tea.KeyCtrlC}
+	case "ctrl+d":
+		return tea.KeyMsg{Type: tea.KeyCtrlD}
 	default:
 		return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(s)}
 	}
@@ -213,17 +220,6 @@ func TestSpaceTogglesDone(t *testing.T) {
 	}
 	if len(m.tasks) != 2 {
 		t.Errorf("after the reload %d remain, want 2", len(m.tasks))
-	}
-}
-
-func TestQuit(t *testing.T) {
-	m, _ := newModel(t)
-	_, cmd := m.Update(key("q"))
-	if cmd == nil {
-		t.Fatal("q should return a cmd")
-	}
-	if _, ok := cmd().(tea.QuitMsg); !ok {
-		t.Error("q should quit the program")
 	}
 }
 

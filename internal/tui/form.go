@@ -170,5 +170,5 @@ func (m Model) viewForm() string {
 	if m.form.errText != "" {
 		b.WriteString("\n" + styleErr.Render(m.form.errText) + "\n")
 	}
-	return m.screen(b.String(), styleHint.Render("tab/ctrl+n next field · ctrl+r fill current directory · enter save · esc cancel"))
+	return m.screen(b.String(), m.hint(styleHint.Render("tab/ctrl+n next field · ctrl+r fill current directory · enter save · esc cancel")))
 }

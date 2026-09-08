@@ -216,7 +216,7 @@ var helpRows = [][2]string{
 	{"ctrl+z", "Suspend to the shell"},
 	{"esc", "Back to the filter it opened on"},
 	{"?", "This help"},
-	{"q", "Quit"},
+	{"q / ctrl+c / ctrl+d", "Quit (asks first)"},
 }
 
 func (m Model) viewHelp() string {
@@ -231,5 +231,5 @@ func (m Model) viewHelp() string {
 	for _, r := range helpRows {
 		b.WriteString("  " + pad(r[0], w+2) + r[1] + "\n")
 	}
-	return m.screen(b.String(), styleHint.Render("Press any key to go back"))
+	return m.screen(b.String(), m.hint(styleHint.Render("Press any key to go back")))
 }

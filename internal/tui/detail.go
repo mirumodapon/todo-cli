@@ -106,7 +106,7 @@ func (m Model) viewDetail() string {
 	b.WriteString("\n")
 	if t.Desc == "" {
 		b.WriteString(styleDim.Render("  No description") + "\n")
-		return m.screen(b.String(), detailHint)
+		return m.screen(b.String(), m.hint(detailHint))
 	}
 	// The description is wrapped to the frame: a long line would otherwise wrap
 	// itself and push the rows below it off the bottom of the screen.
@@ -121,7 +121,7 @@ func (m Model) viewDetail() string {
 			b.WriteString(strings.TrimRight(wrapped, " ") + "\n")
 		}
 	}
-	return m.screen(b.String(), detailHint)
+	return m.screen(b.String(), m.hint(detailHint))
 }
 
 // editorFunc hands text to an editor and returns the cmd that produces the

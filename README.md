@@ -230,10 +230,14 @@ flag `ls` has that `tui` does not — the interface always colours.
 | `ctrl+z` | Suspend to the shell |
 | `esc` | Back to the filter it opened on |
 | `?` | This help |
-| `q` | Quit |
+| `q` / `ctrl+c` / `ctrl+d` | Quit (asks first) |
 
-Completing and deleting both ask before they touch anything, and only `y`
-accepts, so a mistyped key cannot confirm. A delete can still be taken back
+Completing, deleting and leaving all ask before they happen, and only `y`
+accepts, so a mistyped key cannot confirm. `q`, `ctrl+c` and `ctrl+d` are all
+ways out and all ask; `ctrl+c` asks from anywhere, while `ctrl+d` is a text key
+wherever text is being typed, as it is in a shell. The question is asked at the
+bottom of whatever screen you were on, so cancelling puts you back in a
+half-typed form rather than somewhere else. A delete can still be taken back
 with `u` for as long as the TUI is open.
 
 On a terminal with room to spare, the task under the cursor is detailed in a

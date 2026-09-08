@@ -284,6 +284,11 @@ func (m Model) updateList(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "v":
 		m.paneOff = !m.paneOff
 		return m, nil
+	// The CLI and the MCP server write to the same database while this is open,
+	// so there has to be a way to see that without restarting.
+	case "r":
+		m.status = "reloaded"
+		return m, m.loadCmd()
 	case "s":
 		m.filter.Sort = (m.filter.Sort + 1) % 3
 		m.status = "sort: " + sortLabel(m.filter.Sort)

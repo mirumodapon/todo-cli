@@ -186,6 +186,9 @@ task tui -t urgent -d week     # tagged urgent and due within the week
 task tui --all-projects -a     # everything, done ones included
 ```
 
+`r` rereads the database. The CLI and the MCP server write to the same file
+while the interface is open, and nothing tells it when they do.
+
 `esc` returns to whatever those flags asked for, not to the built-in default:
 what you typed to open the interface is this session's default. `-c` is the one
 flag `ls` has that `tui` does not — the interface always colours.
@@ -207,6 +210,7 @@ flag `ls` has that `tui` does not — the interface always colours.
 | `s` | Cycle sort order |
 | `D` | Switch between time remaining and dates |
 | `v` | Show or hide the detail pane |
+| `r` | Reread the database |
 | `esc` | Back to the filter it opened on |
 | `?` | This help |
 | `q` | Quit |

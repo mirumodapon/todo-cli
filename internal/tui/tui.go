@@ -44,8 +44,16 @@ type Model struct {
 	// paneOff hides the detail pane. The zero value shows it wherever the
 	// terminal has room, so the default needs no wiring.
 	paneOff bool
-	form    formState
-	confirm confirmState
+
+	// poll is how often to ask the database whether another process has
+	// written. Zero turns it off.
+	poll time.Duration
+	// dbVersion is the last answer, and versionKnown says whether there has
+	// been one: the first answer is a baseline, not a change.
+	dbVersion    int64
+	versionKnown bool
+	form         formState
+	confirm      confirmState
 	// undo keeps a single level: the last deleted item, discarded when the TUI exits.
 	undo *task.Task
 
@@ -74,6 +82,12 @@ func (m Model) listHeight() int {
 	return max(1, h)
 }
 
+// defaultPoll is how often the interface asks whether anything has changed
+// underneath it. The question costs one integer read, which is less than the
+// cursor blink this program already runs, and two seconds is soon enough that a
+// task added in another window does not feel lost.
+const defaultPoll = 2 * time.Second
+
 // Start is where the interface opens: the filter the command line asked for,
 // and whether due dates read as calendar dates.
 type Start struct {
@@ -97,7 +111,7 @@ func New(s store.Store, now func() time.Time, cwd string, start Start) Model {
 		store: s, now: now, cwd: cwd,
 		mode: modeList, search: ti,
 		start: start.Filter, filter: start.Filter, dates: start.Dates,
-		width: 80, height: 24, edit: execEditor,
+		width: 80, height: 24, edit: execEditor, poll: defaultPoll,
 	}
 }
 
@@ -107,7 +121,7 @@ func Run(s store.Store, now func() time.Time, cwd string, start Start) error {
 	return err
 }
 
-func (m Model) Init() tea.Cmd { return m.loadCmd() }
+func (m Model) Init() tea.Cmd { return tea.Batch(m.loadCmd(), m.tickCmd()) }
 
 // moveCursor shifts the cursor by d, clamped to the loaded tasks. Every mode
 // that moves the list goes through here so the clamping cannot disagree.
@@ -153,12 +167,47 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tasksMsg:
-		m.tasks = []task.Task(msg)
+		m.tasks = msg.tasks
 		m.err = nil
+		// Follow the anchored task to wherever it now is. Failing that — it was
+		// deleted, or filtered away — the row is what the cursor keeps.
+		if msg.anchor != 0 {
+			for i, t := range m.tasks {
+				if t.ID == msg.anchor {
+					m.cursor = i
+					break
+				}
+			}
+		}
 		if m.cursor >= len(m.tasks) {
 			m.cursor = max(0, len(m.tasks)-1)
 		}
 		return m, nil
+
+	case tickMsg:
+		// Nothing moves under a form, a search, or an armed confirmation: the
+		// list must not shift between the key that chose a task and the key
+		// that acts on it.
+		if m.mode != modeList {
+			return m, m.tickCmd()
+		}
+		return m, m.versionCmd()
+
+	case versionMsg:
+		next := m.tickCmd()
+		switch {
+		case msg.err != nil:
+			// Keep asking: a database that is briefly unreadable is not a
+			// reason to stop watching it.
+			return m, next
+		case !m.versionKnown:
+			m.dbVersion, m.versionKnown = msg.version, true
+			return m, next
+		case msg.version == m.dbVersion:
+			return m, next
+		}
+		m.dbVersion = msg.version
+		return m, tea.Batch(next, m.reloadCmd())
 
 	case errMsg:
 		m.err = msg.err
@@ -166,7 +215,7 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case savedMsg:
 		m.status, m.err = msg.note, nil
-		return m, m.loadCmd()
+		return m, m.reloadCmd()
 
 	case editedMsg:
 		// The view stays open on the task so the new text is there to read.
@@ -177,7 +226,7 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.undo = &t
 		m.status = `deleted "` + t.Title + `" · u to undo`
 		m.err = nil
-		return m, m.loadCmd()
+		return m, m.reloadCmd()
 
 	case projectsMsg:
 		m.picker = pickerState{kind: pickProject, items: projectItems(msg)}
@@ -288,11 +337,12 @@ func (m Model) updateList(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	// so there has to be a way to see that without restarting.
 	case "r":
 		m.status = "reloaded"
-		return m, m.loadCmd()
+		return m, m.reloadCmd()
 	case "s":
 		m.filter.Sort = (m.filter.Sort + 1) % 3
 		m.status = "sort: " + sortLabel(m.filter.Sort)
-		return m, m.loadCmd()
+		// The same tasks in a different order, so the cursor keeps its task.
+		return m, m.reloadCmd()
 	case "esc":
 		m.filter = m.start
 		m.search.SetValue("")

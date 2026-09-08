@@ -36,6 +36,10 @@ type Store interface {
 	Restore(t task.Task) error
 	// Tags lists the tags referenced by at least one task.
 	Tags() ([]string, error)
+	// DataVersion reports a counter that moves when another connection writes.
+	// It is how a long-running reader notices that someone else changed
+	// something, without reading everything to find out.
+	DataVersion() (int64, error)
 	// Projects lists every project with its open task count.
 	Projects() ([]ProjectCount, error)
 	Close() error

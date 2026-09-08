@@ -111,3 +111,44 @@ VALUES ('from the old schema', '2026-08-29T15:00:00+08:00', '2026-08-29T15:00:00
 		t.Errorf("desc = %q, the migrated column should be writable", back.Desc)
 	}
 }
+
+// DataVersion is how a long-running reader notices someone else's write without
+// reading everything to find out. It must move for another connection and stay
+// put for this one, or a poll built on it would either miss writes or reload
+// after every keystroke of its own.
+func TestDataVersionMovesOnlyForAnotherConnection(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "shared.db")
+	reader, err := OpenSQLite(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer reader.Close()
+
+	start, err := reader.DataVersion()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := reader.Add(sample()); err != nil {
+		t.Fatal(err)
+	}
+	if own, err := reader.DataVersion(); err != nil || own != start {
+		t.Errorf("our own write moved it: %d -> %d (%v)", start, own, err)
+	}
+
+	writer, err := OpenSQLite(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := writer.Add(sample()); err != nil {
+		t.Fatal(err)
+	}
+	writer.Close()
+
+	after, err := reader.DataVersion()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if after == start {
+		t.Errorf("another connection's write left it at %d", after)
+	}
+}

@@ -49,6 +49,8 @@ func newModelStart(t *testing.T, start Start) (Model, store.Store) {
 		}
 	}
 	m := New(s, refTime, t.TempDir(), start)
+	// No clock in a test: the poll's messages are fed by hand where they matter.
+	m.poll = 0
 	m, _ = send(t, m, tea.WindowSizeMsg{Width: 80, Height: 24})
 	m, msg := run(t, m, m.Init())
 	m, _ = send(t, m, msg)
@@ -83,6 +85,16 @@ func key(s string) tea.KeyMsg {
 	}
 }
 
+// feed sends one msg and follows the messages it produces, the way the runtime
+// would, so a test can watch a whole chain settle.
+func feed(t *testing.T, m Model, msg tea.Msg) Model {
+	t.Helper()
+	for i := 0; msg != nil && i < 6; i++ {
+		m, msg = send(t, m, msg)
+	}
+	return m
+}
+
 // send feeds one msg and returns the new model plus the msg its cmd produced, or nil when there is no cmd.
 func send(t *testing.T, m Model, msg tea.Msg) (Model, tea.Msg) {
 	t.Helper()
@@ -95,7 +107,21 @@ func run(t *testing.T, m Model, cmd tea.Cmd) (Model, tea.Msg) {
 	if cmd == nil {
 		return m, nil
 	}
-	return m, cmd()
+	msg := cmd()
+	// A batch is several commands at once. The runtime runs them all; so does
+	// this, feeding each result back before returning the last.
+	if batch, ok := msg.(tea.BatchMsg); ok {
+		var last tea.Msg
+		for _, c := range batch {
+			var next tea.Msg
+			m, next = run(t, m, c)
+			if next != nil {
+				m, last = send(t, m, next)
+			}
+		}
+		return m, last
+	}
+	return m, msg
 }
 
 // press sends one key and feeds back whatever its cmd produced, mimicking one turn of the Bubble Tea loop.

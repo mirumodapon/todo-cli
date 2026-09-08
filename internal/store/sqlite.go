@@ -430,6 +430,15 @@ func (s *sqlStore) Tags() ([]string, error) {
 	return out, rows.Err()
 }
 
+// DataVersion returns SQLite's data_version pragma. This connection's own
+// writes leave it alone and any other connection's commit moves it, which is
+// exactly the question a reader wants answered.
+func (s *sqlStore) DataVersion() (int64, error) {
+	var v int64
+	err := s.db.QueryRow(`PRAGMA data_version`).Scan(&v)
+	return v, err
+}
+
 func (s *sqlStore) Projects() ([]ProjectCount, error) {
 	rows, err := s.db.Query(
 		`SELECT project, SUM(CASE WHEN done_at IS NULL THEN 1 ELSE 0 END)

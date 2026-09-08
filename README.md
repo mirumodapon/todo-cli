@@ -186,8 +186,17 @@ task tui -t urgent -d week     # tagged urgent and due within the week
 task tui --all-projects -a     # everything, done ones included
 ```
 
-`r` rereads the database. The CLI and the MCP server write to the same file
-while the interface is open, and nothing tells it when they do.
+The list keeps up with the file underneath it. Every couple of seconds the
+interface asks SQLite one question — `PRAGMA data_version`, a single integer that
+moves only when *another* connection has committed — and rereads the tasks only
+when the answer changes. A window running `task add`, or an MCP client writing
+through the server, shows up on its own. `r` rereads immediately if you would
+rather not wait.
+
+Nothing moves while a form, a search, or a confirmation is open: the list must
+not shift between the key that chose a task and the key that acts on it. A
+reload keeps the cursor on its task rather than its row, so a task added above
+the cursor does not quietly change what `space` is about to complete.
 
 `esc` returns to whatever those flags asked for, not to the built-in default:
 what you typed to open the interface is this session's default. `-c` is the one
@@ -210,7 +219,7 @@ flag `ls` has that `tui` does not — the interface always colours.
 | `s` | Cycle sort order |
 | `D` | Switch between time remaining and dates |
 | `v` | Show or hide the detail pane |
-| `r` | Reread the database |
+| `r` | Reread the database now |
 | `esc` | Back to the filter it opened on |
 | `?` | This help |
 | `q` | Quit |

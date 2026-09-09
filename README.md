@@ -215,6 +215,8 @@ flag `ls` has that `tui` does not — the interface always colours.
 | `j` / `k` / `↑` / `↓` | Move |
 | `ctrl+n` / `ctrl+p` | Move, including while typing |
 | `g` / `G` | Jump to top / bottom |
+| `5j` / `5k` | Move that many rows |
+| `12 enter` | Go to task 12 |
 | `enter` | Show the full task |
 | `space` | Toggle done (asks first) |
 | `a` / `e` | Add / edit |
@@ -250,7 +252,9 @@ rather than somewhere else. A delete can still be taken back
 with `u` for as long as the TUI is open.
 
 Every row leads with the task's id, which is how every other way in addresses
-it: `task done 3`, `task details 3`, the MCP tools. Lists are in id order by
+it: `task done 3`, `task details 3`, the MCP tools — and, inside the interface,
+`12` then `enter` to put the cursor on task 12. A number before `j` or `k` moves
+that many rows, as in vi; anything else discards it. Lists are in id order by
 default — the order they were added, and the one you can predict from the
 numbers in front of you. `s` opens a menu of the three orderings and `r` turns
 whichever one is in force upside down; the header says which is which. There is

@@ -2,6 +2,7 @@
 package tui
 
 import (
+	"strconv"
 	"time"
 
 	"github.com/charmbracelet/bubbles/textinput"
@@ -41,6 +42,9 @@ type Model struct {
 	picker pickerState
 	// dates swaps the due column from time remaining to calendar dates.
 	dates bool
+	// count is the digits typed before a key, as in vi: 5j moves five rows and
+	// 12 enter goes to task 12. Empty means none.
+	count string
 	// quitArmed says a way out has been pressed once. The next press of one
 	// leaves; anything else puts it back.
 	quitArmed bool
@@ -289,8 +293,38 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// countMax caps the digits a count can hold. Nothing sensible needs more, and
+// without it a leaning elbow builds an unbounded string.
+const countMax = 6
+
+// takeCount reads the pending count and clears it, reporting whether there was
+// one. Every key that is not a digit spends or discards it, so a stray 3 cannot
+// still be waiting when the next key arrives.
+func (m *Model) takeCount() (int, bool) {
+	if m.count == "" {
+		return 1, false
+	}
+	n, err := strconv.Atoi(m.count)
+	m.count = ""
+	if err != nil || n <= 0 {
+		return 1, false
+	}
+	return n, true
+}
+
 func (m Model) updateList(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
+	k := msg.String()
+	// Digits gather rather than act. A leading zero is not a count: it would
+	// mean a movement of none, which no key needs a prefix to express.
+	if len(k) == 1 && k[0] >= '0' && k[0] <= '9' {
+		if !(k == "0" && m.count == "") && len(m.count) < countMax {
+			m.count += k
+		}
+		return m, nil
+	}
+	n, counted := m.takeCount()
+
+	switch k {
 	// q is a decision rather than a reflex, so it keeps the question.
 	case "q":
 		return m.askQuit(), nil
@@ -299,9 +333,9 @@ func (m Model) updateList(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "ctrl+d":
 		return m.armQuit()
 	case "j", "down", "ctrl+n":
-		m.moveCursor(1)
+		m.moveCursor(n)
 	case "k", "up", "ctrl+p":
-		m.moveCursor(-1)
+		m.moveCursor(-n)
 	case "g":
 		m.cursor = 0
 	case "G":
@@ -329,6 +363,11 @@ func (m Model) updateList(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, m.editTaskCmd(t)
 		}
 	case "enter":
+		// With a number in front of it, enter is "go to that task": the id is
+		// what the rest of the program answers to, so it is what you can aim at.
+		if counted {
+			return m.jumpTo(int64(n)), nil
+		}
 		if _, ok := m.current(); ok {
 			m.mode = modeDetail
 		}
@@ -495,4 +534,19 @@ func (m Model) View() string {
 		return m.viewDetail()
 	}
 	return m.viewList()
+}
+
+// jumpTo puts the cursor on a task by id. An id that is not in the list is said
+// out loud rather than ignored: the task may exist and be filtered away, and
+// silence would look like the key had not worked.
+func (m Model) jumpTo(id int64) Model {
+	for i, t := range m.tasks {
+		if t.ID == id {
+			m.cursor = i
+			m.status = ""
+			return m
+		}
+	}
+	m.status = "#" + itoa(id) + " is not in this list"
+	return m
 }

@@ -197,6 +197,9 @@ func (m Model) footer() string {
 	if m.quitArmed {
 		return styleHint.Render(quitAgain)
 	}
+	if m.count != "" {
+		return styleHint.Render(m.count)
+	}
 	if m.mode == modeSearch {
 		return m.search.View()
 	}
@@ -219,6 +222,8 @@ var helpRows = [][2]string{
 	{"j / k / ↑ / ↓", "Move"},
 	{"ctrl+n / ctrl+p", "Move, including while typing"},
 	{"g / G", "Jump to top / bottom"},
+	{"5j / 5k", "Move that many rows"},
+	{"12 enter", "Go to task 12"},
 	{"enter", "Show the full task"},
 	{"space", "Toggle done (asks first)"},
 	{"a / e", "Add / edit"},

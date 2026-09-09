@@ -41,6 +41,9 @@ type Model struct {
 	picker pickerState
 	// dates swaps the due column from time remaining to calendar dates.
 	dates bool
+	// quitArmed says a way out has been pressed once. The next press of one
+	// leaves; anything else puts it back.
+	quitArmed bool
 	// helpOffset scrolls the key table, which no longer fits a short terminal.
 	helpOffset int
 	// paneOff hides the detail pane. The zero value shows it wherever the
@@ -253,11 +256,18 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.String() == "ctrl+z" {
 			return m, tea.Suspend
 		}
-		// ctrl+c is never text, so it reaches for the door from anywhere. A
-		// question already on screen is answered first, though: stacking another
-		// on top of it would be a way to confirm something you never read.
+		// ctrl+c is never text, so it reaches for the door from anywhere. It
+		// takes two presses rather than a question: reaching for the door is a
+		// reflex, and a modal to read is the wrong thing to meet there.
+		// A question already on screen is answered first, though: a key that
+		// looks like it should cancel must not quietly become half an exit.
 		if msg.String() == "ctrl+c" && m.mode != modeConfirm {
-			return m.askQuit(), nil
+			return m.armQuit()
+		}
+		// Any other key breaks the sequence. Without this a ctrl+c from five
+		// minutes ago would turn an unrelated keystroke into an exit.
+		if !m.isQuitKey(msg) {
+			m.quitArmed = false
 		}
 		switch m.mode {
 		case modeList:
@@ -281,10 +291,13 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m Model) updateList(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
+	// q is a decision rather than a reflex, so it keeps the question.
+	case "q":
+		return m.askQuit(), nil
 	// ctrl+d is the shell's "nothing more to type", which only means that where
 	// nothing is being typed; in a field it stays a text key.
-	case "q", "ctrl+d":
-		return m.askQuit(), nil
+	case "ctrl+d":
+		return m.armQuit()
 	case "j", "down", "ctrl+n":
 		m.moveCursor(1)
 	case "k", "up", "ctrl+p":
@@ -467,6 +480,9 @@ func (m Model) viewMode() mode {
 func (m Model) hint(h string) string {
 	if m.mode == modeConfirm {
 		return m.confirm.prompt
+	}
+	if m.quitArmed {
+		return styleHint.Render(quitAgain)
 	}
 	return h
 }

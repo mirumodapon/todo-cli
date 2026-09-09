@@ -17,27 +17,23 @@ func quits(t *testing.T, m Model, cmd tea.Cmd) bool {
 	return ok
 }
 
-// Leaving is a decision, not a keystroke: every way out asks first.
+// q is the deliberate way out, and it asks.
 func TestQuitAsksFirst(t *testing.T) {
-	for _, key := range []string{"q", "ctrl+c", "ctrl+d"} {
-		t.Run(key, func(t *testing.T) {
-			m, _ := newModel(t)
-			next, cmd := m.Update(keyMsg(key))
-			m = next.(Model)
-			if quits(t, m, cmd) {
-				t.Fatalf("%s should not quit on its own", key)
-			}
-			if m.mode != modeConfirm {
-				t.Fatalf("%s should ask, mode = %v", key, m.mode)
-			}
-			if !strings.Contains(m.View(), "Quit?") {
-				t.Errorf("the question should be on screen:\n%s", m.View())
-			}
-			_, cmd = m.Update(keyMsg("y"))
-			if !quits(t, m, cmd) {
-				t.Errorf("y should quit")
-			}
-		})
+	m, _ := newModel(t)
+	next, cmd := m.Update(keyMsg("q"))
+	m = next.(Model)
+	if quits(t, m, cmd) {
+		t.Fatal("q should not quit on its own")
+	}
+	if m.mode != modeConfirm {
+		t.Fatalf("q should ask, mode = %v", m.mode)
+	}
+	if !strings.Contains(m.View(), "Quit?") {
+		t.Errorf("the question should be on screen:\n%s", m.View())
+	}
+	_, cmd = m.Update(keyMsg("y"))
+	if !quits(t, m, cmd) {
+		t.Error("y should quit")
 	}
 }
 
@@ -50,30 +46,6 @@ func TestAnyOtherKeyStaysInTheProgram(t *testing.T) {
 	}
 	if next.(Model).mode != modeList {
 		t.Errorf("it should go back to the list, mode = %v", next.(Model).mode)
-	}
-}
-
-// ctrl+c is never text, so it reaches for the door from anywhere — and
-// cancelling puts back what was open, since asking is not leaving.
-func TestCtrlCAsksFromAForm(t *testing.T) {
-	m, _ := newModel(t)
-	m = press(t, m, "a")
-	m = press(t, m, "half typed")
-	next, _ := m.Update(keyMsg("ctrl+c"))
-	m = next.(Model)
-	if m.mode != modeConfirm {
-		t.Fatalf("ctrl+c should ask from a form, mode = %v", m.mode)
-	}
-	// The question is asked at the bottom of the form, not instead of it.
-	if v := m.View(); !strings.Contains(v, "half typed") || !strings.Contains(v, "Quit?") {
-		t.Errorf("the form should still be on screen under the question:\n%s", v)
-	}
-	m = press(t, m, "n")
-	if m.mode != modeForm {
-		t.Fatalf("cancelling should put the form back, mode = %v", m.mode)
-	}
-	if !strings.Contains(m.View(), "half typed") {
-		t.Errorf("with what was typed into it:\n%s", m.View())
 	}
 }
 

@@ -194,6 +194,9 @@ func (m Model) footer() string {
 	if m.mode == modeConfirm {
 		return m.confirm.prompt
 	}
+	if m.quitArmed {
+		return styleHint.Render(quitAgain)
+	}
 	if m.mode == modeSearch {
 		return m.search.View()
 	}
@@ -233,7 +236,8 @@ var helpRows = [][2]string{
 	{"ctrl+z", "Suspend to the shell"},
 	{"esc", "Back to the filter it opened on"},
 	{"?", "This help"},
-	{"q / ctrl+c / ctrl+d", "Quit (asks first)"},
+	{"q", "Quit (asks first)"},
+	{"ctrl+c / ctrl+d", "Quit (press twice)"},
 }
 
 // helpFit is how many key rows the screen has room for: the frame less the

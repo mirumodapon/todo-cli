@@ -16,7 +16,7 @@ func helpOn(t *testing.T, w, h int) Model {
 
 // The last row of the help is the one most likely to be cut, and the one that
 // says how to leave.
-const lastHelpRow = "q / ctrl+c / ctrl+d"
+const lastHelpRow = "ctrl+c / ctrl+d"
 
 func TestTheHelpFitsATallTerminal(t *testing.T) {
 	m := helpOn(t, 80, 40)

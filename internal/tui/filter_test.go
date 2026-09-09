@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"todo.mirumo.net/internal/store"
-	"todo.mirumo.net/internal/task"
 )
 
 func TestDeleteThenUndo(t *testing.T) {
@@ -106,29 +105,6 @@ func TestToggleIncludeDone(t *testing.T) {
 	m = press(t, m, "A")
 	if len(m.tasks) != 2 {
 		t.Errorf("pressing A again should go back to open only, got %d", len(m.tasks))
-	}
-}
-
-func TestSortCycles(t *testing.T) {
-	m, _ := newModel(t)
-	if m.filter.Sort != task.SortDue {
-		t.Fatal("the default should be due")
-	}
-	m = press(t, m, "s")
-	if m.filter.Sort != task.SortPriority {
-		t.Errorf("after s = %v, want pri", m.filter.Sort)
-	}
-	m = press(t, m, "s")
-	if m.filter.Sort != task.SortCreated {
-		t.Errorf("pressing s again = %v, want created", m.filter.Sort)
-	}
-	m = press(t, m, "s")
-	if m.filter.Sort != task.SortID {
-		t.Errorf("pressing s again = %v, want id", m.filter.Sort)
-	}
-	m = press(t, m, "s")
-	if m.filter.Sort != task.SortDue {
-		t.Errorf("cycling back = %v, want due", m.filter.Sort)
 	}
 }
 

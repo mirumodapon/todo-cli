@@ -20,7 +20,8 @@ func listFlags() []argparse.Spec {
 		argparse.Spec{Long: "pri", Kind: argparse.String, Usage: "Priority: low, med, high, or !, !!, !!!"},
 		argparse.Spec{Long: "all", Short: "a", Kind: argparse.Bool, Usage: "Include done tasks"},
 		argparse.Spec{Long: "done", Kind: argparse.Bool, Usage: "Only done tasks"},
-		argparse.Spec{Long: "sort", Short: "s", Kind: argparse.String, Usage: "Sort by: due, pri, created, id"},
+		argparse.Spec{Long: "sort", Short: "s", Kind: argparse.String, Usage: "Sort by: id (default), due, pri, created"},
+		argparse.Spec{Long: "reverse", Short: "r", Kind: argparse.Bool, Usage: "Reverse whatever order is in force"},
 		argparse.Spec{Long: "dates", Kind: argparse.Bool, Usage: "Show due dates instead of the time remaining"},
 	}
 }
@@ -70,6 +71,7 @@ func (a *App) filterFrom(r *argparse.Result) (task.Filter, error) {
 		IncludeDone: r.Bool("all"),
 		OnlyDone:    r.Bool("done"),
 		Tags:        r.Strings("tag"),
+		Reverse:     r.Bool("reverse"),
 	}
 	// The three project selectors are mutually exclusive; honouring one silently
 	// would hide the fact that the others were ignored.

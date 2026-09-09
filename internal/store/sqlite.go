@@ -298,16 +298,7 @@ func (s *sqlStore) List(f task.Filter, now time.Time) ([]task.Task, error) {
 		where = append(where, `NOT EXISTS (SELECT 1 FROM task_tags tt WHERE tt.task_id = tasks.id)`)
 	}
 
-	// Undated tasks always sort after dated ones: (due IS NULL) is 0 or 1, so ascending works.
-	order := `(due IS NULL), due ASC, priority DESC, id ASC`
-	switch f.Sort {
-	case task.SortPriority:
-		order = `priority DESC, (due IS NULL), due ASC, id ASC`
-	case task.SortCreated:
-		order = `created_at ASC, id ASC`
-	case task.SortID:
-		order = `id ASC`
-	}
+	order := orderBy(f.Sort, f.Reverse)
 
 	q := `SELECT ` + taskCols + ` FROM tasks`
 	if len(where) > 0 {
@@ -343,6 +334,40 @@ func (s *sqlStore) List(f task.Filter, now time.Time) ([]task.Task, error) {
 		out[i].Tags = tags
 	}
 	return out, nil
+}
+
+// orderTerm is one clause of an ORDER BY. Keeping the terms apart is what lets
+// Reverse flip all of them: a reversed list has to reverse its tie-breakers too,
+// or two tasks with the same due date would come back in the same order either
+// way.
+type orderTerm struct {
+	expr string
+	desc bool
+}
+
+func orderBy(s task.SortBy, reverse bool) string {
+	var terms []orderTerm
+	switch s {
+	case task.SortDue:
+		// Undated tasks always sort after dated ones: (due IS NULL) is 0 or 1,
+		// so ascending puts the dated ones first.
+		terms = []orderTerm{{"(due IS NULL)", false}, {"due", false}, {"priority", true}, {"id", false}}
+	case task.SortPriority:
+		terms = []orderTerm{{"priority", true}, {"(due IS NULL)", false}, {"due", false}, {"id", false}}
+	case task.SortCreated:
+		terms = []orderTerm{{"created_at", false}, {"id", false}}
+	default:
+		terms = []orderTerm{{"id", false}}
+	}
+	parts := make([]string, 0, len(terms))
+	for _, t := range terms {
+		dir := " ASC"
+		if t.desc != reverse {
+			dir = " DESC"
+		}
+		parts = append(parts, t.expr+dir)
+	}
+	return strings.Join(parts, ", ")
 }
 
 func (s *sqlStore) Update(t task.Task) error {

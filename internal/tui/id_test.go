@@ -49,23 +49,3 @@ func TestIDsAreAligned(t *testing.T) {
 		}
 	}
 }
-
-func TestSCyclesThroughSortingByID(t *testing.T) {
-	m, _ := newModel(t)
-	want := []task.SortBy{task.SortPriority, task.SortCreated, task.SortID, task.SortDue}
-	for _, w := range want {
-		m = press(t, m, "s")
-		if m.filter.Sort != w {
-			t.Fatalf("sort = %v, want %v", m.filter.Sort, w)
-		}
-	}
-	m = press(t, m, "s")
-	m = press(t, m, "s")
-	m = press(t, m, "s")
-	if !strings.Contains(m.View(), "id") {
-		t.Errorf("the status should name the order:\n%s", m.View())
-	}
-	if m.tasks[0].ID > m.tasks[1].ID {
-		t.Errorf("sorting by id should put them in order: %v", m.tasks)
-	}
-}

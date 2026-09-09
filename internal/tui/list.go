@@ -171,7 +171,11 @@ func (m Model) header() string {
 	if len(m.tasks) == 1 {
 		unit = "task"
 	}
-	h := fmt.Sprintf("%d %s · %s", len(m.tasks), unit, m.scope())
+	arrow := "↑"
+	if m.filter.Reverse {
+		arrow = "↓"
+	}
+	h := fmt.Sprintf("%d %s · %s · %s %s", len(m.tasks), unit, m.scope(), sortLabel(m.filter.Sort), arrow)
 	if m.filter.Untagged {
 		h += "  untagged"
 	} else if len(m.filter.Tags) > 0 {
@@ -221,7 +225,8 @@ var helpRows = [][2]string{
 	{"/", "Search titles"},
 	{"P / T", "Filter by project / tag"},
 	{"A", "Show or hide done tasks"},
-	{"s", "Cycle sort order"},
+	{"s", "Choose the order"},
+	{"R", "Reverse the order"},
 	{"D", "Switch between time remaining and dates"},
 	{"v", "Show or hide the detail pane"},
 	{"r", "Reread the database now"},

@@ -211,3 +211,31 @@ func TestLsSortsByID(t *testing.T) {
 		t.Errorf("-s id should list them in the order they were added:\n%s", out.String())
 	}
 }
+
+func TestLsReverse(t *testing.T) {
+	app, out, errBuf := newApp(t)
+	app.Run([]string{"add", "one"})
+	app.Run([]string{"add", "two"})
+	out.Reset()
+
+	if code := app.Run([]string{"ls", "-r"}); code != 0 {
+		t.Fatalf("exit code = %d: %s", code, errBuf.String())
+	}
+	lines := strings.Split(strings.TrimSpace(out.String()), "\n")
+	if len(lines) != 2 || !strings.Contains(lines[0], "two") {
+		t.Errorf("-r should turn the list around:\n%s", out.String())
+	}
+}
+
+// With no -s at all, a listing is in the order things were added.
+func TestLsDefaultsToIDOrder(t *testing.T) {
+	app, out, _ := newApp(t)
+	app.Run([]string{"add", "later", "-d", "2026-08-20"})
+	app.Run([]string{"add", "sooner", "-d", "2026-08-19"})
+	out.Reset()
+	app.Run([]string{"ls"})
+	lines := strings.Split(strings.TrimSpace(out.String()), "\n")
+	if !strings.Contains(lines[0], "later") {
+		t.Errorf("the first added should come first:\n%s", out.String())
+	}
+}

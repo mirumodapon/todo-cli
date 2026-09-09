@@ -50,7 +50,7 @@ func assertTitles(t *testing.T, got []task.Task, want ...string) {
 
 func str(s string) *string { return &s }
 
-func TestListDefaultsToOpenTasksSortedByDue(t *testing.T) {
+func TestListSortByDue(t *testing.T) {
 	s := newStore(t)
 	seed(t, s)
 	got, err := s.List(task.Filter{Sort: task.SortDue}, ref())
@@ -229,6 +229,67 @@ func TestListSortByID(t *testing.T) {
 	for i := 1; i < len(got); i++ {
 		if got[i].ID <= got[i-1].ID {
 			t.Fatalf("ids out of order: %v", titles(got))
+		}
+	}
+}
+
+// The zero Filter sorts by id, which is the order they were added.
+func TestListDefaultsToIDOrder(t *testing.T) {
+	s := newStore(t)
+	seed(t, s)
+	// Added last but due first, so the two orderings disagree about it.
+	last := task.Task{Title: "added last", Due: day(2026, 1, 1), CreatedAt: ref(), UpdatedAt: ref()}
+	if _, err := s.Add(last); err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.List(task.Filter{}, ref())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got[len(got)-1].Title != "added last" {
+		t.Errorf("= %v, the newest id should come last", titles(got))
+	}
+}
+
+// Reversing has to flip the tie-breakers too. Two tasks due the same day would
+// otherwise come back in the same order whichever way the list was pointing.
+func TestReverseFlipsEveryTerm(t *testing.T) {
+	s := newStore(t)
+	same := func(title string, p task.Priority) {
+		t.Helper()
+		if _, err := s.Add(task.Task{
+			Title: title, Due: day(2026, 9, 1), Priority: p,
+			CreatedAt: ref(), UpdatedAt: ref(),
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	same("low one", task.PriLow)
+	same("high one", task.PriHigh)
+
+	forward, err := s.List(task.Filter{Sort: task.SortDue}, ref())
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertTitles(t, forward, "high one", "low one")
+
+	back, err := s.List(task.Filter{Sort: task.SortDue, Reverse: true}, ref())
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertTitles(t, back, "low one", "high one")
+}
+
+func TestReverseIDOrder(t *testing.T) {
+	s := newStore(t)
+	seed(t, s)
+	got, err := s.List(task.Filter{Reverse: true}, ref())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 1; i < len(got); i++ {
+		if got[i].ID >= got[i-1].ID {
+			t.Fatalf("ids should descend: %v", titles(got))
 		}
 	}
 }

@@ -105,7 +105,8 @@ task ls -a                  # include done tasks
 task ls --done              # only done tasks
 task ls -d today            # due today; also week, overdue, or a date
 task ls -t urgent -t home   # tasks carrying every one of these tags
-task ls -s pri              # sort by priority; also due (default), created or id
+task ls -s pri              # sort by priority; also id (default), due or created
+task ls -r                  # reverse whatever order is in force
 task ls -c | less -R        # force colour through a pipe
 task ls --dates             # calendar dates instead of time remaining
 ```
@@ -223,7 +224,8 @@ flag `ls` has that `tui` does not — the interface always colours.
 | `/` | Search titles |
 | `P` / `T` | Filter by project / tag |
 | `A` | Show or hide done tasks |
-| `s` | Cycle sort order |
+| `s` | Choose the order |
+| `R` | Reverse the order |
 | `D` | Switch between time remaining and dates |
 | `v` | Show or hide the detail pane |
 | `r` | Reread the database now |
@@ -241,8 +243,10 @@ half-typed form rather than somewhere else. A delete can still be taken back
 with `u` for as long as the TUI is open.
 
 Every row leads with the task's id, which is how every other way in addresses
-it: `task done 3`, `task details 3`, the MCP tools. `s` cycles the order through
-due date, priority, created and id.
+it: `task done 3`, `task details 3`, the MCP tools. Lists are in id order by
+default — the order they were added, and the one you can predict from the
+numbers in front of you. `s` opens a menu of the four orderings and `R` turns
+whichever one is in force upside down; the header says which is which.
 
 On a terminal with room to spare, the task under the cursor is detailed in a
 pane that follows the cursor as it moves:

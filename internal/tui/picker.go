@@ -10,6 +10,7 @@ import (
 
 	"todo.mirumo.net/internal/project"
 	"todo.mirumo.net/internal/store"
+	"todo.mirumo.net/internal/task"
 )
 
 type pickerKind int
@@ -17,6 +18,7 @@ type pickerKind int
 const (
 	pickProject pickerKind = iota
 	pickTag
+	pickSort
 )
 
 // pickerItem is one row of the menu. The entry with clear set means no
@@ -56,6 +58,20 @@ func projectItems(ps []store.ProjectCount) []pickerItem {
 			value: p.Path,
 			none:  p.Path == "",
 		})
+	}
+	return items
+}
+
+// sortItems lists the orderings. The value is the word the command line takes,
+// so the menu and -s cannot come to mean different things.
+func sortItems(current task.Filter) []pickerItem {
+	items := make([]pickerItem, 0, task.SortCount)
+	for _, s := range []task.SortBy{task.SortID, task.SortDue, task.SortPriority, task.SortCreated} {
+		it := pickerItem{label: sortLabel(s), value: sortWord(s)}
+		if s == current.Sort {
+			it.note = "current"
+		}
+		items = append(items, it)
 	}
 	return items
 }
@@ -110,6 +126,18 @@ func (m Model) updatePicker(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			default:
 				m.filter.Tags, m.filter.Untagged = []string{it.value}, false
 			}
+		case pickSort:
+			s, err := task.ParseSortBy(it.value)
+			if err != nil {
+				m.err = err
+				m.mode = modeList
+				return m, nil
+			}
+			m.filter.Sort = s
+			m.mode = modeList
+			// The same tasks in a different order, so the cursor keeps its task
+			// rather than starting again at the top.
+			return m, m.reloadCmd()
 		}
 		m.mode = modeList
 		m.cursor = 0
@@ -129,8 +157,11 @@ func (m Model) pickerMarker(i int) string {
 
 func (m Model) viewPicker() string {
 	title := "Filter by project"
-	if m.picker.kind == pickTag {
+	switch m.picker.kind {
+	case pickTag:
 		title = "Filter by tag"
+	case pickSort:
+		title = "Sort by"
 	}
 	var w int
 	for _, it := range m.picker.items {

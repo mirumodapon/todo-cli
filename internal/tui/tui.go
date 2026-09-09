@@ -359,9 +359,12 @@ func (m Model) updateList(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.status = "reloaded"
 		return m, m.reloadCmd()
 	case "s":
-		m.filter.Sort = (m.filter.Sort + 1) % task.SortBy(task.SortCount)
-		m.status = "sort: " + sortLabel(m.filter.Sort)
-		// The same tasks in a different order, so the cursor keeps its task.
+		m.picker = pickerState{kind: pickSort, items: sortItems(m.filter)}
+		m.mode = modePicker
+		return m, nil
+	case "R":
+		m.filter.Reverse = !m.filter.Reverse
+		// The same tasks the other way up: the cursor keeps its task.
 		return m, m.reloadCmd()
 	case "esc":
 		m.filter = m.start
@@ -405,14 +408,27 @@ func (m Model) updateSearch(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 func sortLabel(s task.SortBy) string {
 	switch s {
+	case task.SortDue:
+		return "due date"
 	case task.SortPriority:
 		return "priority"
 	case task.SortCreated:
 		return "created"
-	case task.SortID:
-		return "id"
 	}
-	return "due date"
+	return "id"
+}
+
+// sortWord is what the command line calls the same ordering.
+func sortWord(s task.SortBy) string {
+	switch s {
+	case task.SortDue:
+		return "due"
+	case task.SortPriority:
+		return "pri"
+	case task.SortCreated:
+		return "created"
+	}
+	return "id"
 }
 
 // viewMode is the screen to draw. A question does not replace what you were

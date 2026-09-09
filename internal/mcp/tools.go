@@ -61,7 +61,8 @@ func (s *Server) tools() []tool {
 				"search":       prop("string", "Only tasks whose title contains this text."),
 				"include_done": prop("boolean", "Include tasks that are done. False by default."),
 				"only_done":    prop("boolean", "Only tasks that are done."),
-				"sort":         prop("string", "due (the default), pri, created, or id."),
+				"sort":         prop("string", "id (the default), due, pri, or created."),
+				"reverse":      prop("boolean", "Reverse whatever order sort chose."),
 			}),
 			annotations: map[string]any{"readOnlyHint": true},
 			run:         (*Server).listTasks,
@@ -250,6 +251,7 @@ func (s *Server) listTasks(raw json.RawMessage) (string, error) {
 		IncludeDone bool     `json:"include_done"`
 		OnlyDone    bool     `json:"only_done"`
 		Sort        string   `json:"sort"`
+		Reverse     bool     `json:"reverse"`
 	}
 	if err := unmarshalArgs(raw, &a); err != nil {
 		return "", err
@@ -258,6 +260,7 @@ func (s *Server) listTasks(raw json.RawMessage) (string, error) {
 	f := task.Filter{
 		Project: a.Project, Tags: a.Tags, Untagged: a.Untagged,
 		Search: a.Search, IncludeDone: a.IncludeDone, OnlyDone: a.OnlyDone,
+		Reverse: a.Reverse,
 	}
 	var err error
 	if f.DueRange, f.DueOn, err = task.ParseDueFilter(a.Due, now); err != nil {

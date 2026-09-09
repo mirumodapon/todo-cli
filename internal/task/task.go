@@ -114,28 +114,30 @@ func NormalizeTags(tags []string) []string {
 type SortBy int
 
 const (
-	SortDue SortBy = iota
+	// SortID is the zero value, and so the default: the order tasks were added
+	// is the one a reader can predict from the ids in front of them.
+	SortID SortBy = iota
+	SortDue
 	SortPriority
 	SortCreated
-	SortID
 )
 
 // SortCount is how many orderings there are, for anything cycling through them.
-const SortCount = int(SortID) + 1
+const SortCount = int(SortCreated) + 1
 
 // ParseSortBy parses the value of -s.
 func ParseSortBy(s string) (SortBy, error) {
 	switch strings.ToLower(strings.TrimSpace(s)) {
-	case "", "due":
+	case "", "id":
+		return SortID, nil
+	case "due":
 		return SortDue, nil
 	case "pri":
 		return SortPriority, nil
 	case "created":
 		return SortCreated, nil
-	case "id":
-		return SortID, nil
 	}
-	return SortDue, fmt.Errorf("unknown sort %q (use due, pri, created, id)", s)
+	return SortID, fmt.Errorf("unknown sort %q (use id, due, pri, created)", s)
 }
 
 // DueRange narrows a query by due date.
@@ -189,4 +191,6 @@ type Filter struct {
 	IncludeDone bool
 	OnlyDone    bool
 	Sort        SortBy
+	// Reverse flips whatever Sort chose, every term of it.
+	Reverse bool
 }

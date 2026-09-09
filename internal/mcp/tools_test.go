@@ -274,3 +274,16 @@ func TestUnknownToolIsAProtocolError(t *testing.T) {
 		t.Fatalf("want an invalid-params error, got %v", got[0])
 	}
 }
+
+func TestListTasksReverse(t *testing.T) {
+	s := seeded(t)
+	var forward, back []map[string]any
+	decode(t, call(t, s, "list_tasks", `{}`), &forward)
+	decode(t, call(t, s, "list_tasks", `{"reverse":true}`), &back)
+	if len(forward) != len(back) || len(forward) == 0 {
+		t.Fatalf("forward %d, back %d", len(forward), len(back))
+	}
+	if forward[0]["id"] != back[len(back)-1]["id"] {
+		t.Errorf("reverse should turn the list around: %v vs %v", forward, back)
+	}
+}

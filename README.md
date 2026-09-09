@@ -191,7 +191,7 @@ The list keeps up with the file underneath it. Every couple of seconds the
 interface asks SQLite one question — `PRAGMA data_version`, a single integer that
 moves only when *another* connection has committed — and rereads the tasks only
 when the answer changes. A window running `task add`, or an MCP client writing
-through the server, shows up on its own. `r` rereads immediately if you would
+through the server, shows up on its own. `R` rereads immediately if you would
 rather not wait.
 
 `ctrl+z` hands the terminal back to the shell, as it does in any other
@@ -225,10 +225,10 @@ flag `ls` has that `tui` does not — the interface always colours.
 | `P` / `T` | Filter by project / tag |
 | `A` | Show or hide done tasks |
 | `s` | Choose the order |
-| `R` | Reverse the order |
+| `r` | Reverse the order |
 | `D` | Switch between time remaining and dates |
 | `v` | Show or hide the detail pane |
-| `r` | Reread the database now |
+| `R` | Reread the database now |
 | `ctrl+z` | Suspend to the shell |
 | `esc` | Back to the filter it opened on |
 | `?` | This help |
@@ -245,7 +245,7 @@ with `u` for as long as the TUI is open.
 Every row leads with the task's id, which is how every other way in addresses
 it: `task done 3`, `task details 3`, the MCP tools. Lists are in id order by
 default — the order they were added, and the one you can predict from the
-numbers in front of you. `s` opens a menu of the four orderings and `R` turns
+numbers in front of you. `s` opens a menu of the four orderings and `r` turns
 whichever one is in force upside down; the header says which is which.
 
 On a terminal with room to spare, the task under the cursor is detailed in a

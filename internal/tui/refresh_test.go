@@ -20,9 +20,9 @@ func TestRRereadsTheDatabase(t *testing.T) {
 		t.Fatal("the interface should not have noticed on its own")
 	}
 
-	m = press(t, m, "r")
+	m = press(t, m, "R")
 	if len(m.tasks) != before+1 {
-		t.Fatalf("r should reread the database, got %d tasks", len(m.tasks))
+		t.Fatalf("R should reread the database, got %d tasks", len(m.tasks))
 	}
 	if !strings.Contains(m.View(), "added elsewhere") {
 		t.Errorf("the new task should be on screen:\n%s", m.View())
@@ -37,7 +37,7 @@ func TestRKeepsTheFilterAndTheCursor(t *testing.T) {
 	m, _ := newModel(t)
 	m = press(t, m, "j")
 	m = press(t, m, "A")
-	m = press(t, m, "r")
+	m = press(t, m, "R")
 	if m.cursor != 1 {
 		t.Errorf("cursor = %d, a reload should not move it", m.cursor)
 	}

@@ -355,14 +355,14 @@ func (m Model) updateList(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	// The CLI and the MCP server write to the same database while this is open,
 	// so there has to be a way to see that without restarting.
-	case "r":
+	case "R":
 		m.status = "reloaded"
 		return m, m.reloadCmd()
 	case "s":
 		m.picker = pickerState{kind: pickSort, items: sortItems(m.filter)}
 		m.mode = modePicker
 		return m, nil
-	case "R":
+	case "r":
 		m.filter.Reverse = !m.filter.Reverse
 		// The same tasks the other way up: the cursor keeps its task.
 		return m, m.reloadCmd()

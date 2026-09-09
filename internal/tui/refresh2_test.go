@@ -23,7 +23,7 @@ func TestReloadKeepsTheCursorOnTheSameTask(t *testing.T) {
 	if err := s.Delete(m.tasks[0].ID); err != nil {
 		t.Fatal(err)
 	}
-	m = press(t, m, "r")
+	m = press(t, m, "R")
 
 	got, ok := m.current()
 	if !ok || got.Title != "second" {

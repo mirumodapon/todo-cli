@@ -35,7 +35,7 @@ func TestIDsAreAligned(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	m = press(t, m, "r")
+	m = press(t, m, "R")
 
 	var titleAt []int
 	for _, ti := range m.tasks {

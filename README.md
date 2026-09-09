@@ -1,7 +1,8 @@
 # task
 
-A local task list with a command line and a terminal UI. Everything stays on
-your machine in a SQLite file under `~/.todo`; nothing is sent anywhere.
+A local task list with three ways in: a command line, a terminal UI, and an MCP
+server so an assistant can work with the same tasks. Everything stays on your
+machine in a SQLite file under `~/.todo`; nothing is sent anywhere.
 
 ```
 $ task add "buy milk" -t shopping -d "today 17:00" --pri high
@@ -17,6 +18,11 @@ $ task ls
 Tasks with no project are the default view. Tasks that belong to a project are
 one `-p` away, which keeps the everyday list about what is not tied to a
 directory.
+
+```
+$ task tui            # the same tasks, to browse and edit
+$ task mcp            # the same tasks, over the Model Context Protocol
+```
 
 ## Install
 
@@ -187,28 +193,11 @@ task tui -t urgent -d week     # tagged urgent and due within the week
 task tui --all-projects -a     # everything, done ones included
 ```
 
-The list keeps up with the file underneath it. Every couple of seconds the
-interface asks SQLite one question — `PRAGMA data_version`, a single integer that
-moves only when *another* connection has committed — and rereads the tasks only
-when the answer changes. A window running `task add`, or an MCP client writing
-through the server, shows up on its own. `R` rereads immediately if you would
-rather not wait.
+`esc` returns to whatever those flags asked for rather than to a built-in
+default: what you typed to open the interface is this session's default. `-c` is
+the one flag `ls` has that `tui` does not — the interface always colours.
 
-`ctrl+z` hands the terminal back to the shell, as it does in any other
-program — raw mode swallows the signal the terminal would have sent, so the key
-is answered by the interface instead. It works from anywhere, and suspending is
-not cancelling: a half-typed form is still there on `fg`. Coming back rereads
-the database, because going to a shell to add something is exactly what people
-suspend for.
-
-Nothing moves while a form, a search, or a confirmation is open: the list must
-not shift between the key that chose a task and the key that acts on it. A
-reload keeps the cursor on its task rather than its row, so a task added above
-the cursor does not quietly change what `space` is about to complete.
-
-`esc` returns to whatever those flags asked for, not to the built-in default:
-what you typed to open the interface is this session's default. `-c` is the one
-flag `ls` has that `tui` does not — the interface always colours.
+### Keys
 
 | Key | Action |
 |---|---|
@@ -237,58 +226,58 @@ flag `ls` has that `tui` does not — the interface always colours.
 | `q` | Quit (asks first) |
 | `ctrl+c` / `ctrl+d` | Quit (press twice) |
 
-`?` lists every key. On a terminal too short to hold them all it scrolls with
-`j`/`k` and says so, rather than quietly dropping the row that tells you how to
-leave.
+`?` shows that table without leaving the list. On a terminal too short to hold
+it all it scrolls with `j`/`k` and says so, rather than quietly dropping the row
+that tells you how to leave.
 
-Completing, deleting and leaving all ask before they happen, and only `y`
-accepts, so a mistyped key cannot confirm. `q` is the deliberate way out and it
-asks. `ctrl+c` and `ctrl+d` are reflexes, and meet a warning instead of a
-question: the first press says what a second one does, the second one goes, and
-anything in between puts it back. `ctrl+c` works from anywhere, while `ctrl+d`
-is a text key wherever text is being typed, as it is in a shell. Either way the
-screen you were on stays put, so cancelling leaves you in your half-typed form
-rather than somewhere else. A delete can still be taken back
-with `u` for as long as the TUI is open.
+`ctrl+n` and `ctrl+p` move everywhere, including the places where `j` and `k`
+are text: while searching they walk the results without leaving the field, and
+in the form they step between fields.
 
 Every row leads with the task's id, which is how every other way in addresses
-it: `task done 3`, `task details 3`, the MCP tools — and, inside the interface,
-`12` then `enter` to put the cursor on task 12. A number before `j` or `k` moves
-that many rows, as in vi; anything else discards it. Lists are in id order by
-default — the order they were added, and the one you can predict from the
-numbers in front of you. `s` opens a menu of the three orderings and `r` turns
-whichever one is in force upside down; the header says which is which. There is
-no ordering by creation time: ids ascend with it, so it would be a second name
-for the same list.
+it — `task done 3`, `task details 3`, the MCP tools — and, inside the interface,
+`12` then `enter` puts the cursor on task 12. A number before `j` or `k` moves
+that many rows, as in vi; any other key discards it.
 
-On a terminal with room to spare, the task under the cursor is detailed in a
-pane that follows the cursor as it moves:
+### The detail pane
+
+On a terminal with room to spare, the task under the cursor is detailed beside
+the list, and the pane follows the cursor as it moves:
 
 ```
-3 tasks · uncategorized
+3 tasks · uncategorized · id ↑
 
-▶ 1 [ ] !!! 8h first @urgent │ #1  first
-  2 [ ] second               │
-  3 [ ] third                │ status    open
-                             │ due       2026-08-29  (8h)
-                             │ priority  !!! high
-                             │ tags      @urgent
-                             │
-                             │ semi-skimmed, two litres, from the corner
-                             │ shop before it shuts
+▶ 1 [ ] !!! 8h first @urgent             │ #1  first
+  2 [ ] second                           │
+  3 [ ] third                            │ status    open
+                                         │ due       2026-08-29  (8h)
+                                         │ priority  !!! high
+                                         │ tags      @urgent
+                                         │ created   2026-08-29 15:00
+                                         │
+                                         │ semi-skimmed, two litres, from the
+                                         │ corner shop before it shuts
+
+a add · e edit · space done · d delete · / search · P/T filter · ? help · q quit
 ```
 
-Where the pane goes depends on the shape of the terminal: beside the list from
-100 columns, underneath it from 30 rows, and nowhere at all below both — task
-lines are short, so width is the room worth using first. The pane takes the
-larger share of the split, around three fifths: a task line is a marker, a
-status, a date and a title, while the pane holds prose. `v` hides it and gives
-the room back. A description too long for the pane is cut with a marker rather
-than run off the edge.
+Where it goes depends on the shape of the terminal: beside the list from 100
+columns, underneath it from 30 rows, and nowhere at all below both — task lines
+are short, so width is the room worth using first. The pane takes the larger
+share of the split, around three fifths: a task line is a marker, a status, a
+date and a title, while the pane holds prose. `v` hides it and gives the room
+back. A description too long for the pane is cut with a marker rather than run
+off the edge.
 
-`enter` opens the task under the cursor in full, the same fields `task details`
-prints, which is how to read a description the pane had to cut. Any key but `E`
-closes it again.
+`enter` opens the same fields full screen, which is how to read a description
+the pane had to cut. Any key but `E` closes it again.
+
+### Adding and editing
+
+`a` and `e` open a form over the five short fields — title, project, tags, due
+and priority. `tab` and `shift+tab` move between them, `ctrl+r` fills in the
+current directory's project, `enter` saves and `esc` cancels. The form leaves
+the description alone.
 
 `E` hands the whole task to `$EDITOR`, from the list or from the detail view:
 the interface steps aside while the editor owns the terminal and comes back when
@@ -307,29 +296,71 @@ form DS-82, two photos
 ```
 
 Because the description lives below the blank line, it can contain anything at
-all — including lines that look like fields, or start with `#`. A file that
-will not parse is not thrown away: the error says where the text was left.
+all — including lines that look like fields, or start with `#`. A file that will
+not parse is not thrown away: the error says where the text was left.
 
-Lowercase `e` still opens the form over the five short fields, and the form
-still leaves the description alone.
+### Filtering and order
 
-`ctrl+n` and `ctrl+p` move everywhere, including the places where `j` and `k`
-are text: while searching they walk the results without leaving the field, and
-in the form they step between fields.
-
-In the add and edit form, `tab` and `shift+tab` also move between fields,
-`ctrl+r` fills in the current directory's project, `enter` saves and `esc`
-cancels. In the project and tag menus, `j` and `k` move, `enter` selects and
-`esc` closes.
-
-Both menus open with an entry that clears the filter, followed by the tasks
+`P` and `T` open menus of the projects and tags in use, `P` with the open count
+of each. Both start with an entry that clears the filter, followed by the tasks
 that have no value at all — `(uncategorized)` and `(untagged)`. Neither can be
 named by a project path or a tag, and uncategorized is offered even when it is
 empty, since that is where the list starts.
 
-The header names what you are looking at (`uncategorized`, a project, or
-`all projects`, plus any tag), so the current filter is never invisible state.
-`P` lists each project with how much is open in it.
+`s` opens the same kind of menu for the order:
+
+```
+Sort by
+
+▶ id  current
+  due date
+  priority
+```
+
+Lists are in id order by default — the order they were added, and the one you
+can predict from the numbers in front of you. `r` turns whichever order is in
+force upside down, tie-breakers included. There is no ordering by creation time:
+ids ascend with it, so it would be a second name for the same list.
+
+The header carries all of it — how many tasks, what you are looking at
+(`uncategorized`, a project, or `all projects`), any tag, any search, and the
+order with the direction it points — so none of it is invisible state.
+
+### Keeping up with the file
+
+The list keeps up with the database underneath it. Every couple of seconds the
+interface asks SQLite one question — `PRAGMA data_version`, a single integer
+that moves only when *another* connection has committed — and rereads the tasks
+only when the answer changes. A window running `task add`, or an MCP client
+writing through the server, shows up on its own. `R` rereads immediately if you
+would rather not wait.
+
+Nothing moves while a form, a search, or a confirmation is open: the list must
+not shift between the key that chose a task and the key that acts on it. A
+reload keeps the cursor on its task rather than its row, so a task appearing
+above the cursor does not quietly change what `space` is about to complete.
+
+`ctrl+z` hands the terminal back to the shell, as it does in any other program —
+raw mode swallows the signal the terminal would have sent, so the key is
+answered by the interface instead. It works from anywhere, and suspending is not
+cancelling: a half-typed form is still there on `fg`. Coming back rereads the
+database, because going to a shell to add something is exactly what people
+suspend for.
+
+### Leaving, and taking things back
+
+Completing, deleting and `q` all ask before they happen, and only `y` accepts,
+so a mistyped key cannot confirm. The question is asked at the bottom of
+whatever screen you were on, so cancelling leaves you in your half-typed form
+rather than somewhere else.
+
+`ctrl+c` and `ctrl+d` are reflexes rather than decisions, and meet a warning
+instead of a question: the first press says what a second one does, the second
+one goes, and any key in between puts it back. `ctrl+c` works from anywhere,
+while `ctrl+d` is a text key wherever text is being typed, as it is in a shell.
+
+A delete can still be taken back with `u` for as long as the interface is open.
+It restores the task under its original id, tags and all.
 
 ## MCP
 
@@ -454,6 +485,10 @@ TODO_DB=/tmp/scratch.db task ls # or for the whole session
 
 `--db` wins over `TODO_DB`. Both are ordinary SQLite files, so `sqlite3` reads
 them and copying one is a backup.
+
+A database written by an older build is brought forward when it is opened: a
+column added since is added on the way in, so upgrading is nothing more than
+replacing the binary.
 
 ## Development
 

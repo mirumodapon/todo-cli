@@ -24,7 +24,7 @@ func TestHintSitsOnTheLastLine(t *testing.T) {
 	}{
 		{"list", nil, "q quit"},
 		{"search", []string{"/"}, "search titles"},
-		{"help", []string{"?"}, "go back"},
+		{"help", []string{"?"}, "back"},
 		{"form", []string{"a"}, "esc cancel"},
 		{"picker", []string{"P"}, "esc cancel"},
 		{"confirm", []string{" "}, "done? (y/n)"},

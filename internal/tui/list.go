@@ -236,17 +236,39 @@ var helpRows = [][2]string{
 	{"q / ctrl+c / ctrl+d", "Quit (asks first)"},
 }
 
+// helpFit is how many key rows the screen has room for: the frame less the
+// title, the blank line under it, and the blank line above the hint.
+func (m Model) helpFit() int { return max(1, m.height-4) }
+
+// helpWindow is the slice of the table on screen, and whether there is more of
+// it. The list of keys has outgrown a short terminal, and a help that quietly
+// drops the row telling you how to leave is worse than no help.
+func (m Model) helpWindow() ([][2]string, bool) {
+	fit := m.helpFit()
+	if fit >= len(helpRows) {
+		return helpRows, false
+	}
+	start := min(m.helpOffset, len(helpRows)-fit)
+	return helpRows[start : start+fit], true
+}
+
 func (m Model) viewHelp() string {
-	var b strings.Builder
+	rows, scrolls := m.helpWindow()
 	// As in the form, the key column is derived rather than hard-coded, so a
-	// longer binding cannot run into its description.
+	// longer binding cannot run into its description. It comes from the whole
+	// table, not the visible part, so the column does not shift as it scrolls.
 	var w int
 	for _, r := range helpRows {
 		w = max(w, lipgloss.Width(r[0]))
 	}
+	var b strings.Builder
 	b.WriteString("Keys\n\n")
-	for _, r := range helpRows {
+	for _, r := range rows {
 		b.WriteString("  " + pad(r[0], w+2) + r[1] + "\n")
 	}
-	return m.screen(b.String(), m.hint(styleHint.Render("Press any key to go back")))
+	hint := "Press any key to go back"
+	if scrolls {
+		hint = "j/k for more · any other key goes back"
+	}
+	return m.screen(b.String(), m.hint(styleHint.Render(hint)))
 }

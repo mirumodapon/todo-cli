@@ -41,6 +41,8 @@ type Model struct {
 	picker pickerState
 	// dates swaps the due column from time remaining to calendar dates.
 	dates bool
+	// helpOffset scrolls the key table, which no longer fits a short terminal.
+	helpOffset int
 	// paneOff hides the detail pane. The zero value shows it wherever the
 	// terminal has room, so the default needs no wiring.
 	paneOff bool
@@ -267,8 +269,7 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case modeForm:
 			return m.updateForm(msg)
 		case modeHelp:
-			m.mode = modeList
-			return m, nil
+			return m.updateHelp(msg)
 		case modeConfirm:
 			return m.updateConfirm(msg)
 		case modeDetail:
@@ -320,7 +321,7 @@ func (m Model) updateList(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	case "?":
-		m.mode = modeHelp
+		m.mode, m.helpOffset = modeHelp, 0
 		return m, nil
 	case "d":
 		if t, ok := m.current(); ok {
@@ -404,6 +405,27 @@ func (m Model) updateSearch(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	m.filter.Search = m.search.Value()
 	m.cursor = 0
 	return m, m.loadCmd()
+}
+
+// updateHelp scrolls the key table. Every key that is not a way of moving still
+// closes it, so the help stays something you glance at rather than a place.
+func (m Model) updateHelp(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	fit := m.helpFit()
+	switch msg.String() {
+	case "j", "down", "ctrl+n":
+		m.helpOffset++
+	case "k", "up", "ctrl+p":
+		m.helpOffset--
+	case "g":
+		m.helpOffset = 0
+	case "G":
+		m.helpOffset = len(helpRows)
+	default:
+		m.mode = modeList
+		return m, nil
+	}
+	m.helpOffset = max(0, min(m.helpOffset, len(helpRows)-fit))
+	return m, nil
 }
 
 func sortLabel(s task.SortBy) string {

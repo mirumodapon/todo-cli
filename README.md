@@ -234,6 +234,10 @@ flag `ls` has that `tui` does not — the interface always colours.
 | `?` | This help |
 | `q` / `ctrl+c` / `ctrl+d` | Quit (asks first) |
 
+`?` lists every key. On a terminal too short to hold them all it scrolls with
+`j`/`k` and says so, rather than quietly dropping the row that tells you how to
+leave.
+
 Completing, deleting and leaving all ask before they happen, and only `y`
 accepts, so a mistyped key cannot confirm. `q`, `ctrl+c` and `ctrl+d` are all
 ways out and all ask; `ctrl+c` asks from anywhere, while `ctrl+d` is a text key

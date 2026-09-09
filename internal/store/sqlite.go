@@ -305,6 +305,8 @@ func (s *sqlStore) List(f task.Filter, now time.Time) ([]task.Task, error) {
 		order = `priority DESC, (due IS NULL), due ASC, id ASC`
 	case task.SortCreated:
 		order = `created_at ASC, id ASC`
+	case task.SortID:
+		order = `id ASC`
 	}
 
 	q := `SELECT ` + taskCols + ` FROM tasks`

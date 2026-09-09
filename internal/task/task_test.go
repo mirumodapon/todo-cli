@@ -140,3 +140,16 @@ func TestParseDueFilter(t *testing.T) {
 		t.Error("an unreadable date should be an error")
 	}
 }
+
+func TestParseSortByID(t *testing.T) {
+	got, err := ParseSortBy("id")
+	if err != nil || got != SortID {
+		t.Errorf("ParseSortBy(\"id\") = %v, %v", got, err)
+	}
+	// The words the CLI documents are the words it takes.
+	for _, s := range []string{"due", "pri", "created", "id"} {
+		if _, err := ParseSortBy(s); err != nil {
+			t.Errorf("ParseSortBy(%q): %v", s, err)
+		}
+	}
+}

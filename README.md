@@ -105,7 +105,7 @@ task ls -a                  # include done tasks
 task ls --done              # only done tasks
 task ls -d today            # due today; also week, overdue, or a date
 task ls -t urgent -t home   # tasks carrying every one of these tags
-task ls -s pri              # sort by priority; also due (default) or created
+task ls -s pri              # sort by priority; also due (default), created or id
 task ls -c | less -R        # force colour through a pipe
 task ls --dates             # calendar dates instead of time remaining
 ```
@@ -240,15 +240,19 @@ bottom of whatever screen you were on, so cancelling puts you back in a
 half-typed form rather than somewhere else. A delete can still be taken back
 with `u` for as long as the TUI is open.
 
+Every row leads with the task's id, which is how every other way in addresses
+it: `task done 3`, `task details 3`, the MCP tools. `s` cycles the order through
+due date, priority, created and id.
+
 On a terminal with room to spare, the task under the cursor is detailed in a
 pane that follows the cursor as it moves:
 
 ```
 3 tasks · uncategorized
 
-▶ [ ] !!! 8h first @urgent   │ #1  first
-  [ ] second                 │
-  [ ] third                  │ status    open
+▶ 1 [ ] !!! 8h first @urgent │ #1  first
+  2 [ ] second               │
+  3 [ ] third                │ status    open
                              │ due       2026-08-29  (8h)
                              │ priority  !!! high
                              │ tags      @urgent

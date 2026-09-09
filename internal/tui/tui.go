@@ -359,7 +359,7 @@ func (m Model) updateList(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.status = "reloaded"
 		return m, m.reloadCmd()
 	case "s":
-		m.filter.Sort = (m.filter.Sort + 1) % 3
+		m.filter.Sort = (m.filter.Sort + 1) % task.SortBy(task.SortCount)
 		m.status = "sort: " + sortLabel(m.filter.Sort)
 		// The same tasks in a different order, so the cursor keeps its task.
 		return m, m.reloadCmd()
@@ -409,6 +409,8 @@ func sortLabel(s task.SortBy) string {
 		return "priority"
 	case task.SortCreated:
 		return "created"
+	case task.SortID:
+		return "id"
 	}
 	return "due date"
 }

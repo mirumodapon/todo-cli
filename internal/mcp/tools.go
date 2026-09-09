@@ -61,7 +61,7 @@ func (s *Server) tools() []tool {
 				"search":       prop("string", "Only tasks whose title contains this text."),
 				"include_done": prop("boolean", "Include tasks that are done. False by default."),
 				"only_done":    prop("boolean", "Only tasks that are done."),
-				"sort":         prop("string", "due (the default), pri, or created."),
+				"sort":         prop("string", "due (the default), pri, created, or id."),
 			}),
 			annotations: map[string]any{"readOnlyHint": true},
 			run:         (*Server).listTasks,

@@ -123,6 +123,10 @@ func TestSortCycles(t *testing.T) {
 		t.Errorf("pressing s again = %v, want created", m.filter.Sort)
 	}
 	m = press(t, m, "s")
+	if m.filter.Sort != task.SortID {
+		t.Errorf("pressing s again = %v, want id", m.filter.Sort)
+	}
+	m = press(t, m, "s")
 	if m.filter.Sort != task.SortDue {
 		t.Errorf("cycling back = %v, want due", m.filter.Sort)
 	}

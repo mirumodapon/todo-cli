@@ -31,13 +31,25 @@ func pad(s string, w int) string {
 	return s
 }
 
-// taskLine builds one row's text, without the cursor marker.
+// idWidth is the width of the id column: the widest id in the whole list, not
+// just the visible part, so the column does not shift as you scroll.
+func (m Model) idWidth() int {
+	var w int
+	for _, t := range m.tasks {
+		w = max(w, len(itoa(t.ID)))
+	}
+	return w
+}
+
+// taskLine builds one row's text, without the cursor marker. The id leads it:
+// it is what every other way into a task is addressed by, from task done 3 to
+// the MCP tools.
 func (m Model) taskLine(t task.Task) string {
 	status := "[ ]"
 	if t.Done() {
 		status = "[x]"
 	}
-	parts := []string{status}
+	parts := []string{pad(itoa(t.ID), m.idWidth()), status}
 	if p := t.Priority.Marks(); p != "" {
 		parts = append(parts, p)
 	}

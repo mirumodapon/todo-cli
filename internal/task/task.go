@@ -117,7 +117,11 @@ const (
 	SortDue SortBy = iota
 	SortPriority
 	SortCreated
+	SortID
 )
+
+// SortCount is how many orderings there are, for anything cycling through them.
+const SortCount = int(SortID) + 1
 
 // ParseSortBy parses the value of -s.
 func ParseSortBy(s string) (SortBy, error) {
@@ -128,8 +132,10 @@ func ParseSortBy(s string) (SortBy, error) {
 		return SortPriority, nil
 	case "created":
 		return SortCreated, nil
+	case "id":
+		return SortID, nil
 	}
-	return SortDue, fmt.Errorf("unknown sort %q (use due, pri, created)", s)
+	return SortDue, fmt.Errorf("unknown sort %q (use due, pri, created, id)", s)
 }
 
 // DueRange narrows a query by due date.

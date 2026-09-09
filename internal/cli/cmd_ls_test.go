@@ -196,3 +196,18 @@ func TestLsShowsRemainingTimeUnlessDatesIsGiven(t *testing.T) {
 		t.Errorf("--dates should show the date: %q", out.String())
 	}
 }
+
+func TestLsSortsByID(t *testing.T) {
+	app, out, errBuf := newApp(t)
+	app.Run([]string{"add", "later", "-d", "2026-08-20"})
+	app.Run([]string{"add", "sooner", "-d", "2026-08-19"})
+	out.Reset()
+
+	if code := app.Run([]string{"ls", "-s", "id"}); code != 0 {
+		t.Fatalf("exit code = %d: %s", code, errBuf.String())
+	}
+	lines := strings.Split(strings.TrimSpace(out.String()), "\n")
+	if len(lines) != 2 || !strings.Contains(lines[0], "later") {
+		t.Errorf("-s id should list them in the order they were added:\n%s", out.String())
+	}
+}

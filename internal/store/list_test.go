@@ -215,3 +215,20 @@ func TestDueFiltersIgnoreTimeOfDay(t *testing.T) {
 	}
 	assertTitles(t, got, "timed week edge")
 }
+
+// Sorting by id is sorting by the order they were added, which is the one
+// ordering a person can predict from the numbers in front of them.
+func TestListSortByID(t *testing.T) {
+	s := newStore(t)
+	seed(t, s)
+	got, err := s.List(task.Filter{Sort: task.SortID}, ref())
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertTitles(t, got, "overdue one", "today one", "next week one", "undated one", "work one")
+	for i := 1; i < len(got); i++ {
+		if got[i].ID <= got[i-1].ID {
+			t.Fatalf("ids out of order: %v", titles(got))
+		}
+	}
+}

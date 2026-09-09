@@ -164,7 +164,7 @@ func TestListingShowsPriorityAsMarks(t *testing.T) {
 	app.Run([]string{"add", "big", "--pri", "!!!"})
 	app.Run([]string{"add", "small", "--pri", "!"})
 	out.Reset()
-	app.Run([]string{"ls", "-s", "created"})
+	app.Run([]string{"ls"})
 	lines := strings.Split(strings.TrimRight(out.String(), "\n"), "\n")
 	if !strings.Contains(lines[0], "!!!") {
 		t.Errorf("high should read as three marks: %q", lines[0])

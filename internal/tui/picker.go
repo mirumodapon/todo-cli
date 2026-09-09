@@ -66,7 +66,7 @@ func projectItems(ps []store.ProjectCount) []pickerItem {
 // so the menu and -s cannot come to mean different things.
 func sortItems(current task.Filter) []pickerItem {
 	items := make([]pickerItem, 0, task.SortCount)
-	for _, s := range []task.SortBy{task.SortID, task.SortDue, task.SortPriority, task.SortCreated} {
+	for _, s := range []task.SortBy{task.SortID, task.SortDue, task.SortPriority} {
 		it := pickerItem{label: sortLabel(s), value: sortWord(s)}
 		if s == current.Sort {
 			it.note = "current"

@@ -354,8 +354,6 @@ func orderBy(s task.SortBy, reverse bool) string {
 		terms = []orderTerm{{"(due IS NULL)", false}, {"due", false}, {"priority", true}, {"id", false}}
 	case task.SortPriority:
 		terms = []orderTerm{{"priority", true}, {"(due IS NULL)", false}, {"due", false}, {"id", false}}
-	case task.SortCreated:
-		terms = []orderTerm{{"created_at", false}, {"id", false}}
 	default:
 		terms = []orderTerm{{"id", false}}
 	}

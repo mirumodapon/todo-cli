@@ -105,7 +105,7 @@ task ls -a                  # include done tasks
 task ls --done              # only done tasks
 task ls -d today            # due today; also week, overdue, or a date
 task ls -t urgent -t home   # tasks carrying every one of these tags
-task ls -s pri              # sort by priority; also id (default), due or created
+task ls -s pri              # sort by priority; also id (default) or due
 task ls -r                  # reverse whatever order is in force
 task ls -c | less -R        # force colour through a pipe
 task ls --dates             # calendar dates instead of time remaining
@@ -252,8 +252,10 @@ with `u` for as long as the TUI is open.
 Every row leads with the task's id, which is how every other way in addresses
 it: `task done 3`, `task details 3`, the MCP tools. Lists are in id order by
 default — the order they were added, and the one you can predict from the
-numbers in front of you. `s` opens a menu of the four orderings and `r` turns
-whichever one is in force upside down; the header says which is which.
+numbers in front of you. `s` opens a menu of the three orderings and `r` turns
+whichever one is in force upside down; the header says which is which. There is
+no ordering by creation time: ids ascend with it, so it would be a second name
+for the same list.
 
 On a terminal with room to spare, the task under the cursor is detailed in a
 pane that follows the cursor as it moves:

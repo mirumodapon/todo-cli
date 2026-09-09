@@ -447,8 +447,6 @@ func sortLabel(s task.SortBy) string {
 		return "due date"
 	case task.SortPriority:
 		return "priority"
-	case task.SortCreated:
-		return "created"
 	}
 	return "id"
 }
@@ -460,8 +458,6 @@ func sortWord(s task.SortBy) string {
 		return "due"
 	case task.SortPriority:
 		return "pri"
-	case task.SortCreated:
-		return "created"
 	}
 	return "id"
 }

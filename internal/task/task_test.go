@@ -96,7 +96,7 @@ func TestNormalizeTags(t *testing.T) {
 }
 
 func TestParseSortBy(t *testing.T) {
-	for in, want := range map[string]SortBy{"due": SortDue, "pri": SortPriority, "created": SortCreated} {
+	for in, want := range map[string]SortBy{"id": SortID, "due": SortDue, "pri": SortPriority} {
 		got, err := ParseSortBy(in)
 		if err != nil || got != want {
 			t.Errorf("ParseSortBy(%q) = %v, %v", in, got, err)
@@ -147,7 +147,7 @@ func TestParseSortByID(t *testing.T) {
 		t.Errorf("ParseSortBy(\"id\") = %v, %v", got, err)
 	}
 	// The words the CLI documents are the words it takes.
-	for _, s := range []string{"due", "pri", "created", "id"} {
+	for _, s := range []string{"due", "pri", "id"} {
 		if _, err := ParseSortBy(s); err != nil {
 			t.Errorf("ParseSortBy(%q): %v", s, err)
 		}

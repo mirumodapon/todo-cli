@@ -14,7 +14,7 @@ func TestSOpensASortMenu(t *testing.T) {
 		t.Fatalf("s should open the menu, mode = %v", m.mode)
 	}
 	v := m.View()
-	for _, want := range []string{"id", "due date", "priority", "created"} {
+	for _, want := range []string{"id", "due date", "priority"} {
 		if !strings.Contains(v, want) {
 			t.Errorf("the menu is missing %q:\n%s", want, v)
 		}

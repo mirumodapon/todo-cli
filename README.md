@@ -405,7 +405,7 @@ For a client configured by file:
 }
 ```
 
-Add `"env": {"TODO_DB": "/path/to/todo.db"}` to point one client at a different
+Add `"env": {"TASK_DB": "/path/to/task.db"}` to point one client at a different
 database — handy for trying it out without touching your real list.
 
 ### Using it
@@ -499,17 +499,19 @@ started the process on, and stdout carries JSON-RPC and nothing else.
 ## Data
 
 `~/.todo/todo.db`, a SQLite database, created on first use with mode `0700`.
-The directory keeps the older name, so a database written before the command
-was called `task` is still the one it opens. `TODO_DB` is unchanged for the same
-reason.
+The directory keeps the older name, so a database written before the command was
+called `task` is still the one it opens.
 
 ```sh
 task --db /tmp/scratch.db ls    # somewhere else, once
-TODO_DB=/tmp/scratch.db task ls # or for the whole session
+TASK_DB=/tmp/scratch.db task ls # or for the whole session
 ```
 
-`--db` wins over `TODO_DB`. Both are ordinary SQLite files, so `sqlite3` reads
-them and copying one is a backup.
+`--db` wins over `$TASK_DB`. `TODO_DB`, the variable's old name, is still read
+when `TASK_DB` is not set: a shell that still exports it would otherwise start
+pointing at a different database without saying anything, which looks exactly
+like lost data. Both are ordinary SQLite files, so `sqlite3` reads them and
+copying one is a backup.
 
 A database written by an older build is brought forward when it is opened: a
 column added since is added on the way in, so upgrading is nothing more than

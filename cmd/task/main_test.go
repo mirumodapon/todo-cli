@@ -144,3 +144,24 @@ func TestWantsVersion(t *testing.T) {
 		t.Error("after -- it is an argument, not a flag")
 	}
 }
+
+// The variable is named after the command. The old name still works, because a
+// shell that still exports it would otherwise point at a different database
+// without saying anything — which looks exactly like lost data.
+func TestEnvDBPath(t *testing.T) {
+	cases := []struct {
+		name, taskDB, todoDB, want string
+	}{
+		{"neither", "", "", ""},
+		{"the current name", "/tmp/task.db", "", "/tmp/task.db"},
+		{"the old name", "", "/tmp/todo.db", "/tmp/todo.db"},
+		{"the current name wins", "/tmp/task.db", "/tmp/todo.db", "/tmp/task.db"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := envDBPath(c.taskDB, c.todoDB); got != c.want {
+				t.Errorf("= %q, want %q", got, c.want)
+			}
+		})
+	}
+}

@@ -47,7 +47,7 @@ func run() int {
 		fmt.Fprintf(os.Stderr, "error: cannot find the home directory: %s\n", err)
 		return 1
 	}
-	dbPath := resolveDBPath(os.Getenv("TODO_DB"), dbFlag, home)
+	dbPath := resolveDBPath(envDBPath(os.Getenv("TASK_DB"), os.Getenv("TODO_DB")), dbFlag, home)
 	if err := os.MkdirAll(filepath.Dir(dbPath), 0o700); err != nil {
 		fmt.Fprintf(os.Stderr, "error: cannot create the data directory %s: %s\n", filepath.Dir(dbPath), err)
 		return 1
@@ -82,7 +82,18 @@ func run() int {
 	return app.Run(args)
 }
 
-// resolveDBPath picks the database location: --db beats TODO_DB, and ~/.todo/todo.db is the fallback.
+// envDBPath reads the database location from the environment. TASK_DB is the
+// name; TODO_DB is what it was called before the command was, and is still
+// honoured — a shell that still exports it would otherwise start pointing at a
+// different database without saying anything, which looks like lost data.
+func envDBPath(taskDB, todoDB string) string {
+	if taskDB != "" {
+		return taskDB
+	}
+	return todoDB
+}
+
+// resolveDBPath picks the database location: --db beats the environment, and ~/.todo/todo.db is the fallback.
 func resolveDBPath(envDB, flagDB, home string) string {
 	if flagDB != "" {
 		return flagDB

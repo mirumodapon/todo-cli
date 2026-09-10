@@ -41,27 +41,6 @@ func TestDescriptionRoundTrips(t *testing.T) {
 	}
 }
 
-// Undo reinserts the whole task, so it has to carry the description too.
-func TestRestoreKeepsTheDescription(t *testing.T) {
-	s := newStore(t)
-	in := sample()
-	in.Desc = "worth keeping"
-	got, _ := s.Add(in)
-	if err := s.Delete(got.ID); err != nil {
-		t.Fatal(err)
-	}
-	if err := s.Restore(got); err != nil {
-		t.Fatal(err)
-	}
-	back, err := s.Get(got.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if back.Desc != "worth keeping" {
-		t.Errorf("desc = %q, want it restored", back.Desc)
-	}
-}
-
 // A database written before the column existed must keep working: the schema is
 // created with IF NOT EXISTS, which does nothing to a table that already exists.
 func TestOpenAddsTheDescriptionColumnToAnOlderDatabase(t *testing.T) {

@@ -81,25 +81,6 @@ func TestDeleteRemovesTagLinks(t *testing.T) {
 	}
 }
 
-func TestRestoreReusesOriginalID(t *testing.T) {
-	s := newStore(t)
-	got, _ := s.Add(sample())
-	original, _ := s.Get(got.ID)
-	if err := s.Delete(got.ID); err != nil {
-		t.Fatal(err)
-	}
-	if err := s.Restore(original); err != nil {
-		t.Fatalf("Restore: %v", err)
-	}
-	back, err := s.Get(original.ID)
-	if err != nil {
-		t.Fatalf("the original id should fetch it again after restore: %v", err)
-	}
-	if back.Title != original.Title || len(back.Tags) != len(original.Tags) {
-		t.Errorf("restored content does not match: %+v", back)
-	}
-}
-
 func TestTagsListsOnlyReferenced(t *testing.T) {
 	s := newStore(t)
 	seed(t, s)

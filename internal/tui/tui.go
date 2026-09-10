@@ -380,6 +380,11 @@ func (m Model) updateList(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m.askConfirm(`Delete "`+t.Title+`"? (y/n)`, m.deleteCmd(t)), nil
 		}
 	case "u":
+		// On a deleted task, u is about that one: opened on the bin there is no
+		// "last delete" of this session to undo.
+		if t, ok := m.current(); ok && t.Deleted() {
+			return m, m.restoreCmd(t)
+		}
 		if m.undo == nil {
 			m.status = "nothing to undo"
 			return m, nil

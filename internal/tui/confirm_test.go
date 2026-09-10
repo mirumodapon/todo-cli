@@ -1,11 +1,8 @@
 package tui
 
 import (
-	"errors"
 	"strings"
 	"testing"
-
-	"todo.mirumo.net/internal/store"
 )
 
 func TestSpaceAsksBeforeMarkingDone(t *testing.T) {
@@ -86,8 +83,8 @@ func TestDeleteAsksBeforeDeleting(t *testing.T) {
 	}
 
 	m = press(t, m, "y")
-	if _, err := s.Get(victim.ID); !errors.Is(err, store.ErrNotFound) {
-		t.Error("y should actually delete it")
+	if got, err := s.Get(victim.ID); err != nil || !got.Deleted() {
+		t.Errorf("y should actually delete it, got %+v, %v", got, err)
 	}
 	if !strings.Contains(m.View(), "u to undo") {
 		t.Errorf("undo should still be offered after a delete: %q", m.View())

@@ -25,6 +25,11 @@ func (m Model) detailRows(t task.Task) [][2]string {
 		status = "done " + t.DoneAt.Format(stampLayout)
 	}
 	rows := [][2]string{{"status", status}}
+	// Its own row rather than a clause on the status: being deleted is a
+	// separate fact from being finished, and a task can be both.
+	if t.Deleted() {
+		rows = append(rows, [2]string{"deleted", t.DeletedAt.Format(stampLayout)})
+	}
 	if t.Due != nil {
 		layout := "2006-01-02"
 		if t.DueHasTime {

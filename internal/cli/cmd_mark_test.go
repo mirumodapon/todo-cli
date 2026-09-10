@@ -65,8 +65,10 @@ func TestRm(t *testing.T) {
 	if !strings.Contains(out.String(), "deleted #1: buy milk") {
 		t.Errorf("stdout = %q", out.String())
 	}
-	if _, err := app.Store.Get(1); err == nil {
-		t.Error("it should be gone")
+	// Gone from the listings, but still there to be brought back; the soft
+	// delete has its own tests.
+	if got, err := app.Store.Get(1); err != nil || !got.Deleted() {
+		t.Errorf("it should be marked deleted, got %+v, %v", got, err)
 	}
 }
 

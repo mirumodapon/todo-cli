@@ -78,13 +78,19 @@ type Task struct {
 	DueHasTime bool
 	Priority   Priority
 	DoneAt     *time.Time
-	Tags       []string
-	CreatedAt  time.Time
-	UpdatedAt  time.Time
+	// DeletedAt marks a task removed from every list without being removed from
+	// the database. rm sets it; rm -f is what actually destroys a row.
+	DeletedAt *time.Time
+	Tags      []string
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 // Done reports whether the task is complete.
 func (t Task) Done() bool { return t.DoneAt != nil }
+
+// Deleted reports whether the task has been soft deleted.
+func (t Task) Deleted() bool { return t.DeletedAt != nil }
 
 // ValidateTitle trims surrounding whitespace and rejects an empty result.
 func ValidateTitle(s string) (string, error) {
@@ -190,7 +196,11 @@ type Filter struct {
 	Search      string
 	IncludeDone bool
 	OnlyDone    bool
-	Sort        SortBy
+	// A soft-deleted task is out of every list unless one of these says
+	// otherwise, which is what makes deleting recoverable rather than final.
+	IncludeDeleted bool
+	OnlyDeleted    bool
+	Sort           SortBy
 	// Reverse flips whatever Sort chose, every term of it.
 	Reverse bool
 }

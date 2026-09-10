@@ -229,7 +229,7 @@ var helpRows = [][2]string{
 	{"a / e", "Add / edit"},
 	{"E", "Edit the whole task in $EDITOR"},
 	{"d", "Delete (asks first)"},
-	{"u", "Undo the last delete"},
+	{"u", "Undo the last delete, or bring back the one under the cursor"},
 	{"/", "Search titles"},
 	{"P / T", "Filter by project / tag"},
 	{"A", "Show or hide done tasks"},

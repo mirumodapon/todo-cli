@@ -93,25 +93,22 @@ func (m Model) toggleCmd(t task.Task) tea.Cmd {
 	}
 }
 
-// deleteCmd fetches the whole task before deleting it: undo needs the tags too.
+// deleteCmd puts a task aside. The row stays, so undo is a mark to clear rather
+// than a task to rebuild — and the way back outlives this session.
 func (m Model) deleteCmd(t task.Task) tea.Cmd {
-	s := m.store
+	s, now := m.store, m.now()
 	return func() tea.Msg {
-		full, err := s.Get(t.ID)
-		if err != nil {
+		if err := s.SetDeleted(t.ID, true, now); err != nil {
 			return errMsg{err}
 		}
-		if err := s.Delete(t.ID); err != nil {
-			return errMsg{err}
-		}
-		return deletedMsg{t: full}
+		return deletedMsg{t: t}
 	}
 }
 
 func (m Model) restoreCmd(t task.Task) tea.Cmd {
-	s := m.store
+	s, now := m.store, m.now()
 	return func() tea.Msg {
-		if err := s.Restore(t); err != nil {
+		if err := s.SetDeleted(t.ID, false, now); err != nil {
 			return errMsg{err}
 		}
 		return savedMsg{note: `restored "` + t.Title + `"`}

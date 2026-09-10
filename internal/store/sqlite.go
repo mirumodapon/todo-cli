@@ -25,10 +25,11 @@ CREATE TABLE IF NOT EXISTS tasks (
   description TEXT    NOT NULL DEFAULT '',
   project     TEXT    NOT NULL DEFAULT '',
   due         TEXT    NULL,
-  priority   INTEGER NOT NULL DEFAULT 0,
-  done_at    TEXT    NULL,
-  created_at TEXT    NOT NULL,
-  updated_at TEXT    NOT NULL
+  priority    INTEGER NOT NULL DEFAULT 0,
+  done_at     TEXT    NULL,
+  deleted_at  TEXT    NULL,
+  created_at  TEXT    NOT NULL,
+  updated_at  TEXT    NOT NULL
 );
 CREATE TABLE IF NOT EXISTS tags (
   id   INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -43,13 +44,14 @@ CREATE INDEX IF NOT EXISTS idx_tasks_done ON tasks(done_at);
 CREATE INDEX IF NOT EXISTS idx_tasks_project ON tasks(project);
 `
 
-const taskCols = `id, title, description, project, due, priority, done_at, created_at, updated_at`
+const taskCols = `id, title, description, project, due, priority, done_at, deleted_at, created_at, updated_at`
 
 // migrations bring a database created by an older build up to date. The schema
 // runs CREATE TABLE IF NOT EXISTS, which does nothing at all to a table that
 // already exists, so every column added later needs its own step here.
 var migrations = []struct{ column, ddl string }{
 	{"description", `ALTER TABLE tasks ADD COLUMN description TEXT NOT NULL DEFAULT ''`},
+	{"deleted_at", `ALTER TABLE tasks ADD COLUMN deleted_at TEXT NULL`},
 }
 
 func migrate(db *sql.DB) error {
@@ -149,10 +151,11 @@ func scanTask(sc scanner) (task.Task, error) {
 	var (
 		t                task.Task
 		due, doneAt      sql.NullString
+		delAt            sql.NullString
 		created, updated string
 		pri              int
 	)
-	if err := sc.Scan(&t.ID, &t.Title, &t.Desc, &t.Project, &due, &pri, &doneAt, &created, &updated); err != nil {
+	if err := sc.Scan(&t.ID, &t.Title, &t.Desc, &t.Project, &due, &pri, &doneAt, &delAt, &created, &updated); err != nil {
 		return task.Task{}, err
 	}
 	t.Priority = task.Priority(pri)
@@ -161,6 +164,9 @@ func scanTask(sc scanner) (task.Task, error) {
 		return task.Task{}, err
 	}
 	if t.DoneAt, err = parseNull(doneAt, time.RFC3339); err != nil {
+		return task.Task{}, err
+	}
+	if t.DeletedAt, err = parseNull(delAt, time.RFC3339); err != nil {
 		return task.Task{}, err
 	}
 	if t.CreatedAt, err = time.ParseInLocation(time.RFC3339, created, time.Local); err != nil {
@@ -253,6 +259,13 @@ func (s *sqlStore) List(f task.Filter, now time.Time) ([]task.Task, error) {
 		where = append(where, `done_at IS NOT NULL`)
 	case !f.IncludeDone:
 		where = append(where, `done_at IS NULL`)
+	}
+	// Deleted tasks are out of every list unless asked for by name.
+	switch {
+	case f.OnlyDeleted:
+		where = append(where, `deleted_at IS NOT NULL`)
+	case !f.IncludeDeleted:
+		where = append(where, `deleted_at IS NULL`)
 	}
 	if f.Project != nil {
 		where = append(where, `project = ?`)
@@ -402,6 +415,29 @@ func (s *sqlStore) Delete(id int64) error {
 	return nil
 }
 
+// SetDeleted takes a task out of the lists, or puts it back. The row stays
+// either way: Delete is the one that destroys it.
+func (s *sqlStore) SetDeleted(id int64, deleted bool, now time.Time) error {
+	var at any
+	if deleted {
+		at = now.Format(time.RFC3339)
+	}
+	res, err := s.db.Exec(
+		`UPDATE tasks SET deleted_at = ?, updated_at = ? WHERE id = ?`,
+		at, now.Format(time.RFC3339), id)
+	if err != nil {
+		return err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
 func (s *sqlStore) SetDone(id int64, done bool, now time.Time) error {
 	var doneAt any
 	if done {
@@ -423,23 +459,13 @@ func (s *sqlStore) SetDone(id int64, done bool, now time.Time) error {
 	return nil
 }
 
-// Restore reinserts under the original id. AUTOINCREMENT never reuses numbers, so that id is still free.
-func (s *sqlStore) Restore(t task.Task) error {
-	_, err := s.db.Exec(
-		`INSERT INTO tasks (id, title, description, project, due, priority, done_at, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		t.ID, t.Title, t.Desc, t.Project, dueVal(t.Due, t.DueHasTime), int(t.Priority), tsVal(t.DoneAt),
-		t.CreatedAt.Format(time.RFC3339), t.UpdatedAt.Format(time.RFC3339))
-	if err != nil {
-		return err
-	}
-	return s.setTags(t.ID, t.Tags)
-}
-
 // Tags lists only referenced tags. Orphans left behind by deletes are neither cleaned up nor shown.
 func (s *sqlStore) Tags() ([]string, error) {
 	rows, err := s.db.Query(
-		`SELECT DISTINCT g.name FROM tags g JOIN task_tags tt ON tt.tag_id = g.id ORDER BY g.name`)
+		`SELECT DISTINCT g.name FROM tags g
+		 JOIN task_tags tt ON tt.tag_id = g.id
+		 JOIN tasks ON tasks.id = tt.task_id AND tasks.deleted_at IS NULL
+		 ORDER BY g.name`)
 	if err != nil {
 		return nil, err
 	}
@@ -467,7 +493,7 @@ func (s *sqlStore) DataVersion() (int64, error) {
 func (s *sqlStore) Projects() ([]ProjectCount, error) {
 	rows, err := s.db.Query(
 		`SELECT project, SUM(CASE WHEN done_at IS NULL THEN 1 ELSE 0 END)
-		 FROM tasks GROUP BY project ORDER BY project`)
+		 FROM tasks WHERE deleted_at IS NULL GROUP BY project ORDER BY project`)
 	if err != nil {
 		return nil, err
 	}

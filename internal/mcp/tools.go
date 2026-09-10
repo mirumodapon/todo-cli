@@ -61,6 +61,7 @@ func (s *Server) tools() []tool {
 				"search":       prop("string", "Only tasks whose title contains this text."),
 				"include_done": prop("boolean", "Include tasks that are done. False by default."),
 				"only_done":    prop("boolean", "Only tasks that are done."),
+				"deleted":      prop("boolean", "Only tasks that have been deleted, the ones delete_task put aside."),
 				"sort":         prop("string", "id (the default), due, or pri."),
 				"reverse":      prop("boolean", "Reverse whatever order sort chose."),
 			}),
@@ -119,10 +120,20 @@ func (s *Server) tools() []tool {
 		},
 		{
 			name: "delete_task", title: "Delete a task",
-			description: "Delete a task. There is no undo outside the interactive interface.",
-			schema:      idSchema(),
+			description: "Put a task aside. It leaves every listing but can be restored, unless force destroys it outright.",
+			schema: object(map[string]any{
+				"id":    prop("integer", "The task's id."),
+				"force": prop("boolean", "Destroy the task instead of putting it aside. There is no way back."),
+			}, "id"),
 			annotations: map[string]any{"destructiveHint": true, "idempotentHint": true},
 			run:         (*Server).deleteTask,
+		},
+		{
+			name: "restore_task", title: "Restore a task",
+			description: "Bring back a task that was deleted without force.",
+			schema:      idSchema(),
+			annotations: map[string]any{"idempotentHint": true},
+			run:         (*Server).restoreTask,
 		},
 	}
 }
@@ -188,6 +199,8 @@ type taskView struct {
 	ID           int64    `json:"id"`
 	Title        string   `json:"title"`
 	Done         bool     `json:"done"`
+	Deleted      bool     `json:"deleted,omitempty"`
+	DeletedAt    string   `json:"deleted_at,omitempty"`
 	Desc         string   `json:"desc,omitempty"`
 	HasDesc      bool     `json:"has_desc,omitempty"`
 	Project      string   `json:"project,omitempty"`
@@ -229,6 +242,9 @@ func view(t task.Task, now time.Time, full bool) taskView {
 	if t.DoneAt != nil {
 		v.DoneAt = t.DoneAt.Format(time.RFC3339)
 	}
+	if t.Deleted() {
+		v.Deleted, v.DeletedAt = true, t.DeletedAt.Format(time.RFC3339)
+	}
 	return v
 }
 
@@ -250,6 +266,7 @@ func (s *Server) listTasks(raw json.RawMessage) (string, error) {
 		Search      string   `json:"search"`
 		IncludeDone bool     `json:"include_done"`
 		OnlyDone    bool     `json:"only_done"`
+		Deleted     bool     `json:"deleted"`
 		Sort        string   `json:"sort"`
 		Reverse     bool     `json:"reverse"`
 	}
@@ -260,7 +277,7 @@ func (s *Server) listTasks(raw json.RawMessage) (string, error) {
 	f := task.Filter{
 		Project: a.Project, Tags: a.Tags, Untagged: a.Untagged,
 		Search: a.Search, IncludeDone: a.IncludeDone, OnlyDone: a.OnlyDone,
-		Reverse: a.Reverse,
+		Reverse: a.Reverse, OnlyDeleted: a.Deleted,
 	}
 	var err error
 	if f.DueRange, f.DueOn, err = task.ParseDueFilter(a.Due, now); err != nil {
@@ -431,6 +448,33 @@ func (s *Server) setDone(raw json.RawMessage, done bool) (string, error) {
 }
 
 func (s *Server) deleteTask(raw json.RawMessage) (string, error) {
+	var a struct {
+		ID    int64 `json:"id"`
+		Force bool  `json:"force"`
+	}
+	if err := unmarshalArgs(raw, &a); err != nil {
+		return "", err
+	}
+	if a.ID <= 0 {
+		return "", fmt.Errorf("id must be a positive number, got %d", a.ID)
+	}
+	t, err := s.Store.Get(a.ID)
+	if err != nil {
+		return "", fmt.Errorf("#%d: %w", a.ID, err)
+	}
+	if a.Force {
+		if err := s.Store.Delete(a.ID); err != nil {
+			return "", fmt.Errorf("#%d: %w", a.ID, err)
+		}
+		return fmt.Sprintf("destroyed #%d: %s", a.ID, t.Title), nil
+	}
+	if err := s.Store.SetDeleted(a.ID, true, s.Now()); err != nil {
+		return "", fmt.Errorf("#%d: %w", a.ID, err)
+	}
+	return fmt.Sprintf("deleted #%d: %s (restore_task brings it back)", a.ID, t.Title), nil
+}
+
+func (s *Server) restoreTask(raw json.RawMessage) (string, error) {
 	id, err := withID(raw)
 	if err != nil {
 		return "", err
@@ -439,8 +483,11 @@ func (s *Server) deleteTask(raw json.RawMessage) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("#%d: %w", id, err)
 	}
-	if err := s.Store.Delete(id); err != nil {
+	if !t.Deleted() {
+		return "", fmt.Errorf("#%d is not deleted", id)
+	}
+	if err := s.Store.SetDeleted(id, false, s.Now()); err != nil {
 		return "", fmt.Errorf("#%d: %w", id, err)
 	}
-	return fmt.Sprintf("deleted #%d: %s", id, t.Title), nil
+	return fmt.Sprintf("restored #%d: %s", id, t.Title), nil
 }

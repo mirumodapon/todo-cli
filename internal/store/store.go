@@ -30,10 +30,11 @@ type Store interface {
 	Update(t task.Task) error
 	// Delete removes one task along with its tag links.
 	Delete(id int64) error
+	// SetDeleted soft deletes a task or brings it back. Delete is what destroys
+	// a row; this only takes it out of the lists.
+	SetDeleted(id int64, deleted bool, now time.Time) error
 	// SetDone sets or clears the completed state.
 	SetDone(id int64, done bool, now time.Time) error
-	// Restore reinserts a task under its original t.ID, backing the TUI's undo.
-	Restore(t task.Task) error
 	// Tags lists the tags referenced by at least one task.
 	Tags() ([]string, error)
 	// DataVersion reports a counter that moves when another connection writes.

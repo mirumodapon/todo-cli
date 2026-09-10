@@ -42,6 +42,11 @@ func (a *App) writeDetails(t task.Task) {
 		status = "done " + t.DoneAt.Format(stampLayout)
 	}
 	rows := [][2]string{{"status", status}}
+	// Its own row rather than a clause on the status: being deleted is a
+	// separate fact from being finished, and a task can be both.
+	if t.Deleted() {
+		rows = append(rows, [2]string{"deleted", t.DeletedAt.Format(stampLayout)})
+	}
 	if t.Due != nil {
 		// The full date, not the listing's short form: this view has no columns
 		// to keep narrow, and it is where you come to settle what a date is.

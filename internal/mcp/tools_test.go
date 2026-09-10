@@ -235,8 +235,13 @@ func TestCompleteAndReopen(t *testing.T) {
 func TestDeleteTask(t *testing.T) {
 	s := seeded(t)
 	call(t, s, "delete_task", `{"id":2}`)
-	if _, err := s.Get(2); err == nil {
-		t.Error("delete_task should remove it")
+	// Out of the listings; whether the row survives is the soft delete's test.
+	var open []map[string]any
+	decode(t, call(t, s, "list_tasks", `{}`), &open)
+	for _, m := range open {
+		if m["id"].(float64) == 2 {
+			t.Error("delete_task should remove it from the list")
+		}
 	}
 }
 
@@ -286,4 +291,56 @@ func TestListTasksReverse(t *testing.T) {
 	if forward[0]["id"] != back[len(back)-1]["id"] {
 		t.Errorf("reverse should turn the list around: %v vs %v", forward, back)
 	}
+}
+
+// delete_task puts a task aside; only force destroys it. A model that deletes
+// the wrong task should be recoverable from.
+func TestDeleteIsSoftUnlessForced(t *testing.T) {
+	s := seeded(t)
+	call(t, s, "delete_task", `{"id":2}`)
+	got, err := s.Get(2)
+	if err != nil {
+		t.Fatalf("the task should still be there: %v", err)
+	}
+	if !got.Deleted() {
+		t.Error("and marked deleted")
+	}
+	var open []map[string]any
+	decode(t, call(t, s, "list_tasks", `{}`), &open)
+	for _, m := range open {
+		if m["id"].(float64) == 2 {
+			t.Errorf("a deleted task should be out of the listing: %v", open)
+		}
+	}
+
+	var bin []map[string]any
+	decode(t, call(t, s, "list_tasks", `{"deleted":true}`), &bin)
+	if len(bin) != 1 || bin[0]["id"].(float64) != 2 {
+		t.Errorf("deleted:true should list the bin, got %v", bin)
+	}
+	if bin[0]["deleted"] != true {
+		t.Errorf("and say so: %v", bin[0])
+	}
+
+	call(t, s, "restore_task", `{"id":2}`)
+	if got, _ := s.Get(2); got.Deleted() {
+		t.Error("restore_task should bring it back")
+	}
+
+	call(t, s, "delete_task", `{"id":2,"force":true}`)
+	if _, err := s.Get(2); err == nil {
+		t.Error("force should leave nothing behind")
+	}
+}
+
+func TestRestoreTaskIsListed(t *testing.T) {
+	got := serve(t, `{"jsonrpc":"2.0","id":1,"method":"tools/list"}`)
+	res := got[0]["result"].(map[string]any)
+	tools, _ := res["tools"].([]any)
+	for _, x := range tools {
+		if x.(map[string]any)["name"] == "restore_task" {
+			return
+		}
+	}
+	t.Error("restore_task should be among the tools")
 }

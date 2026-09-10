@@ -1,11 +1,8 @@
 package tui
 
 import (
-	"errors"
 	"strings"
 	"testing"
-
-	"todo.mirumo.net/internal/store"
 )
 
 func TestDeleteThenUndo(t *testing.T) {
@@ -14,8 +11,8 @@ func TestDeleteThenUndo(t *testing.T) {
 
 	m = press(t, m, "d")
 	m = press(t, m, "y")
-	if _, err := s.Get(victim.ID); !errors.Is(err, store.ErrNotFound) {
-		t.Fatalf("d should delete the task, err = %v", err)
+	if got, err := s.Get(victim.ID); err != nil || !got.Deleted() {
+		t.Fatalf("d should delete the task, got %+v, %v", got, err)
 	}
 	if len(m.tasks) != 2 {
 		t.Errorf("after the delete %d remain, want 2", len(m.tasks))
@@ -47,10 +44,10 @@ func TestUndoOnlyKeepsOneLevel(t *testing.T) {
 	m = press(t, m, "y")
 	m = press(t, m, "u")
 
-	if _, err := s.Get(second.ID); err != nil {
-		t.Errorf("the most recent delete should be restored: %v", err)
+	if got, err := s.Get(second.ID); err != nil || got.Deleted() {
+		t.Errorf("the most recent delete should be restored: %+v, %v", got, err)
 	}
-	if _, err := s.Get(first.ID); !errors.Is(err, store.ErrNotFound) {
+	if got, err := s.Get(first.ID); err != nil || !got.Deleted() {
 		t.Error("undo keeps one level; an earlier delete must not come back")
 	}
 	m = press(t, m, "u")

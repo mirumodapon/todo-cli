@@ -59,7 +59,8 @@ task details <id>...            Show tasks in full, description included
 task done <id>...               Mark tasks as done
 task undone <id>...             Mark tasks as not done
 task edit <id> [new title]      Change a task
-task rm <id>...                 Delete tasks
+task rm <id>...                 Delete tasks; -f destroys them
+task restore <id>...            Bring deleted tasks back
 task projects                   Projects with their open counts
 task tags                       Tags that are in use
 task tui                        Open the interactive interface
@@ -78,6 +79,23 @@ task mcp                        Serve the task list over MCP on stdin/stdout
 | `-d`, `--due` | `today`, `tomorrow`, `fri`, `+3d`, `+2w`, `2026-09-01`, each optionally with a time (`today 15:00`). A bare `18:00` means today. |
 | `--pri` | `low`, `med`, `high`, or the marks a listing shows: `!`, `!!`, `!!!`. Quote the marks — most shells treat `!!` as history expansion: `--pri '!!!'`. |
 | `--desc` | The long form of the task, over as many lines as it takes. With no value it opens `$EDITOR`; with one it takes the value. Listings show only the title; `task details` and `enter` in the TUI show it. |
+
+### Deleting
+
+`rm` takes a task out of every listing without destroying it. The row stays, so
+the delete can be taken back — by `task restore <id>`, or by `u` in the
+interface — and `--deleted` is how to see what is waiting there:
+
+```sh
+task rm 3               # out of the lists, still in the database
+task ls --deleted       # what is in the bin
+task restore 3          # back where it was, tags and all
+task rm -f 3            # destroyed; nothing brings this one back
+```
+
+A delete one keystroke away from every other command should be something you
+can take back, and `-f` is where that stops being true. `task details 3` finds a
+deleted task and says so, so you can look before deciding.
 
 `edit` touches only the fields you pass, so an omitted flag and an empty value
 mean different things:
@@ -109,6 +127,7 @@ task ls                            # uncategorized only (the default)
 ```sh
 task ls -a                  # include done tasks
 task ls --done              # only done tasks
+task ls --deleted           # what rm put aside
 task ls -d today            # due today; also week, overdue, or a date
 task ls -t urgent -t home   # tasks carrying every one of these tags
 task ls -s pri              # sort by priority; also id (default) or due
@@ -211,7 +230,7 @@ the one flag `ls` has that `tui` does not — the interface always colours.
 | `a` / `e` | Add / edit |
 | `E` | Edit the whole task in $EDITOR |
 | `d` | Delete (asks first) |
-| `u` | Undo the last delete |
+| `u` | Undo the last delete, or bring back the one under the cursor |
 | `/` | Search titles |
 | `P` / `T` | Filter by project / tag |
 | `A` | Show or hide done tasks |
@@ -359,8 +378,10 @@ instead of a question: the first press says what a second one does, the second
 one goes, and any key in between puts it back. `ctrl+c` works from anywhere,
 while `ctrl+d` is a text key wherever text is being typed, as it is in a shell.
 
-A delete can still be taken back with `u` for as long as the interface is open.
-It restores the task under its original id, tags and all.
+`d` puts a task aside rather than destroying it, so `u` brings it back — and
+unlike an in-memory undo, so does `task restore 3` tomorrow. Opened on the bin
+(`task tui --deleted`), `u` restores whatever the cursor is on, since there is
+no delete of this session to undo.
 
 ## MCP
 
@@ -402,6 +423,9 @@ Once connected, ask in plain language and the client picks the tools:
 
 > **I did the milk one.**
 > → `complete_task`
+
+> **Scrap that one — no, put it back.**
+> → `delete_task`, then `restore_task`: a delete without `force` is recoverable
 
 Dates go in the way they do on the command line — `tomorrow`, `fri`, `+3d`,
 `2026-09-01`, optionally with a time — because both go through the same parser.
@@ -451,7 +475,8 @@ quickest way to see what a build offers.
 | `add_task` | Add a task, returning its id. |
 | `edit_task` | Change a task. Only the fields you pass are touched. |
 | `complete_task`, `reopen_task` | Mark done, or undo that. |
-| `delete_task` | Delete a task, annotated destructive so a client can ask first. |
+| `delete_task` | Put a task aside, or destroy it with `force`. Annotated destructive so a client can ask first. |
+| `restore_task` | Bring back a task deleted without `force`. |
 
 Two resources — `task://projects` and `task://tags` — carry the project list
 with open counts, and the tags in use. Two prompts write the current tasks into
